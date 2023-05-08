@@ -10,13 +10,13 @@
 #pragma once
 
 #include "util/base.h"
-#include "util/record.h"
+#include "util/Record.h"
 #include "io/PagedFile.h"
 
 namespace de {
 struct Cursor {
-    record_t *ptr;
-    const record_t *end;
+    Record *ptr;
+    const Record *end;
     size_t cur_rec_idx;
     size_t rec_cnt;
 
@@ -45,8 +45,8 @@ inline static bool advance_cursor(Cursor *cur, PagedFileIterator *iter = nullptr
 
     if (cur->ptr >= cur->end) {
         if (iter && iter->next()) {
-            cur->ptr = (record_t*)iter->get_item();
-            cur->end = cur->ptr + (PAGE_SIZE / sizeof(record_t));
+            cur->ptr = (Record*)iter->get_item();
+            cur->end = cur->ptr + (PAGE_SIZE / sizeof(Record));
             return true;
         }
 
@@ -63,12 +63,12 @@ inline static bool advance_cursor(Cursor *cur, PagedFileIterator *iter = nullptr
  *   largest is processed.
  */
 inline static Cursor *get_next(std::vector<Cursor> &cursors, Cursor *current=&g_empty_cursor) {
-    const record_t *min_rec = nullptr;
+    const Record *min_rec = nullptr;
     Cursor *result = &g_empty_cursor;
     for (size_t i=0; i< cursors.size(); i++) {
         if (cursors[i] == g_empty_cursor) continue;
 
-        const record_t *rec = (&cursors[i] == current) ? cursors[i].ptr + 1 : cursors[i].ptr;
+        const Record *rec = (&cursors[i] == current) ? cursors[i].ptr + 1 : cursors[i].ptr;
         if (rec >= cursors[i].end) continue;
 
         if (min_rec == nullptr) {

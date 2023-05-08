@@ -20,7 +20,7 @@ typedef uint64_t key_t;
 typedef uint32_t value_t;
 typedef uint64_t weight_t;
 
-struct record_t {
+struct Record {
     key_t key;
     value_t value;
     hdr_t header;
@@ -42,11 +42,11 @@ struct record_t {
         return header & 1;
     }
 
-    inline int match(const record_t* other) const {
+    inline int match(const Record* other) const {
         return key == other->key && value == other->value;
     }
 
-    inline bool operator<(const record_t& other) const {
+    inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);
     }
 
@@ -55,9 +55,9 @@ struct record_t {
     }
 };
 
-static_assert(sizeof(record_t) == 24, "Record is not 24 bytes long.");
+static_assert(sizeof(Record) == 24, "Record is not 24 bytes long.");
 
-static bool memtable_record_cmp(const record_t& a, const record_t& b) {
+static bool memtable_record_cmp(const Record& a, const Record& b) {
     return (a.key < b.key) || (a.key == b.key && a.value < b.value)
         || (a.key == b.key && a.value == b.value && a.header < b.header);
 }
