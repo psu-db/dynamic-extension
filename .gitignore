@@ -1,0 +1,9 @@
+.ccls
+.ccls-cache
+build/*
+lib/*
+bin/*
+
+tests/data
+
+.vscode

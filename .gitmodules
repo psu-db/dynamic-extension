@@ -1,0 +1,3 @@
+[submodule "external/PLEX"]
+	path = external/PLEX
+	url = git@github.com:stoianmihail/PLEX.git
