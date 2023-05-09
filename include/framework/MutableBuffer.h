@@ -95,7 +95,7 @@ public:
     Record<K, V, W>* sorted_output() {
         TIMER_INIT();
         TIMER_START();
-        std::sort(m_data, m_data + m_reccnt.load(), memtable_record_cmp);
+        std::sort(m_data, m_data + m_reccnt.load(), memtable_record_cmp<K,V,W>);
         TIMER_STOP();
 
         #ifdef INSTRUMENT_MERGING
