@@ -1,3 +1,14 @@
+/*
+ * tests/pagedfile_Tests.cpp
+ *
+ * Unit tests for PagedFile
+ *
+ * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ *                    Dong Xie <dongx@psu.edu>
+ *
+ * All rights reserved. Published under the Modified BSD License.
+ *
+ */
 #include <string>
 
 #include "testing.h"

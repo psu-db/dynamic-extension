@@ -1,3 +1,14 @@
+/*
+ * tests/internal_level_tests.cpp
+ *
+ * Unit tests for InternalLevel
+ *
+ * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ *                    Dong Xie <dongx@psu.edu>
+ *
+ * All rights reserved. Published under the Modified BSD License.
+ *
+ */
 #include "shard/WIRS.h"
 #include "framework/InternalLevel.h"
 #include "util/bf_config.h"

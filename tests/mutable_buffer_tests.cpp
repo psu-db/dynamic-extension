@@ -1,3 +1,14 @@
+/*
+ * tests/mutable_buffer_tests.cpp
+ *
+ * Unit tests for MutableBuffer
+ *
+ * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ *                    Dong Xie <dongx@psu.edu>
+ *
+ * All rights reserved. Published under the Modified BSD License.
+ *
+ */
 #include <string>
 #include <thread>
 #include <gsl/gsl_rng.h>
