@@ -14,9 +14,9 @@
 #include "ds/BitArray.h"
 #include "util/hash.h"
 #include "util/base.h"
-#include "util/record.h"
+#include "util/Record.h"
 
-namespace lsm {
+namespace de {
 
 class BloomFilter {
 public:

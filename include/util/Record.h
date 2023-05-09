@@ -15,18 +15,14 @@
 
 namespace de {
 
-typedef uint32_t hdr_t;
-typedef uint64_t key_t;
-typedef uint32_t value_t;
-typedef uint64_t weight_t;
-
+template <typename K, typename V, typename W=void>
 struct Record {
-    key_t key;
-    value_t value;
-    hdr_t header;
-    weight_t weight;
+    K key;
+    V value;
+    typename std::conditional<!std::is_same<W, void>::value, W, std::false_type>::type weight;
+    uint32_t header;
 
-    inline bool match(key_t k, value_t v, bool is_tombstone) const {
+    inline bool match(K k, V v, bool is_tombstone) const {
         return (key == k) && (value == v) && ((header & 1) == is_tombstone);
     }
 
@@ -50,14 +46,14 @@ struct Record {
         return key < other.key || (key == other.key && value < other.value);
     }
 
-    inline bool lt(const key_t& k, const value_t& v) const {
+    inline bool lt(const K& k, const V& v) const {
         return key < k || (key == k && value < v);
     }
 };
 
-static_assert(sizeof(Record) == 24, "Record is not 24 bytes long.");
 
-static bool memtable_record_cmp(const Record& a, const Record& b) {
+template <typename K, typename V, typename W=void>
+static bool memtable_record_cmp(const Record<K, V, W>& a, const Record<K, V, W>& b) {
     return (a.key < b.key) || (a.key == b.key && a.value < b.value)
         || (a.key == b.key && a.value == b.value && a.header < b.header);
 }

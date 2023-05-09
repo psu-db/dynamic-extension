@@ -1,5 +1,5 @@
 /*
- * include/ds/PriorityQueue.h
+ * include/ds/BloomFilter.h
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -12,16 +12,18 @@
 #include <vector>
 #include <cassert>
 
-#include "util/record.h"
+#include "util/Record.h"
 
-namespace lsm {
+namespace de {
 
+template <typename K, typename V, typename W=void>
 struct queue_record {
-    const char *data;
+    const Record<K, V, W> *data;
     size_t version;
 };
 
 
+template <typename K, typename V, typename W=void>
 class PriorityQueue {
 public:
     PriorityQueue(size_t size) : data(size), tail(0) {}
@@ -52,7 +54,7 @@ public:
         }
     }
 
-    void push(const char* record, size_t version=0) {
+    void push(const Record<K, V, W>* record, size_t version=0) {
         assert(tail != this->data.size());
 
         size_t new_idx = this->tail++;
@@ -65,7 +67,7 @@ public:
     }
 
 
-    queue_record peek(size_t depth=0) {
+    queue_record<K, V, W> peek(size_t depth=0) {
         ssize_t idx = 0;
         size_t cur_depth = 0;
 
@@ -79,7 +81,7 @@ public:
     }
 
 private:
-    std::vector<queue_record> data;
+    std::vector<queue_record<K, V, W>> data;
     size_t tail;
 
     /*
@@ -122,13 +124,11 @@ private:
     }
 
     inline bool heap_cmp(size_t a, size_t b) {
-        auto cmp = record_cmp(this->data[a].data, this->data[b].data);
-        if (cmp == 0) {
-            if (this->data[a].version != this->data[b].version)
-                return this->data[a].version < this->data[b].version;
-            else return is_tombstone(this->data[a].data) && is_tombstone(this->data[b].data);
-        }
-        return cmp == -1;
+        if (!data[a].data->match(data[b].data)) {
+            return *(data[a].data) < *(data[b].data);
+        } else if (data[a].version != data[b].version)
+            return data[a].version < data[b].version;
+        else return data[a].data->is_tombstone() && data[b].data->is_tombstone();
     }
 
 };
