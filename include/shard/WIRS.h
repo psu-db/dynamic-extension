@@ -22,13 +22,8 @@
 
 namespace de {
 
-struct sample_state;
-template <typename K, typename V, typename W>
-bool check_deleted(Record<K, V, W>* record, sample_state *state);
 extern thread_local size_t bounds_rejections;
 extern thread_local size_t tombstone_rejections;
-
-
 
 thread_local size_t m_wirsrun_cancelations = 0;
 
@@ -211,8 +206,6 @@ public:
     // Build Alias across the decomposed nodes.
     WIRSState* get_sample_run_state(const K& lower_key, const K& upper_key) {
         WIRSState* res = new WIRSState();
-        //std::vector<struct wirs_node*> nodes;
-        //double tot_weight = decompose_node(m_root, lower_key, upper_key, res->nodes);
 
         // Simulate a stack to unfold recursion.        
         double tot_weight = 0.0;
@@ -242,10 +235,15 @@ public:
         return res;
     }
 
+    static void delete_state(void *state) {
+        auto s = (WIRSState *) state;
+        delete s;
+    }
+
     // returns the number of records sampled
     // NOTE: This operation returns records strictly between the lower and upper bounds, not
     // including them.
-    size_t get_samples(WIRSState* run_state, Record<K, V, W> *sample_set, const K& lower_key, const K& upper_key, size_t sample_sz, sample_state *state, gsl_rng *rng) {
+    size_t get_samples(WIRSState* run_state, std::vector<Record<K, V, W>> &result_set, const K& lower_key, const K& upper_key, size_t sample_sz, gsl_rng *rng) {
         if (sample_sz == 0) {
             return 0;
         }
@@ -263,18 +261,14 @@ public:
             size_t rec_offset = fat_point * m_group_size + m_alias[fat_point]->get(rng);
             auto record = m_data + rec_offset;
 
+            // bounds rejection
             if (lower_key > record->key || upper_key < record->key) {
-                // bounds rejection
                 bounds_rejections++;
                 continue;
-            } else if (record->is_tombstone() || (state && check_deleted(record, state))) {
-                // tombstone/delete rejection
-                tombstone_rejections++;
-                continue;
-            }
+            } 
 
-            sample_set[cnt++] = *record;
-            
+            result_set.emplace_back(*record);
+            cnt++;
         } while (attempts < sample_sz);
 
         return cnt;
