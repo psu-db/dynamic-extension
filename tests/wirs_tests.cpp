@@ -29,12 +29,12 @@ START_TEST(t_mbuffer_init)
     }
 
     BloomFilter* bf = new BloomFilter(BF_FPR, mem_table->get_tombstone_count(), BF_HASH_FUNCS, g_rng);
-    Shard* run = new Shard(mem_table, bf, false);
-    ck_assert_uint_eq(run->get_record_count(), 512);
+    Shard* shard = new Shard(mem_table, bf, false);
+    ck_assert_uint_eq(shard->get_record_count(), 512);
 
     delete bf;
     delete mem_table;
-    delete run;
+    delete shard;
 }
 
 START_TEST(t_wirs_init)
@@ -47,35 +47,35 @@ START_TEST(t_wirs_init)
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    auto run1 = new Shard(mbuffer1, bf1, false);
-    auto run2 = new Shard(mbuffer2, bf2, false);
-    auto run3 = new Shard(mbuffer3, bf3, false);
+    auto shard1 = new Shard(mbuffer1, bf1, false);
+    auto shard2 = new Shard(mbuffer2, bf2, false);
+    auto shard3 = new Shard(mbuffer3, bf3, false);
 
     BloomFilter* bf4 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    Shard* runs[3] = {run1, run2, run3};
-    auto run4 = new Shard(runs, 3, bf4, false);
+    Shard* shards[3] = {shard1, shard2, shard3};
+    auto shard4 = new Shard(shards, 3, bf4, false);
 
-    ck_assert_int_eq(run4->get_record_count(), n * 3);
-    ck_assert_int_eq(run4->get_tombstone_count(), 0);
+    ck_assert_int_eq(shard4->get_record_count(), n * 3);
+    ck_assert_int_eq(shard4->get_tombstone_count(), 0);
 
     size_t total_cnt = 0;
-    size_t run1_idx = 0;
-    size_t run2_idx = 0;
-    size_t run3_idx = 0;
+    size_t shard1_idx = 0;
+    size_t shard2_idx = 0;
+    size_t shard3_idx = 0;
 
-    for (size_t i = 0; i < run4->get_record_count(); ++i) {
-        auto rec1 = run1->get_record_at(run1_idx);
-        auto rec2 = run2->get_record_at(run2_idx);
-        auto rec3 = run3->get_record_at(run3_idx);
+    for (size_t i = 0; i < shard4->get_record_count(); ++i) {
+        auto rec1 = shard1->get_record_at(shard1_idx);
+        auto rec2 = shard2->get_record_at(shard2_idx);
+        auto rec3 = shard3->get_record_at(shard3_idx);
 
-        auto cur_rec = run4->get_record_at(i);
+        auto cur_rec = shard4->get_record_at(i);
 
-        if (run1_idx < n && cur_rec->match(rec1)) {
-            ++run1_idx;
-        } else if (run2_idx < n && cur_rec->match(rec2)) {
-            ++run2_idx;
-        } else if (run3_idx < n && cur_rec->match(rec3)) {
-            ++run3_idx;
+        if (shard1_idx < n && cur_rec->match(rec1)) {
+            ++shard1_idx;
+        } else if (shard2_idx < n && cur_rec->match(rec2)) {
+            ++shard2_idx;
+        } else if (shard3_idx < n && cur_rec->match(rec3)) {
+            ++shard3_idx;
         } else {
            assert(false);
         }
@@ -86,13 +86,13 @@ START_TEST(t_wirs_init)
     delete mbuffer3;
 
     delete bf1;
-    delete run1;
+    delete shard1;
     delete bf2;
-    delete run2;
+    delete shard2;
     delete bf3;
-    delete run3;
+    delete shard3;
     delete bf4;
-    delete run4;
+    delete shard4;
 }
 
 START_TEST(t_get_lower_bound_index)
@@ -102,22 +102,22 @@ START_TEST(t_get_lower_bound_index)
 
     ck_assert_ptr_nonnull(mbuffer);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    Shard* run = new Shard(mbuffer, bf, false);
+    Shard* shard = new Shard(mbuffer, bf, false);
 
-    ck_assert_int_eq(run->get_record_count(), n);
-    ck_assert_int_eq(run->get_tombstone_count(), 0);
+    ck_assert_int_eq(shard->get_record_count(), n);
+    ck_assert_int_eq(shard->get_tombstone_count(), 0);
 
     auto tbl_records = mbuffer->sorted_output();
     for (size_t i=0; i<n; i++) {
         const WeightedRec *tbl_rec = mbuffer->get_record_at(i);
-        auto pos = run->get_lower_bound(tbl_rec->key);
-        ck_assert_int_eq(run->get_record_at(pos)->key, tbl_rec->key);
+        auto pos = shard->get_lower_bound(tbl_rec->key);
+        ck_assert_int_eq(shard->get_record_at(pos)->key, tbl_rec->key);
         ck_assert_int_le(pos, i);
     }
 
     delete mbuffer;
     delete bf;
-    delete run;
+    delete shard;
 }
 
 
@@ -130,17 +130,17 @@ START_TEST(t_full_cancelation)
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
 
-    Shard* run = new Shard(buffer, bf1, false);
-    Shard* run_ts = new Shard(buffer_ts, bf2, false);
+    Shard* shard = new Shard(buffer, bf1, false);
+    Shard* shard_ts = new Shard(buffer_ts, bf2, false);
 
-    ck_assert_int_eq(run->get_record_count(), n);
-    ck_assert_int_eq(run->get_tombstone_count(), 0);
-    ck_assert_int_eq(run_ts->get_record_count(), n);
-    ck_assert_int_eq(run_ts->get_tombstone_count(), n);
+    ck_assert_int_eq(shard->get_record_count(), n);
+    ck_assert_int_eq(shard->get_tombstone_count(), 0);
+    ck_assert_int_eq(shard_ts->get_record_count(), n);
+    ck_assert_int_eq(shard_ts->get_tombstone_count(), n);
 
-    Shard* runs[] = {run, run_ts};
+    Shard* shards[] = {shard, shard_ts};
 
-    Shard* merged = new Shard(runs, 2, bf3, false);
+    Shard* merged = new Shard(shards, 2, bf3, false);
 
     ck_assert_int_eq(merged->get_tombstone_count(), 0);
     ck_assert_int_eq(merged->get_record_count(), 0);
@@ -150,8 +150,8 @@ START_TEST(t_full_cancelation)
     delete bf1;
     delete bf2;
     delete bf3;
-    delete run;
-    delete run_ts;
+    delete shard;
+    delete shard_ts;
     delete merged;
 }
 END_TEST
@@ -163,7 +163,7 @@ START_TEST(t_weighted_sampling)
     auto buffer = create_weighted_mbuffer(n);
 
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    Shard* run = new Shard(buffer, bf, false);
+    Shard* shard = new Shard(buffer, bf, false);
 
     uint64_t lower_key = 0;
     uint64_t upper_key = 5;
@@ -174,9 +174,9 @@ START_TEST(t_weighted_sampling)
     results.reserve(k);
     size_t cnt[3] = {0};
     for (size_t i=0; i<1000; i++) {
-        auto state = run->get_sample_run_state(lower_key, upper_key);
+        auto state = shard->get_sample_shard_state(lower_key, upper_key);
         
-        run->get_samples(state, results, lower_key, upper_key, k, g_rng);
+        shard->get_samples(state, results, lower_key, upper_key, k, g_rng);
 
         for (size_t j=0; j<k; j++) {
             cnt[results[j].key - 1]++;
@@ -189,7 +189,7 @@ START_TEST(t_weighted_sampling)
     ck_assert(roughly_equal(cnt[1] / 1000, (double) k/4.0, k, .05));
     ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
 
-    delete run;
+    delete shard;
     delete bf;
     delete buffer;
 }
@@ -223,14 +223,14 @@ START_TEST(t_tombstone_check)
     }
 
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    auto run = new Shard(buffer, bf1, false);
+    auto shard = new Shard(buffer, bf1, false);
 
     for (size_t i=0; i<tombstones.size(); i++) {
-        ck_assert(run->check_tombstone(tombstones[i].first, tombstones[i].second));
-        ck_assert_int_eq(run->get_rejection_count(), i+1);
+        ck_assert(shard->check_tombstone(tombstones[i].first, tombstones[i].second));
+        ck_assert_int_eq(shard->get_rejection_count(), i+1);
     }
 
-    delete run;
+    delete shard;
     delete buffer;
     delete bf1;
 }
@@ -271,15 +271,15 @@ Suite *unit_testing()
 }
 
 
-int run_unit_tests()
+int shard_unit_tests()
 {
     int failed = 0;
     Suite *unit = unit_testing();
-    SRunner *unit_runner = srunner_create(unit);
+    SRunner *unit_shardner = srunner_create(unit);
 
-    srunner_run_all(unit_runner, CK_NORMAL);
-    failed = srunner_ntests_failed(unit_runner);
-    srunner_free(unit_runner);
+    srunner_run_all(unit_shardner, CK_NORMAL);
+    failed = srunner_ntests_failed(unit_shardner);
+    srunner_free(unit_shardner);
 
     return failed;
 }
@@ -287,7 +287,7 @@ int run_unit_tests()
 
 int main() 
 {
-    int unit_failed = run_unit_tests();
+    int unit_failed = shard_unit_tests();
 
     return (unit_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

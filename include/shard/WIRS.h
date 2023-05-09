@@ -22,7 +22,7 @@
 
 namespace de {
 
-thread_local size_t m_wirsrun_cancelations = 0;
+thread_local size_t wirs_cancelations = 0;
 
 template <typename K, typename V, typename W>
 class WIRS {
@@ -63,7 +63,7 @@ public:
                 if (!(base->is_tombstone()) && (base + 1) < stop) {
                     if (base->match(base + 1) && (base + 1)->is_tombstone()) {
                         base += 2;
-                        m_wirsrun_cancelations++;
+                        wirs_cancelations++;
                         continue;
                     }
                 }
@@ -89,7 +89,7 @@ public:
         }
     }
 
-    WIRS(WIRS** runs, size_t len, BloomFilter* bf, bool tagging)
+    WIRS(WIRS** shards, size_t len, BloomFilter* bf, bool tagging)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_total_weight(0), m_rejection_cnt(0), m_ts_check_cnt(0), 
       m_tagging(tagging), m_root(nullptr) {
         std::vector<Cursor<K,V,W>> cursors;
@@ -100,10 +100,10 @@ public:
         size_t attemp_reccnt = 0;
         
         for (size_t i = 0; i < len; ++i) {
-            if (runs[i]) {
-                auto base = runs[i]->sorted_output();
-                cursors.emplace_back(Cursor{base, base + runs[i]->get_record_count(), 0, runs[i]->get_record_count()});
-                attemp_reccnt += runs[i]->get_record_count();
+            if (shards[i]) {
+                auto base = shards[i]->sorted_output();
+                cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
+                attemp_reccnt += shards[i]->get_record_count();
                 pq.push(cursors[i].ptr, i);
             } else {
                 cursors.emplace_back(Cursor<K,V,W>{nullptr, nullptr, 0, 0});
@@ -200,7 +200,7 @@ public:
 
     // low - high -> decompose to a set of nodes.
     // Build Alias across the decomposed nodes.
-    WIRSState* get_sample_run_state(const K& lower_key, const K& upper_key) {
+    WIRSState* get_sample_shard_state(const K& lower_key, const K& upper_key) {
         WIRSState* res = new WIRSState();
 
         // Simulate a stack to unfold recursion.        
@@ -238,7 +238,8 @@ public:
     // returns the number of records sampled
     // NOTE: This operation returns records strictly between the lower and upper bounds, not
     // including them.
-    size_t get_samples(WIRSState* run_state, std::vector<Record<K, V, W>> &result_set, const K& lower_key, const K& upper_key, size_t sample_sz, gsl_rng *rng) {
+    size_t get_samples(void* shard_state, std::vector<Record<K, V, W>> &result_set, const K& lower_key, const K& upper_key, size_t sample_sz, gsl_rng *rng) {
+        WIRSState *state = (WIRSState *) shard_state;
         if (sample_sz == 0) {
             return 0;
         }
@@ -249,7 +250,7 @@ public:
         do {
             ++attempts;
             // first level....
-            auto node = run_state->nodes[run_state->top_level_alias->get(rng)];
+            auto node = state->nodes[state->top_level_alias->get(rng)];
             // second level...
             auto fat_point = node->low + node->alias->get(rng);
             // third level...

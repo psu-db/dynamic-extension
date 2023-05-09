@@ -3,7 +3,7 @@
 #include <atomic>
 #include <numeric>
 #include <cstdio>
-#include<vector>
+#include <vector>
 
 #include "framework/MutableBuffer.h"
 #include "framework/InternalLevel.h"
@@ -42,7 +42,7 @@ static constexpr bool LSM_REJ_SAMPLE = false;
 // True for leveling, false for tiering
 static constexpr bool LSM_LEVELING = false;
 
-static constexpr bool DELETE_TAGGING = true;
+static constexpr bool DELETE_TAGGING = false;
 
 // TODO: Replace the constexpr bools above
 // with template parameters based on these
@@ -107,7 +107,7 @@ public:
     int append(const K& key, const V& val, W weight, bool tombstone, gsl_rng *rng) {
         // NOTE: single-threaded implementation only
         MutableBuffer<K,V,W> *buffer;
-        while (!(buffer = buffer()))
+        while (!(buffer = get_buffer()))
             ;
         
         if (buffer->is_full()) {
@@ -138,8 +138,8 @@ public:
         shards.push_back({{-1, -1}, nullptr});
         states.push_back(nullptr);
 
-        std::vector<double> shard_weights;
-        shard_weights.push_back(buffer_weight);
+        std::vector<W> shard_weights;
+        shard_weights.push_back((double) buffer_weight);
 
         for (auto &level : m_levels) {
             level->get_shard_weights(shard_weights, shards, states, lower_key, upper_key);
@@ -153,10 +153,13 @@ public:
         }
 
         double tot_weight = std::accumulate(shard_weights.begin(), shard_weights.end(), 0);
-        for (auto& w: shard_weights) w /= tot_weight;
+        std::vector<double> normalized_weights(shard_weights.size());
+        for (size_t i=0; i<shard_weights.size(); i++) {
+            normalized_weights[i] = ((double) shard_weights[i]) / tot_weight;
+        }
 
         // Construct alias structure
-        auto alias = Alias(shard_weights);
+        auto alias = Alias(normalized_weights);
 
         std::vector<size_t> shard_samples(shard_weights.size(), 0);
 
@@ -214,13 +217,13 @@ public:
 
                 shards[i].second->get_samples(states[i], results, lower_key, upper_key, shard_samples[i], rng);
 
-                for (size_t i=0; i<results.size(); i++) {
-                    if (results[i]->is_tombstone() || is_deleted(results[i], shards[i].first, buffer, buffer_cutoff)) {
+                for (size_t j=0; j<results.size(); j++) {
+                    if (rejection(&results[j], shards[i].first, lower_key, upper_key, buffer, buffer_cutoff)) {
                         rejections++;
                         continue;
                     }
 
-                    sample_set[sample_idx++] = results[i]; 
+                    sample_set[sample_idx++] = results[j]; 
                 }
 
                 shard_samples[i] = 0;
@@ -396,7 +399,7 @@ private:
         } else if (record->key < lower_bound || record->key > upper_bound) {
             bounds_rejections++;
             return true;
-        } else if (is_deleted(record, shid, buffer, buffer, buffer_cutoff)) {
+        } else if (is_deleted(record, shid, buffer, buffer_cutoff)) {
             deletion_rejections++;
             return true;
         }
@@ -431,8 +434,7 @@ private:
         size_t new_shard_cnt = (LSM_LEVELING) ? 1 : m_scale_factor;
         new_idx = m_levels.size();
         if (new_idx > 0) {
-            auto res = m_levels[new_idx - 1]->get_shard(0)->get_tombstone_count();
-            assert(res == 0);
+            assert(m_levels[new_idx - 1]->get_shard(0)->get_tombstone_count() == 0);
         }
         m_levels.emplace_back(new InternalLevel<K,V,W>(new_idx, new_shard_cnt, DELETE_TAGGING));
 
@@ -453,7 +455,7 @@ private:
         merge_buffer_into_l0(buffer, rng);
         enforce_delete_maximum(0, rng);
 
-        buffer->tshardcate();
+        buffer->truncate();
         return;
     }
 
