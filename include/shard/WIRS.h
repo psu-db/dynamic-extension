@@ -22,9 +22,6 @@
 
 namespace de {
 
-extern thread_local size_t bounds_rejections;
-extern thread_local size_t tombstone_rejections;
-
 thread_local size_t m_wirsrun_cancelations = 0;
 
 template <typename K, typename V, typename W>
@@ -95,7 +92,7 @@ public:
     WIRS(WIRS** runs, size_t len, BloomFilter* bf, bool tagging)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_total_weight(0), m_rejection_cnt(0), m_ts_check_cnt(0), 
       m_tagging(tagging), m_root(nullptr) {
-        std::vector<Cursor> cursors;
+        std::vector<Cursor<K,V,W>> cursors;
         cursors.reserve(len);
 
         PriorityQueue<K, V, W> pq(len);
@@ -103,14 +100,13 @@ public:
         size_t attemp_reccnt = 0;
         
         for (size_t i = 0; i < len; ++i) {
-            //assert(runs[i]);
             if (runs[i]) {
                 auto base = runs[i]->sorted_output();
                 cursors.emplace_back(Cursor{base, base + runs[i]->get_record_count(), 0, runs[i]->get_record_count()});
                 attemp_reccnt += runs[i]->get_record_count();
                 pq.push(cursors[i].ptr, i);
             } else {
-                cursors.emplace_back(Cursor{nullptr, nullptr, 0, 0});
+                cursors.emplace_back(Cursor<K,V,W>{nullptr, nullptr, 0, 0});
             }
         }
 
@@ -127,8 +123,8 @@ public:
                 pq.pop(); pq.pop();
                 auto& cursor1 = cursors[now.version];
                 auto& cursor2 = cursors[next.version];
-                if (advance_cursor(cursor1)) pq.push(cursor1.ptr, now.version);
-                if (advance_cursor(cursor2)) pq.push(cursor2.ptr, next.version);
+                if (advance_cursor<K,V,W>(cursor1)) pq.push(cursor1.ptr, now.version);
+                if (advance_cursor<K,V,W>(cursor2)) pq.push(cursor2.ptr, next.version);
             } else {
                 auto& cursor = cursors[now.version];
                 if (!m_tagging || !cursor.ptr->get_delete_status()) {
@@ -141,7 +137,7 @@ public:
                 }
                 pq.pop();
                 
-                if (advance_cursor(cursor)) pq.push(cursor.ptr, now.version);
+                if (advance_cursor<K,V,W>(cursor)) pq.push(cursor.ptr, now.version);
             }
         }
 
@@ -224,7 +220,6 @@ public:
             }
         }
         
-        //assert(tot_weight > 0.0);
         std::vector<double> weights;
         for (const auto& node: res->nodes) {
             weights.emplace_back(node->weight / tot_weight);
@@ -263,7 +258,6 @@ public:
 
             // bounds rejection
             if (lower_key > record->key || upper_key < record->key) {
-                bounds_rejections++;
                 continue;
             } 
 
