@@ -14,7 +14,7 @@
 
 #include "util/base.h"
 
-namespace lsm {
+namespace de {
 
 class BitArray {
 public:
