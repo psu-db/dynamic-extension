@@ -51,9 +51,9 @@ START_TEST(t_mbuffer_init)
 START_TEST(t_wirs_init)
 {
     size_t n = 512;
-    auto mbuffer1 = create_test_mbuffer(n);
-    auto mbuffer2 = create_test_mbuffer(n);
-    auto mbuffer3 = create_test_mbuffer(n);
+    auto mbuffer1 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(n);
+    auto mbuffer2 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(n);
+    auto mbuffer3 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(n);
 
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -109,7 +109,7 @@ START_TEST(t_wirs_init)
 START_TEST(t_get_lower_bound_index)
 {
     size_t n = 10000;
-    auto mbuffer = create_double_seq_mbuffer(n);
+    auto mbuffer = create_double_seq_mbuffer<uint64_t, uint32_t, uint64_t>(n);
 
     ck_assert_ptr_nonnull(mbuffer);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -135,8 +135,8 @@ START_TEST(t_get_lower_bound_index)
 START_TEST(t_full_cancelation)
 {
     size_t n = 100;
-    auto buffer = create_double_seq_mbuffer(n, false);
-    auto buffer_ts = create_double_seq_mbuffer(n, true);
+    auto buffer = create_double_seq_mbuffer<uint64_t, uint32_t, uint64_t>(n, false);
+    auto buffer_ts = create_double_seq_mbuffer<uint64_t, uint32_t, uint64_t>(n, true);
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -171,7 +171,7 @@ END_TEST
 START_TEST(t_weighted_sampling)
 {
     size_t n=1000;
-    auto buffer = create_weighted_mbuffer(n);
+    auto buffer = create_weighted_mbuffer<uint64_t, uint32_t, uint64_t>(n);
 
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     Shard* shard = new Shard(buffer, bf, false);

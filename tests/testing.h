@@ -72,9 +72,10 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
     return ((double) std::abs(n1 - n2) / (double) mag) < epsilon;
 }
 
-static WeightedMBuffer *create_test_mbuffer(size_t cnt)
+template <typename K, typename V, typename W=void>
+static de::MutableBuffer<K,V,W> *create_test_mbuffer(size_t cnt)
 {
-    auto buffer = new WeightedMBuffer(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, cnt, g_rng);
 
     for (size_t i = 0; i < cnt; i++) {
         uint64_t key = rand();
@@ -86,9 +87,10 @@ static WeightedMBuffer *create_test_mbuffer(size_t cnt)
     return buffer;
 }
 
-static WeightedMBuffer *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
+template <typename K, typename V, typename W=void>
+static de::MutableBuffer<K,V,W> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
-    auto buffer = new WeightedMBuffer(cnt, true, ts_cnt, g_rng);
+    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, ts_cnt, g_rng);
 
     std::vector<std::pair<uint64_t, uint32_t>> tombstones;
 
@@ -104,15 +106,17 @@ static WeightedMBuffer *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt
     }
 
     for (size_t i=0; i<ts_cnt; i++) {
-        buffer->append(tombstones[i].first, tombstones[i].second, 1.0, true);
+        buffer->append(tombstones[i].first, tombstones[i].second, true);
     }
 
     return buffer;
 }
 
-static WeightedMBuffer *create_weighted_mbuffer(size_t cnt)
+template <typename K, typename V, typename W=void>
+static de::MutableBuffer<K,V,W> *create_weighted_mbuffer(size_t cnt)
 {
-    auto buffer = new WeightedMBuffer(cnt, true, cnt, g_rng);
+    static_assert(!std::is_same<W, void>::value);
+    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, cnt, g_rng);
     
     // Put in half of the count with weight one.
     uint64_t key = 1;
@@ -135,22 +139,23 @@ static WeightedMBuffer *create_weighted_mbuffer(size_t cnt)
     return buffer;
 }
 
-static WeightedMBuffer *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
+template <typename K, typename V, typename W=void>
+static de::MutableBuffer<K,V,W> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
 {
-    auto buffer = new WeightedMBuffer(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, cnt, g_rng);
 
     for (size_t i = 0; i < cnt / 2; i++) {
         uint64_t key = i;
         uint32_t val = i;
 
-        buffer->append(key, val, 1.0, ts);
+        buffer->append(key, val, ts);
     }
 
     for (size_t i = 0; i < cnt / 2; i++) {
         uint64_t key = i;
         uint32_t val = i + 1;
 
-        buffer->append(key, val, 1.0, ts);
+        buffer->append(key, val, ts);
     }
 
     return buffer;

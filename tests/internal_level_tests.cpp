@@ -20,8 +20,8 @@ using namespace de;
 
 START_TEST(t_memlevel_merge)
 {
-    auto tbl1 = create_test_mbuffer(100);
-    auto tbl2 = create_test_mbuffer(100);
+    auto tbl1 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(100);
+    auto tbl2 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(100);
 
     auto base_level = new WeightedLevel(1, 1, false);
     base_level->append_mem_table(tbl1, g_rng);
@@ -45,8 +45,8 @@ START_TEST(t_memlevel_merge)
 
 
 WeightedLevel *create_test_memlevel(size_t reccnt) {
-    auto tbl1 = create_test_mbuffer(reccnt/2);
-    auto tbl2 = create_test_mbuffer(reccnt/2);
+    auto tbl1 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(reccnt/2);
+    auto tbl2 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(reccnt/2);
 
     auto base_level = new WeightedLevel(1, 2, false);
     base_level->append_mem_table(tbl1, g_rng);

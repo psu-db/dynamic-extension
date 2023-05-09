@@ -14,6 +14,7 @@
 #include <cassert>
 #include <numeric>
 #include <algorithm>
+#include <type_traits>
 
 #include "util/base.h"
 #include "util/bf_config.h"
@@ -46,7 +47,32 @@ public:
         if (m_tombstone_filter) delete m_tombstone_filter;
     }
 
-    int append(const K& key, const V& value, W weight = 1, bool is_tombstone = false) {
+    template <typename W_=W,
+              typename =std::enable_if_t<std::is_same<W_, void>::value>>
+    int append(const K& key, const V& value, bool is_tombstone = false) {
+        static_assert(std::is_same<W_, void>::value);
+        if (is_tombstone && m_tombstonecnt + 1 > m_tombstone_cap) return 0;
+
+        int32_t pos = 0;
+        if ((pos = try_advance_tail()) == -1) return 0;
+
+        m_data[pos].key = key;
+        m_data[pos].value = value;
+        m_data[pos].header = ((pos << 2) | (is_tombstone ? 1 : 0));
+
+        if (is_tombstone) {
+            m_tombstonecnt.fetch_add(1);
+            if (m_tombstone_filter) m_tombstone_filter->insert(key);
+        }
+
+        m_weight.fetch_add(1);
+        return 1;     
+    }
+
+    template <typename W_=W,
+              typename = std::enable_if_t<!std::is_same<W_, void>::value>>
+    int append(const K& key, const V& value, W_ weight=1, bool is_tombstone = false) {
+        static_assert(!std::is_same<W_, void>::value);
         if (is_tombstone && m_tombstonecnt + 1 > m_tombstone_cap) return 0;
 
         int32_t pos = 0;
@@ -81,6 +107,7 @@ public:
 
         return 1;     
     }
+
 
     bool truncate() {
         m_tombstonecnt.store(0);

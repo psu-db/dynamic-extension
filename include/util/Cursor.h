@@ -14,7 +14,7 @@
 #include "io/PagedFile.h"
 
 namespace de {
-template<typename K, typename V, typename W>
+template<typename K, typename V, typename W=void>
 struct Cursor {
     Record<K,V,W> *ptr;
     const Record<K,V,W> *end;
