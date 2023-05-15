@@ -19,24 +19,24 @@
 
 using namespace de;
 
-typedef WIRS<uint64_t, uint32_t, uint64_t> Shard;
+typedef WIRS<WRec> Shard;
 
 START_TEST(t_mbuffer_init)
 {
-    auto mem_table = new WeightedMBuffer(1024, true, 1024, g_rng);
+    auto mem_table = new MutableBuffer<WRec>(1024, true, 1024, g_rng);
     for (uint64_t i = 512; i > 0; i--) {
         uint32_t v = i;
-        mem_table->append(i, v);
+        mem_table->append({i,v, 1});
     }
     
     for (uint64_t i = 1; i <= 256; ++i) {
         uint32_t v = i;
-        mem_table->append(i, v, 1.0, true);
+        mem_table->append({i, v, 1, 1});
     }
 
     for (uint64_t i = 257; i <= 512; ++i) {
         uint32_t v = i + 1;
-        mem_table->append(i, v);
+        mem_table->append({i, v, 1});
     }
 
     BloomFilter* bf = new BloomFilter(BF_FPR, mem_table->get_tombstone_count(), BF_HASH_FUNCS, g_rng);
@@ -51,9 +51,9 @@ START_TEST(t_mbuffer_init)
 START_TEST(t_wirs_init)
 {
     size_t n = 512;
-    auto mbuffer1 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(n);
-    auto mbuffer2 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(n);
-    auto mbuffer3 = create_test_mbuffer<uint64_t, uint32_t, uint64_t>(n);
+    auto mbuffer1 = create_test_mbuffer<WRec>(n);
+    auto mbuffer2 = create_test_mbuffer<WRec>(n);
+    auto mbuffer3 = create_test_mbuffer<WRec>(n);
 
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -81,11 +81,11 @@ START_TEST(t_wirs_init)
 
         auto cur_rec = shard4->get_record_at(i);
 
-        if (shard1_idx < n && cur_rec->match(rec1)) {
+        if (shard1_idx < n && *cur_rec == *rec1) {
             ++shard1_idx;
-        } else if (shard2_idx < n && cur_rec->match(rec2)) {
+        } else if (shard2_idx < n && *cur_rec == *rec2) {
             ++shard2_idx;
-        } else if (shard3_idx < n && cur_rec->match(rec3)) {
+        } else if (shard3_idx < n && *cur_rec == *rec3) {
             ++shard3_idx;
         } else {
            assert(false);
@@ -109,7 +109,7 @@ START_TEST(t_wirs_init)
 START_TEST(t_get_lower_bound_index)
 {
     size_t n = 10000;
-    auto mbuffer = create_double_seq_mbuffer<uint64_t, uint32_t, uint64_t>(n);
+    auto mbuffer = create_double_seq_mbuffer<WRec>(n);
 
     ck_assert_ptr_nonnull(mbuffer);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -120,7 +120,7 @@ START_TEST(t_get_lower_bound_index)
 
     auto tbl_records = mbuffer->sorted_output();
     for (size_t i=0; i<n; i++) {
-        const WeightedRec *tbl_rec = mbuffer->get_record_at(i);
+        const WRec *tbl_rec = mbuffer->get_record_at(i);
         auto pos = shard->get_lower_bound(tbl_rec->key);
         ck_assert_int_eq(shard->get_record_at(pos)->key, tbl_rec->key);
         ck_assert_int_le(pos, i);
@@ -135,8 +135,8 @@ START_TEST(t_get_lower_bound_index)
 START_TEST(t_full_cancelation)
 {
     size_t n = 100;
-    auto buffer = create_double_seq_mbuffer<uint64_t, uint32_t, uint64_t>(n, false);
-    auto buffer_ts = create_double_seq_mbuffer<uint64_t, uint32_t, uint64_t>(n, true);
+    auto buffer = create_double_seq_mbuffer<WRec>(n, false);
+    auto buffer_ts = create_double_seq_mbuffer<WRec>(n, true);
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -171,7 +171,7 @@ END_TEST
 START_TEST(t_weighted_sampling)
 {
     size_t n=1000;
-    auto buffer = create_weighted_mbuffer<uint64_t, uint32_t, uint64_t>(n);
+    auto buffer = create_weighted_mbuffer<WRec>(n);
 
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     Shard* shard = new Shard(buffer, bf, false);
@@ -181,7 +181,7 @@ START_TEST(t_weighted_sampling)
 
     size_t k = 1000;
 
-    std::vector<WeightedRec> results;
+    std::vector<WRec> results;
     results.reserve(k);
     size_t cnt[3] = {0};
     for (size_t i=0; i<1000; i++) {
@@ -193,7 +193,7 @@ START_TEST(t_weighted_sampling)
             cnt[results[j].key - 1]++;
         }
 
-        WIRS<uint64_t, uint32_t, uint64_t>::delete_state(state);
+        WIRS<WRec>::delete_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
@@ -211,14 +211,14 @@ START_TEST(t_tombstone_check)
 {
     size_t cnt = 1024;
     size_t ts_cnt = 256;
-    auto buffer = new WeightedMBuffer(cnt + ts_cnt, true, ts_cnt, g_rng);
+    auto buffer = new MutableBuffer<WRec>(cnt + ts_cnt, true, ts_cnt, g_rng);
 
     std::vector<std::pair<uint64_t, uint32_t>> tombstones;
 
     uint64_t key = 1000;
     uint32_t val = 101;
     for (size_t i = 0; i < cnt; i++) {
-        buffer->append(key, val);
+        buffer->append({key, val, 1});
         key++;
         val++;
     }
@@ -230,14 +230,14 @@ START_TEST(t_tombstone_check)
     }
 
     for (size_t i=0; i<ts_cnt; i++) {
-        buffer->append(tombstones[i].first, tombstones[i].second, 1.0, true);
+        buffer->append({tombstones[i].first, tombstones[i].second, 1, 1});
     }
 
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     auto shard = new Shard(buffer, bf1, false);
 
     for (size_t i=0; i<tombstones.size(); i++) {
-        ck_assert(shard->check_tombstone(tombstones[i].first, tombstones[i].second));
+        ck_assert(shard->check_tombstone({tombstones[i].first, tombstones[i].second}));
         ck_assert_int_eq(shard->get_rejection_count(), i+1);
     }
 

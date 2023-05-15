@@ -10,50 +10,110 @@
 #pragma once
 
 #include <cstring>
+#include <concepts>
 
 #include "util/base.h"
 
 namespace de {
 
-template <typename K, typename V, typename W=void>
+template<typename R>
+concept RecordInterface = requires(R r, R s) {
+    r.key;
+    r.value;
+    r.header;
+
+    {r.is_tombstone()} -> std::convertible_to<bool>;
+    {r.is_deleted()} -> std::convertible_to<bool>;
+    r.set_delete();
+    r.set_tombstone(std::declval<bool>);
+    { r < s } ->std::convertible_to<bool>;
+    { r == s } ->std::convertible_to<bool>;
+    { r.header < s.header } -> std::convertible_to<bool>;
+};
+
+template <typename R>
+concept WeightedRecordInterface = RecordInterface<R> && requires(R r) {
+    {r.weight} -> std::convertible_to<double>;
+};
+
+template <typename K, typename V>
 struct Record {
     K key;
     V value;
-    typename std::conditional<!std::is_same<W, void>::value, W, std::false_type>::type weight;
-    uint32_t header;
+    uint32_t header = 0;
 
-    inline bool match(K k, V v, bool is_tombstone) const {
-        return (key == k) && (value == v) && ((header & 1) == is_tombstone);
-    }
-
-    inline void set_delete_status() {
+    inline void set_delete() {
         header |= 2;
     }
 
-    inline bool get_delete_status() const {
+    inline bool is_deleted() const {
         return header & 2;
+    }
+
+    inline void set_tombstone(bool val=true) {
+        if (val) {
+            header |= val;
+        } else {
+            header &= 0;
+        }
     }
 
     inline bool is_tombstone() const {
         return header & 1;
     }
 
-    inline int match(const Record* other) const {
-        return key == other->key && value == other->value;
-    }
-
     inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);
     }
 
-    inline bool lt(const K& k, const V& v) const {
-        return key < k || (key == k && value < v);
+    inline bool operator==(const Record& other) const {
+        return key == other.key && value == other.value;
+    }
+};
+
+template <typename K, typename V, typename W>
+struct WeightedRecord {
+    K key;
+    V value;
+    W weight = 1;
+    uint32_t header = 0;
+
+    inline void set_delete() {
+        header |= 2;
+    }
+
+    inline bool is_deleted() const {
+        return header & 2;
+    }
+
+    inline void set_tombstone(bool val=true) {
+        if (val) {
+            header |= val;
+        } else {
+            header &= 0;
+        }
+    }
+
+    inline bool is_tombstone() const {
+        return header & 1;
+    }
+
+    inline int match(const WeightedRecord* other) const {
+        return key == other->key && value == other->value;
+    }
+
+    inline bool operator<(const WeightedRecord& other) const {
+        return key < other.key || (key == other.key && value < other.value);
+    }
+
+    inline bool operator==(const WeightedRecord& other) const {
+        return key == other.key && value == other.value;
     }
 };
 
 
-template <typename K, typename V, typename W=void>
-static bool memtable_record_cmp(const Record<K, V, W>& a, const Record<K, V, W>& b) {
+template <RecordInterface R>
+static bool memtable_record_cmp(const R& a, const R& b) {
     return (a.key < b.key) || (a.key == b.key && a.value < b.value)
         || (a.key == b.key && a.value == b.value && a.header < b.header);
 }

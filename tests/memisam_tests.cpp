@@ -8,24 +8,25 @@
 
 using namespace de;
 
-typedef MemISAM<uint64_t, uint32_t> M_ISAM;
+typedef MemISAM<Rec> M_ISAM;
 
 START_TEST(t_memtable_init)
 {
-    auto buffer = new UnweightedMBuffer(1024, true, 512, g_rng);
+    auto buffer = new MutableBuffer<Rec>(1024, true, 512, g_rng);
     for (uint64_t i = 512; i > 0; i--) {
-        uint32_t v = i;
-        buffer->append(i, v);
+        buffer->append(Rec {i, (uint32_t)i});
     }
     
+    Rec r;
+    r.set_tombstone();
     for (uint64_t i = 1; i <= 256; ++i) {
-        uint32_t v = i;
-        buffer->append(i, v, true);
+        r.key = i;
+        r.value = i;
+        buffer->append(r);
     }
 
     for (uint64_t i = 257; i <= 512; ++i) {
-        uint32_t v = i + 1;
-        buffer->append(i, v);
+        buffer->append({i, (uint32_t) i+1});
     }
 
     BloomFilter* bf = new BloomFilter(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS, g_rng);
@@ -40,9 +41,9 @@ START_TEST(t_memtable_init)
 START_TEST(t_inmemrun_init)
 {
     size_t n = 512;
-    auto memtable1 = create_test_mbuffer<uint64_t, uint32_t>(n);
-    auto memtable2 = create_test_mbuffer<uint64_t, uint32_t>(n);
-    auto memtable3 = create_test_mbuffer<uint64_t, uint32_t>(n);
+    auto memtable1 = create_test_mbuffer<Rec>(n);
+    auto memtable2 = create_test_mbuffer<Rec>(n);
+    auto memtable3 = create_test_mbuffer<Rec>(n);
 
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -70,11 +71,11 @@ START_TEST(t_inmemrun_init)
 
         auto cur_rec = run4->get_record_at(i);
 
-        if (run1_idx < n && cur_rec->match(rec1)) {
+        if (run1_idx < n && cur_rec == rec1) {
             ++run1_idx;
-        } else if (run2_idx < n && cur_rec->match(rec2)) {
+        } else if (run2_idx < n && cur_rec == rec2) {
             ++run2_idx;
-        } else if (run3_idx < n && cur_rec->match(rec3)) {
+        } else if (run3_idx < n && cur_rec == rec3) {
             ++run3_idx;
         } else {
            assert(false);
@@ -98,7 +99,7 @@ START_TEST(t_inmemrun_init)
 START_TEST(t_get_lower_bound_index)
 {
     size_t n = 10000;
-    auto memtable = create_double_seq_mbuffer<uint64_t, uint32_t>(n);
+    auto memtable = create_double_seq_mbuffer<Rec>(n);
 
     ck_assert_ptr_nonnull(memtable);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -109,7 +110,7 @@ START_TEST(t_get_lower_bound_index)
 
     auto tbl_records = memtable->sorted_output();
     for (size_t i=0; i<n; i++) {
-        const UnweightedRec *tbl_rec = memtable->get_record_at(i);
+        const auto *tbl_rec = memtable->get_record_at(i);
         auto pos = run->get_lower_bound(tbl_rec->key);
         ck_assert_int_eq(run->get_record_at(pos)->key, tbl_rec->key);
         ck_assert_int_le(pos, i);
@@ -123,7 +124,7 @@ START_TEST(t_get_lower_bound_index)
 START_TEST(t_get_upper_bound_index)
 {
     size_t n = 10000;
-    auto memtable = create_double_seq_mbuffer<uint64_t, uint32_t>(n);
+    auto memtable = create_double_seq_mbuffer<Rec>(n);
 
     ck_assert_ptr_nonnull(memtable);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
@@ -134,7 +135,7 @@ START_TEST(t_get_upper_bound_index)
 
     auto tbl_records = memtable->sorted_output();
     for (size_t i=0; i<n; i++) {
-        const UnweightedRec *tbl_rec = memtable->get_record_at(i);
+        const auto *tbl_rec = memtable->get_record_at(i);
         auto pos = run->get_upper_bound(tbl_rec->key);
         ck_assert(pos == run->get_record_count() ||
                   run->get_record_at(pos)->key > tbl_rec->key);
@@ -150,8 +151,8 @@ START_TEST(t_get_upper_bound_index)
 START_TEST(t_full_cancelation)
 {
     size_t n = 100;
-    auto mtable = create_double_seq_mbuffer<uint64_t, uint32_t>(n, false);
-    auto mtable_ts = create_double_seq_mbuffer<uint64_t, uint32_t>(n, true);
+    auto mtable = create_double_seq_mbuffer<Rec>(n, false);
+    auto mtable_ts = create_double_seq_mbuffer<Rec>(n, true);
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);

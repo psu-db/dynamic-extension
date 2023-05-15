@@ -19,16 +19,19 @@
 
 namespace de {
 
-template <typename K, typename V, typename W=void>
+template <RecordInterface R>
 class InternalLevel {
 
     static const size_t REJECTION_TRIGGER_THRESHOLD = 1024;
+
+    typedef decltype(R::key) K;
+    typedef decltype(R::value) V;
 
 private:
     struct InternalLevelStructure {
         InternalLevelStructure(size_t cap)
         : m_cap(cap)
-        , m_shards(new WIRS<K, V, W>*[cap]{nullptr})
+        , m_shards(new WIRS<R>*[cap]{nullptr})
         , m_bfs(new BloomFilter*[cap]{nullptr}) {} 
 
         ~InternalLevelStructure() {
@@ -42,7 +45,7 @@ private:
         }
 
         size_t m_cap;
-        WIRS<K, V, W>** m_shards;
+        WIRS<R>** m_shards;
         BloomFilter** m_bfs;
     };
 
@@ -74,40 +77,40 @@ public:
             new BloomFilter(BF_FPR,
                             new_level->get_tombstone_count() + base_level->get_tombstone_count(),
                             BF_HASH_FUNCS, rng);
-        WIRS<K, V, W>* shards[2];
+        WIRS<R>* shards[2];
         shards[0] = base_level->m_structure->m_shards[0];
         shards[1] = new_level->m_structure->m_shards[0];
 
-        res->m_structure->m_shards[0] = new WIRS<K, V, W>(shards, 2, res->m_structure->m_bfs[0], tagging);
+        res->m_structure->m_shards[0] = new WIRS<R>(shards, 2, res->m_structure->m_bfs[0], tagging);
         return res;
     }
 
-    void append_mem_table(MutableBuffer<K,V,W>* buffer, const gsl_rng* rng) {
+    void append_mem_table(MutableBuffer<R>* buffer, const gsl_rng* rng) {
         assert(m_shard_cnt < m_structure->m_cap);
         m_structure->m_bfs[m_shard_cnt] = new BloomFilter(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS, rng);
-        m_structure->m_shards[m_shard_cnt] = new WIRS<K, V, W>(buffer, m_structure->m_bfs[m_shard_cnt], m_tagging);
+        m_structure->m_shards[m_shard_cnt] = new WIRS<R>(buffer, m_structure->m_bfs[m_shard_cnt], m_tagging);
         ++m_shard_cnt;
     }
 
     void append_merged_shards(InternalLevel* level, const gsl_rng* rng) {
         assert(m_shard_cnt < m_structure->m_cap);
         m_structure->m_bfs[m_shard_cnt] = new BloomFilter(BF_FPR, level->get_tombstone_count(), BF_HASH_FUNCS, rng);
-        m_structure->m_shards[m_shard_cnt] = new WIRS<K, V, W>(level->m_structure->m_shards, level->m_shard_cnt, m_structure->m_bfs[m_shard_cnt], m_tagging);
+        m_structure->m_shards[m_shard_cnt] = new WIRS<R>(level->m_structure->m_shards, level->m_shard_cnt, m_structure->m_bfs[m_shard_cnt], m_tagging);
         ++m_shard_cnt;
     }
 
-    WIRS<K, V, W> *get_merged_shard() {
-        WIRS<K, V, W> *shards[m_shard_cnt];
+    WIRS<R> *get_merged_shard() {
+        WIRS<R> *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
             shards[i] = (m_structure->m_shards[i]) ? m_structure->m_shards[i] : nullptr;
         }
 
-        return new WIRS<K, V, W>(shards, m_shard_cnt, nullptr, m_tagging);
+        return new WIRS<R>(shards, m_shard_cnt, nullptr, m_tagging);
     }
 
     // Append the sample range in-order.....
-    void get_shard_weights(std::vector<W>& weights, std::vector<std::pair<ShardID, WIRS<K, V, W> *>> &shards, std::vector<void*>& shard_states, const K& low, const K& high) {
+    void get_shard_weights(std::vector<uint64_t>& weights, std::vector<std::pair<ShardID, WIRS<R> *>> &shards, std::vector<void*>& shard_states, const K& low, const K& high) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_structure->m_shards[i]) {
                 auto shard_state = m_structure->m_shards[i]->get_sample_shard_state(low, high);
@@ -116,7 +119,7 @@ public:
                     weights.push_back(shard_state->tot_weight);
                     shard_states.emplace_back(shard_state);
                 } else {
-                    WIRS<K, V, W>::delete_state(shard_state);
+                    WIRS<R>::delete_state(shard_state);
                 }
             }
         }
@@ -130,12 +133,12 @@ public:
         return false;
     }
 
-    bool check_tombstone(size_t shard_stop, const K& key, const V& val) {
+    bool check_tombstone(size_t shard_stop, const R& rec) {
         if (m_shard_cnt == 0) return false;
 
         for (int i = m_shard_cnt - 1; i >= (ssize_t) shard_stop;  i--) {
-            if (m_structure->m_shards[i] && (m_structure->m_bfs[i]->lookup(key))
-                && m_structure->m_shards[i]->check_tombstone(key, val))
+            if (m_structure->m_shards[i] && (m_structure->m_bfs[i]->lookup(rec.key))
+                && m_structure->m_shards[i]->check_tombstone(rec))
                 return true;
         }
         return false;
@@ -151,11 +154,11 @@ public:
         return false;
     }
 
-    const Record<K, V, W>* get_record_at(size_t shard_no, size_t idx) {
+    const R* get_record_at(size_t shard_no, size_t idx) {
         return m_structure->m_shards[shard_no]->get_record_at(idx);
     }
     
-    WIRS<K, V, W>* get_shard(size_t idx) {
+    WIRS<R>* get_shard(size_t idx) {
         return m_structure->m_shards[idx];
     }
 

@@ -14,10 +14,10 @@
 #include "io/PagedFile.h"
 
 namespace de {
-template<typename K, typename V, typename W=void>
+template<typename R>
 struct Cursor {
-    Record<K,V,W> *ptr;
-    const Record<K,V,W> *end;
+    R *ptr;
+    R *end;
     size_t cur_rec_idx;
     size_t rec_cnt;
 
@@ -36,8 +36,8 @@ struct Cursor {
  * be updated to be equal to end, and false will be returned. Iterators will
  * not be closed.
  */
-template<typename K, typename V, typename W>
-inline static bool advance_cursor(Cursor<K,V,W> &cur, PagedFileIterator *iter = nullptr) {
+template<typename R>
+inline static bool advance_cursor(Cursor<R> &cur, PagedFileIterator *iter = nullptr) {
     cur.ptr++;
     cur.cur_rec_idx++;
 
@@ -45,8 +45,8 @@ inline static bool advance_cursor(Cursor<K,V,W> &cur, PagedFileIterator *iter = 
 
     if (cur.ptr >= cur.end) {
         if (iter && iter->next()) {
-            cur.ptr = (Record<K,V,W>*)iter->get_item();
-            cur.end = cur.ptr + (PAGE_SIZE / sizeof(Record<K,V,W>));
+            cur.ptr = (R*)iter->get_item();
+            cur.end = cur.ptr + (PAGE_SIZE / sizeof(R));
             return true;
         }
 
@@ -62,14 +62,14 @@ inline static bool advance_cursor(Cursor<K,V,W> &cur, PagedFileIterator *iter = 
  *   This allows for "peaking" at the next largest element after the current 
  *   largest is processed.
  */
-template <typename K, typename V, typename W>
-inline static Cursor<K,V,W> *get_next(std::vector<Cursor<K,V,W>> &cursors, Cursor<K,V,W> *current=nullptr) {
-    const Record<K,V,W> *min_rec = nullptr;
-    Cursor<K,V,W> *result = nullptr;
+template <typename R>
+inline static Cursor<R> *get_next(std::vector<Cursor<R>> &cursors, Cursor<R> *current=nullptr) {
+    const R *min_rec = nullptr;
+    Cursor<R> *result = nullptr;
     for (size_t i=0; i< cursors.size(); i++) {
-        if (cursors[i] == (Cursor<K,V,W>) {0} ) continue;
+        if (cursors[i] == (Cursor<R>) {0} ) continue;
 
-        const Record<K,V,W> *rec = (&cursors[i] == current) ? cursors[i].ptr + 1 : cursors[i].ptr;
+        const R *rec = (&cursors[i] == current) ? cursors[i].ptr + 1 : cursors[i].ptr;
         if (rec >= cursors[i].end) continue;
 
         if (min_rec == nullptr) {

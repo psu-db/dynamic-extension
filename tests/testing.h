@@ -16,18 +16,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "util/Record.h"
 #include "util/types.h"
 #include "util/base.h"
 #include "framework/MutableBuffer.h"
-#include "framework/InternalLevel.h"
+//#include "framework/InternalLevel.h"
 
-typedef de::Record<uint64_t, uint32_t, uint64_t> WeightedRec;
-typedef de::MutableBuffer<uint64_t, uint32_t, uint64_t> WeightedMBuffer;
-typedef de::InternalLevel<uint64_t, uint32_t, uint64_t> WeightedLevel;
-
-typedef de::Record<uint64_t, uint32_t> UnweightedRec;
-typedef de::MutableBuffer<uint64_t, uint32_t> UnweightedMBuffer;
-typedef de::InternalLevel<uint64_t, uint32_t> UnweightedLevel;
+typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
+typedef de::Record<uint64_t, uint32_t> Rec;
 
 static gsl_rng *g_rng = gsl_rng_alloc(gsl_rng_mt19937);
 
@@ -72,90 +68,101 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
     return ((double) std::abs(n1 - n2) / (double) mag) < epsilon;
 }
 
-template <typename K, typename V, typename W=void>
-static de::MutableBuffer<K,V,W> *create_test_mbuffer(size_t cnt)
+template <de::RecordInterface R>
+static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt, g_rng);
 
+    R rec;
     for (size_t i = 0; i < cnt; i++) {
-        uint64_t key = rand();
-        uint32_t val = rand();
+        rec.key = rand();
+        rec.value = rand();
 
-        buffer->append(key, val);
+        if constexpr (de::WeightedRecordInterface<R>) {
+            rec.weight = 1;
+        }
+
+        buffer->append(rec);
     }
 
     return buffer;
 }
 
-template <typename K, typename V, typename W=void>
-static de::MutableBuffer<K,V,W> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
+template <de::RecordInterface R>
+static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
-    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, ts_cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, ts_cnt, g_rng);
 
     std::vector<std::pair<uint64_t, uint32_t>> tombstones;
 
+    R rec;
     for (size_t i = 0; i < cnt; i++) {
-        uint64_t key = rand();
-        uint32_t val = rand();
+        rec.key = rand();
+        rec.value = rand();
 
-        if (i < ts_cnt) {
-            tombstones.push_back({key, val});
+        if constexpr (de::WeightedRecordInterface<R>) {
+            rec.weight = 1;
         }
 
-        buffer->append(key, val);
+        if (i < ts_cnt) {
+            tombstones.push_back({rec.key, rec.value});
+        }
+
+        buffer->append(rec);
     }
 
+    rec.set_tombstone();
     for (size_t i=0; i<ts_cnt; i++) {
-        buffer->append(tombstones[i].first, tombstones[i].second, true);
+        buffer->append(rec);
     }
 
     return buffer;
 }
 
-template <typename K, typename V, typename W=void>
-static de::MutableBuffer<K,V,W> *create_weighted_mbuffer(size_t cnt)
+template <de::WeightedRecordInterface R>
+static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 {
-    static_assert(!std::is_same<W, void>::value);
-    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt, g_rng);
     
     // Put in half of the count with weight one.
-    uint64_t key = 1;
-    for (size_t i=0; i< cnt / 2; i++) {
-        buffer->append(key, i, 2);
+    for (uint32_t i=0; i< cnt / 2; i++) {
+        buffer->append(R {1, i, 2});
     }
 
-    // put in a quarter of the count with weight two.
-    key = 2;
-    for (size_t i=0; i< cnt / 4; i++) {
-        buffer->append(key, i, 4);
+    // put in a quarter of the count with weight four.
+    for (uint32_t i=0; i< cnt / 4; i++) {
+        buffer->append(R {2, i, 4});
     }
 
-    // the remaining quarter with weight four.
-    key = 3;
-    for (size_t i=0; i< cnt / 4; i++) {
-        buffer->append(key, i, 8);
+    // the remaining quarter with weight eight.
+    for (uint32_t i=0; i< cnt / 4; i++) {
+        buffer->append(R {3, i, 8});
     }
 
     return buffer;
 }
 
-template <typename K, typename V, typename W=void>
-static de::MutableBuffer<K,V,W> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
+template <de::RecordInterface R>
+static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
 {
-    auto buffer = new de::MutableBuffer<K,V,W>(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt, g_rng);
 
     for (size_t i = 0; i < cnt / 2; i++) {
-        uint64_t key = i;
-        uint32_t val = i;
+        R rec;
+        rec.key = i;
+        rec.value = i;
+        if (ts) rec.set_tombstone();
 
-        buffer->append(key, val, ts);
+        buffer->append(rec);
     }
 
     for (size_t i = 0; i < cnt / 2; i++) {
-        uint64_t key = i;
-        uint32_t val = i + 1;
+        R rec;
+        rec.key = i;
+        rec.value = i + 1;
+        if (ts) rec.set_tombstone();
 
-        buffer->append(key, val, ts);
+        buffer->append(rec);
     }
 
     return buffer;

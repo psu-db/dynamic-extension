@@ -16,14 +16,14 @@
 
 namespace de {
 
-template <typename K, typename V, typename W=void>
+template <typename R>
 struct queue_record {
-    const Record<K, V, W> *data;
+    const R *data;
     size_t version;
 };
 
 
-template <typename K, typename V, typename W=void>
+template <typename R>
 class PriorityQueue {
 public:
     PriorityQueue(size_t size) : data(size), tail(0) {}
@@ -54,7 +54,7 @@ public:
         }
     }
 
-    void push(const Record<K, V, W>* record, size_t version=0) {
+    void push(const R* record, size_t version=0) {
         assert(tail != this->data.size());
 
         size_t new_idx = this->tail++;
@@ -67,7 +67,7 @@ public:
     }
 
 
-    queue_record<K, V, W> peek(size_t depth=0) {
+    queue_record<R> peek(size_t depth=0) {
         ssize_t idx = 0;
         size_t cur_depth = 0;
 
@@ -81,7 +81,7 @@ public:
     }
 
 private:
-    std::vector<queue_record<K, V, W>> data;
+    std::vector<queue_record<R>> data;
     size_t tail;
 
     /*
@@ -124,7 +124,7 @@ private:
     }
 
     inline bool heap_cmp(size_t a, size_t b) {
-        if (!data[a].data->match(data[b].data)) {
+        if (data[a].data != data[b].data) {
             return *(data[a].data) < *(data[b].data);
         } else if (data[a].version != data[b].version)
             return data[a].version < data[b].version;

@@ -23,10 +23,11 @@ namespace de {
 
 thread_local size_t mrun_cancelations = 0;
 
-template <typename K, typename V>
+template <RecordInterface R>
 class MemISAM {
 private:
-typedef Record<K, V> Rec;
+typedef decltype(R::key) K;
+typedef decltype(R::value) V;
 
 constexpr static size_t inmem_isam_node_size = 256;
 constexpr static size_t inmem_isam_fanout = inmem_isam_node_size / (sizeof(K) + sizeof(char*));
@@ -36,24 +37,23 @@ struct InMemISAMNode {
     char* child[inmem_isam_fanout];
 };
 
-constexpr static size_t inmem_isam_leaf_fanout = inmem_isam_node_size / sizeof(Rec);
+constexpr static size_t inmem_isam_leaf_fanout = inmem_isam_node_size / sizeof(R);
 constexpr static size_t inmem_isam_node_keyskip = sizeof(K) * inmem_isam_fanout;
 
 static_assert(sizeof(InMemISAMNode) == inmem_isam_node_size, "node size does not match");
-
 
 public:
     MemISAM(std::string data_fname, size_t record_cnt, size_t tombstone_cnt, BloomFilter *bf, bool tagging)
     : m_reccnt(record_cnt), m_tombstone_cnt(tombstone_cnt), m_deleted_cnt(0), m_tagging(tagging) {
 
         // read the stored data file the file
-        size_t alloc_size = (record_cnt * sizeof(Rec)) + (CACHELINE_SIZE - (record_cnt * sizeof(Rec)) % CACHELINE_SIZE);
+        size_t alloc_size = (record_cnt * sizeof(R)) + (CACHELINE_SIZE - (record_cnt * sizeof(R)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Rec*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (R*) std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
         FILE *file = fopen(data_fname.c_str(), "rb");
         assert(file);
-        auto res = fread(m_data, sizeof(Rec), m_reccnt, file);
+        auto res = fread(m_data, sizeof(R), m_reccnt, file);
         assert (res == m_reccnt);
         fclose(file);
 
@@ -71,34 +71,34 @@ public:
         }
     }
 
-    MemISAM(MutableBuffer<K,V>* buffer, BloomFilter* bf, bool tagging)
+    MemISAM(MutableBuffer<R>* buffer, BloomFilter* bf, bool tagging)
     :m_reccnt(0), m_tombstone_cnt(0), m_isam_nodes(nullptr), m_deleted_cnt(0), m_tagging(tagging) {
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(Rec)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Rec)) % CACHELINE_SIZE);
+        size_t alloc_size = (buffer->get_record_count() * sizeof(R)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(R)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Rec*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (R*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
         TIMER_INIT();
 
         size_t offset = 0;
         m_reccnt = 0;
         TIMER_START();
-        Rec* base = buffer->sorted_output();
+        R* base = buffer->sorted_output();
         TIMER_STOP();
 
         auto sort_time = TIMER_RESULT();
-        Rec* stop = base + buffer->get_record_count();
+        R* stop = base + buffer->get_record_count();
 
         TIMER_START();
         while (base < stop) {
             if (!m_tagging) {
                 if (!base->is_tombstone() && (base + 1 < stop)
-                    && base->match(base + 1) && (base + 1)->is_tombstone()) {
+                    && *base == *(base + 1)  && (base + 1)->is_tombstone()) {
                     base += 2;
                     mrun_cancelations++;
                     continue;
                 } 
-            } else if (base->get_delete_status()) {
+            } else if (base->is_deleted()) {
                 base += 1;
                 continue;
             }
@@ -123,15 +123,15 @@ public:
         TIMER_STOP();
         auto level_time = TIMER_RESULT();
 
-        fprintf(stdout, "%ld %ld %ld\n", sort_time, copy_time, level_time);
+        //fprintf(stdout, "%ld %ld %ld\n", sort_time, copy_time, level_time);
     }
 
     MemISAM(MemISAM** runs, size_t len, BloomFilter* bf, bool tagging)
     :m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_isam_nodes(nullptr), m_tagging(tagging) {
-        std::vector<Cursor<K,V>> cursors;
+        std::vector<Cursor<R>> cursors;
         cursors.reserve(len);
 
-        PriorityQueue<K,V> pq(len);
+        PriorityQueue<R> pq(len);
 
         size_t attemp_reccnt = 0;
         
@@ -142,21 +142,21 @@ public:
                 attemp_reccnt += runs[i]->get_record_count();
                 pq.push(cursors[i].ptr, i);
             } else {
-                cursors.emplace_back(Cursor<K,V>{nullptr, nullptr, 0, 0});
+                cursors.emplace_back(Cursor<R>{nullptr, nullptr, 0, 0});
             }
         }
 
-        size_t alloc_size = (attemp_reccnt * sizeof(Rec)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Rec)) % CACHELINE_SIZE);
+        size_t alloc_size = (attemp_reccnt * sizeof(R)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(R)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Rec*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (R*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
         size_t offset = 0;
         
         while (pq.size()) {
             auto now = pq.peek();
-            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<K,V>{nullptr, 0};
+            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<R>{nullptr, 0};
             if (!m_tagging && !now.data->is_tombstone() && next.data != nullptr &&
-                now.data->match(next.data) && next.data->is_tombstone()) {
+                *now.data == *next.data && next.data->is_tombstone()) {
                 
                 pq.pop(); pq.pop();
                 auto& cursor1 = cursors[now.version];
@@ -165,7 +165,7 @@ public:
                 if (advance_cursor(cursor2)) pq.push(cursor2.ptr, next.version);
             } else {
                 auto& cursor = cursors[now.version];
-                if (!m_tagging || !cursor.ptr->get_delete_status()) {
+                if (!m_tagging || !cursor.ptr->is_deleted()) {
                     m_data[m_reccnt++] = *cursor.ptr;
                     if (cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
@@ -188,7 +188,7 @@ public:
         if (m_isam_nodes) free(m_isam_nodes);
     }
 
-    Rec* sorted_output() const {
+    R* sorted_output() const {
         return m_data;
     }
     
@@ -208,7 +208,7 @@ public:
 
         while (idx < m_reccnt && m_data[idx].lt(key, val)) ++idx;
 
-        if (m_data[idx].match(key, val, false)) {
+        if (m_data[idx] == R {key, val}) {
             m_data[idx].set_delete_status();
             m_deleted_cnt++;
             return true;
@@ -217,7 +217,7 @@ public:
         return false;
     }
 
-    const Rec* get_record_at(size_t idx) const {
+    const R* get_record_at(size_t idx) const {
         return (idx < m_reccnt) ? m_data + idx : nullptr;
     }
 
@@ -235,7 +235,7 @@ public:
             now = next ? next : reinterpret_cast<const InMemISAMNode*>(now->child[inmem_isam_fanout - 1]);
         }
 
-        const Rec* pos = reinterpret_cast<const Rec*>(now);
+        const R* pos = reinterpret_cast<const R*>(now);
         while (pos < m_data + m_reccnt && pos->key < key) pos++;
 
         return pos - m_data;
@@ -255,7 +255,7 @@ public:
             now = next ? next : reinterpret_cast<const InMemISAMNode*>(now->child[inmem_isam_fanout - 1]);
         }
 
-        const Rec* pos = reinterpret_cast<const Rec*>(now);
+        const R* pos = reinterpret_cast<const R*>(now);
         while (pos < m_data + m_reccnt && pos->key <= key) pos++;
 
         return pos - m_data;
@@ -267,20 +267,20 @@ public:
             return false;
         }
 
-        Rec* ptr = m_data + idx;
+        R* ptr = m_data + idx;
 
         while (ptr < m_data + m_reccnt && ptr->lt(key, val)) ptr++;
-        return ptr->match(key, val, true);
+        return *ptr == R {key, val} && ptr->is_tombstone();
     }
 
     size_t get_memory_utilization() {
-        return m_reccnt * sizeof(Rec) + m_internal_node_cnt * inmem_isam_node_size;
+        return m_reccnt * sizeof(R) + m_internal_node_cnt * inmem_isam_node_size;
     }
 
     void persist_to_file(std::string data_fname) {
         FILE *file = fopen(data_fname.c_str(), "wb");
         assert(file);
-        fwrite(m_data, sizeof(Rec), m_reccnt, file);
+        fwrite(m_data, sizeof(R), m_reccnt, file);
         fclose(file);
     }
     
@@ -303,14 +303,14 @@ private:
 
         InMemISAMNode* current_node = m_isam_nodes;
 
-        const Rec* leaf_base = m_data;
-        const Rec* leaf_stop = m_data + m_reccnt;
+        const R* leaf_base = m_data;
+        const R* leaf_stop = m_data + m_reccnt;
         while (leaf_base < leaf_stop) {
             size_t fanout = 0;
             for (size_t i = 0; i < inmem_isam_fanout; ++i) {
                 auto rec_ptr = leaf_base + inmem_isam_leaf_fanout * i;
                 if (rec_ptr >= leaf_stop) break;
-                const Rec* sep_key = std::min(rec_ptr + inmem_isam_leaf_fanout - 1, leaf_stop - 1);
+                const R* sep_key = std::min(rec_ptr + inmem_isam_leaf_fanout - 1, leaf_stop - 1);
                 current_node->keys[i] = sep_key->key;
                 current_node->child[i] = (char*)rec_ptr;
                 ++fanout;
@@ -350,7 +350,7 @@ private:
     }
 
     // Members: sorted data, internal ISAM levels, reccnt;
-    Rec* m_data;
+    R* m_data;
     InMemISAMNode* m_isam_nodes;
     InMemISAMNode* m_root;
     size_t m_reccnt;
