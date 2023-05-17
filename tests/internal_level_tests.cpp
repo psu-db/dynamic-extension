@@ -23,16 +23,16 @@ START_TEST(t_memlevel_merge)
     auto tbl1 = create_test_mbuffer<WRec>(100);
     auto tbl2 = create_test_mbuffer<WRec>(100);
 
-    auto base_level = new InternalLevel<WRec>(1, 1, false);
+    auto base_level = new InternalLevel<WRec>(1, 1);
     base_level->append_mem_table(tbl1, g_rng);
     ck_assert_int_eq(base_level->get_record_cnt(), 100);
 
-    auto merging_level = new InternalLevel<WRec>(0, 1, false);
+    auto merging_level = new InternalLevel<WRec>(0, 1);
     merging_level->append_mem_table(tbl2, g_rng);
     ck_assert_int_eq(merging_level->get_record_cnt(), 100);
 
     auto old_level = base_level;
-    base_level = InternalLevel<WRec>::merge_levels(old_level, merging_level, false, g_rng);
+    base_level = InternalLevel<WRec>::merge_levels(old_level, merging_level, g_rng);
 
     delete old_level;
     delete merging_level;
@@ -48,7 +48,7 @@ InternalLevel<WRec> *create_test_memlevel(size_t reccnt) {
     auto tbl1 = create_test_mbuffer<WRec>(reccnt/2);
     auto tbl2 = create_test_mbuffer<WRec>(reccnt/2);
 
-    auto base_level = new InternalLevel<WRec>(1, 2, false);
+    auto base_level = new InternalLevel<WRec>(1, 2);
     base_level->append_mem_table(tbl1, g_rng);
     base_level->append_mem_table(tbl2, g_rng);
 

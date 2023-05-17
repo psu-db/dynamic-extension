@@ -53,9 +53,9 @@ private:
     };
 
 public:
-    WIRS(MutableBuffer<R>* buffer, BloomFilter* bf, bool tagging)
+    WIRS(MutableBuffer<R>* buffer, BloomFilter* bf)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_total_weight(0), m_rejection_cnt(0), 
-      m_ts_check_cnt(0), m_tagging(tagging), m_root(nullptr) {
+      m_ts_check_cnt(0), m_root(nullptr) {
 
         size_t alloc_size = (buffer->get_record_count() * sizeof(R)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(R)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -67,13 +67,11 @@ public:
         auto stop = base + buffer->get_record_count();
 
         while (base < stop) {
-            if (!m_tagging) {
-                if (!(base->is_tombstone()) && (base + 1) < stop) {
-                    if (*base == *(base + 1) && (base + 1)->is_tombstone()) {
-                        base += 2;
-                        wirs_cancelations++;
-                        continue;
-                    }
+            if (!(base->is_tombstone()) && (base + 1) < stop) {
+                if (*base == *(base + 1) && (base + 1)->is_tombstone()) {
+                    base += 2;
+                    wirs_cancelations++;
+                    continue;
                 }
             } else if (base->is_deleted()) {
                 base += 1;
@@ -97,9 +95,9 @@ public:
         }
     }
 
-    WIRS(WIRS** shards, size_t len, BloomFilter* bf, bool tagging)
+    WIRS(WIRS** shards, size_t len, BloomFilter* bf)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_total_weight(0), m_rejection_cnt(0), m_ts_check_cnt(0), 
-      m_tagging(tagging), m_root(nullptr) {
+      m_root(nullptr) {
         std::vector<Cursor<R>> cursors;
         cursors.reserve(len);
 
@@ -125,7 +123,7 @@ public:
         while (pq.size()) {
             auto now = pq.peek();
             auto next = pq.size() > 1 ? pq.peek(1) : queue_record<R>{nullptr, 0};
-            if (!m_tagging && !now.data->is_tombstone() && next.data != nullptr &&
+            if (!now.data->is_tombstone() && next.data != nullptr &&
                 *now.data == *next.data && next.data->is_tombstone()) {
                 
                 pq.pop(); pq.pop();
@@ -135,7 +133,7 @@ public:
                 if (advance_cursor<R>(cursor2)) pq.push(cursor2.ptr, next.version);
             } else {
                 auto& cursor = cursors[now.version];
-                if (!m_tagging || !cursor.ptr->is_deleted()) {
+                if (!cursor.ptr->is_deleted()) {
                     m_data[m_reccnt++] = *cursor.ptr;
                     m_total_weight += cursor.ptr->weight;
                     if (bf && cursor.ptr->is_tombstone()) {
@@ -295,6 +293,7 @@ public:
         return min;
     }
 
+    /*
     bool check_delete(K key, V val) {
         size_t idx = get_lower_bound(key);
         if (idx >= m_reccnt) {
@@ -312,6 +311,7 @@ public:
         m_rejection_cnt += result;
         return result;
     }
+   */
 
     bool check_tombstone(const R& rec) {
         m_ts_check_cnt++;
@@ -421,7 +421,6 @@ private:
     R* m_data;
     std::vector<Alias *> m_alias;
     wirs_node<R>* m_root;
-    bool m_tagging;
     W m_total_weight;
     size_t m_reccnt;
     size_t m_tombstone_cnt;

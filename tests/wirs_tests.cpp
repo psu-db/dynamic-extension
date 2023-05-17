@@ -40,7 +40,7 @@ START_TEST(t_mbuffer_init)
     }
 
     BloomFilter* bf = new BloomFilter(BF_FPR, mem_table->get_tombstone_count(), BF_HASH_FUNCS, g_rng);
-    Shard* shard = new Shard(mem_table, bf, false);
+    Shard* shard = new Shard(mem_table, bf);
     ck_assert_uint_eq(shard->get_record_count(), 512);
 
     delete bf;
@@ -58,13 +58,13 @@ START_TEST(t_wirs_init)
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    auto shard1 = new Shard(mbuffer1, bf1, false);
-    auto shard2 = new Shard(mbuffer2, bf2, false);
-    auto shard3 = new Shard(mbuffer3, bf3, false);
+    auto shard1 = new Shard(mbuffer1, bf1);
+    auto shard2 = new Shard(mbuffer2, bf2);
+    auto shard3 = new Shard(mbuffer3, bf3);
 
     BloomFilter* bf4 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     Shard* shards[3] = {shard1, shard2, shard3};
-    auto shard4 = new Shard(shards, 3, bf4, false);
+    auto shard4 = new Shard(shards, 3, bf4);
 
     ck_assert_int_eq(shard4->get_record_count(), n * 3);
     ck_assert_int_eq(shard4->get_tombstone_count(), 0);
@@ -113,7 +113,7 @@ START_TEST(t_get_lower_bound_index)
 
     ck_assert_ptr_nonnull(mbuffer);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    Shard* shard = new Shard(mbuffer, bf, false);
+    Shard* shard = new Shard(mbuffer, bf);
 
     ck_assert_int_eq(shard->get_record_count(), n);
     ck_assert_int_eq(shard->get_tombstone_count(), 0);
@@ -141,8 +141,8 @@ START_TEST(t_full_cancelation)
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
 
-    Shard* shard = new Shard(buffer, bf1, false);
-    Shard* shard_ts = new Shard(buffer_ts, bf2, false);
+    Shard* shard = new Shard(buffer, bf1);
+    Shard* shard_ts = new Shard(buffer_ts, bf2);
 
     ck_assert_int_eq(shard->get_record_count(), n);
     ck_assert_int_eq(shard->get_tombstone_count(), 0);
@@ -151,7 +151,7 @@ START_TEST(t_full_cancelation)
 
     Shard* shards[] = {shard, shard_ts};
 
-    Shard* merged = new Shard(shards, 2, bf3, false);
+    Shard* merged = new Shard(shards, 2, bf3);
 
     ck_assert_int_eq(merged->get_tombstone_count(), 0);
     ck_assert_int_eq(merged->get_record_count(), 0);
@@ -174,7 +174,7 @@ START_TEST(t_weighted_sampling)
     auto buffer = create_weighted_mbuffer<WRec>(n);
 
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    Shard* shard = new Shard(buffer, bf, false);
+    Shard* shard = new Shard(buffer, bf);
 
     uint64_t lower_key = 0;
     uint64_t upper_key = 5;
@@ -234,7 +234,7 @@ START_TEST(t_tombstone_check)
     }
 
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    auto shard = new Shard(buffer, bf1, false);
+    auto shard = new Shard(buffer, bf1);
 
     for (size_t i=0; i<tombstones.size(); i++) {
         ck_assert(shard->check_tombstone({tombstones[i].first, tombstones[i].second}));

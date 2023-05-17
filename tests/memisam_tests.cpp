@@ -30,7 +30,7 @@ START_TEST(t_memtable_init)
     }
 
     BloomFilter* bf = new BloomFilter(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS, g_rng);
-    M_ISAM* run = new M_ISAM(buffer, bf, false);
+    M_ISAM* run = new M_ISAM(buffer, bf);
     ck_assert_uint_eq(run->get_record_count(), 512);
 
     delete bf;
@@ -48,13 +48,13 @@ START_TEST(t_inmemrun_init)
     BloomFilter* bf1 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    auto run1 = new M_ISAM(memtable1, bf1, false);
-    auto run2 = new M_ISAM(memtable2, bf2, false);
-    auto run3 = new M_ISAM(memtable3, bf3, false);
+    auto run1 = new M_ISAM(memtable1, bf1);
+    auto run2 = new M_ISAM(memtable2, bf2);
+    auto run3 = new M_ISAM(memtable3, bf3);
 
     BloomFilter* bf4 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     M_ISAM* runs[3] = {run1, run2, run3};
-    auto run4 = new M_ISAM(runs, 3, bf4, false);
+    auto run4 = new M_ISAM(runs, 3, bf4);
 
     ck_assert_int_eq(run4->get_record_count(), n * 3);
     ck_assert_int_eq(run4->get_tombstone_count(), 0);
@@ -103,7 +103,7 @@ START_TEST(t_get_lower_bound_index)
 
     ck_assert_ptr_nonnull(memtable);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    M_ISAM* run = new M_ISAM(memtable, bf, false);
+    M_ISAM* run = new M_ISAM(memtable, bf);
 
     ck_assert_int_eq(run->get_record_count(), n);
     ck_assert_int_eq(run->get_tombstone_count(), 0);
@@ -128,7 +128,7 @@ START_TEST(t_get_upper_bound_index)
 
     ck_assert_ptr_nonnull(memtable);
     BloomFilter* bf = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
-    M_ISAM* run = new M_ISAM(memtable, bf, false);
+    M_ISAM* run = new M_ISAM(memtable, bf);
 
     ck_assert_int_eq(run->get_record_count(), n);
     ck_assert_int_eq(run->get_tombstone_count(), 0);
@@ -157,8 +157,8 @@ START_TEST(t_full_cancelation)
     BloomFilter* bf2 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
     BloomFilter* bf3 = new BloomFilter(100, BF_HASH_FUNCS, g_rng);
 
-    M_ISAM* run = new M_ISAM(mtable, bf1, false);
-    M_ISAM* run_ts = new M_ISAM(mtable_ts, bf2, false);
+    M_ISAM* run = new M_ISAM(mtable, bf1);
+    M_ISAM* run_ts = new M_ISAM(mtable_ts, bf2);
 
     ck_assert_int_eq(run->get_record_count(), n);
     ck_assert_int_eq(run->get_tombstone_count(), 0);
@@ -167,7 +167,7 @@ START_TEST(t_full_cancelation)
 
     M_ISAM* runs[] = {run, run_ts};
 
-    M_ISAM* merged = new M_ISAM(runs, 2, bf3, false);
+    M_ISAM* merged = new M_ISAM(runs, 2, bf3);
 
     ck_assert_int_eq(merged->get_tombstone_count(), 0);
     ck_assert_int_eq(merged->get_record_count(), 0);

@@ -26,12 +26,13 @@ class InternalLevel {
 
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
+    typedef WIRS<R> Shard;
 
 private:
     struct InternalLevelStructure {
         InternalLevelStructure(size_t cap)
         : m_cap(cap)
-        , m_shards(new WIRS<R>*[cap]{nullptr})
+        , m_shards(new Shard*[cap]{nullptr})
         , m_bfs(new BloomFilter*[cap]{nullptr}) {} 
 
         ~InternalLevelStructure() {
@@ -45,72 +46,69 @@ private:
         }
 
         size_t m_cap;
-        WIRS<R>** m_shards;
+        Shard** m_shards;
         BloomFilter** m_bfs;
     };
 
 public:
-    InternalLevel(ssize_t level_no, size_t shard_cap, bool tagging)
+    InternalLevel(ssize_t level_no, size_t shard_cap)
     : m_level_no(level_no), m_shard_cnt(0)
-    , m_structure(new InternalLevelStructure(shard_cap))
-    , m_tagging(tagging) {}
+    , m_structure(new InternalLevelStructure(shard_cap)) {}
 
     // Create a new memory level sharing the shards and repurposing it as previous level_no + 1
     // WARNING: for leveling only.
-    InternalLevel(InternalLevel* level, bool tagging)
+    InternalLevel(InternalLevel* level)
     : m_level_no(level->m_level_no + 1), m_shard_cnt(level->m_shard_cnt)
-    , m_structure(level->m_structure)
-    , m_tagging(tagging) {
+    , m_structure(level->m_structure) {
         assert(m_structure->m_cap == 1 && m_shard_cnt == 1);
     }
-
 
     ~InternalLevel() {}
 
     // WARNING: for leveling only.
     // assuming the base level is the level new level is merging into. (base_level is larger.)
-    static InternalLevel* merge_levels(InternalLevel* base_level, InternalLevel* new_level, bool tagging, const gsl_rng* rng) {
+    static InternalLevel* merge_levels(InternalLevel* base_level, InternalLevel* new_level, const gsl_rng* rng) {
         assert(base_level->m_level_no > new_level->m_level_no || (base_level->m_level_no == 0 && new_level->m_level_no == 0));
-        auto res = new InternalLevel(base_level->m_level_no, 1, tagging);
+        auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
         res->m_structure->m_bfs[0] =
             new BloomFilter(BF_FPR,
                             new_level->get_tombstone_count() + base_level->get_tombstone_count(),
                             BF_HASH_FUNCS, rng);
-        WIRS<R>* shards[2];
+        Shard* shards[2];
         shards[0] = base_level->m_structure->m_shards[0];
         shards[1] = new_level->m_structure->m_shards[0];
 
-        res->m_structure->m_shards[0] = new WIRS<R>(shards, 2, res->m_structure->m_bfs[0], tagging);
+        res->m_structure->m_shards[0] = new Shard(shards, 2, res->m_structure->m_bfs[0]);
         return res;
     }
 
     void append_mem_table(MutableBuffer<R>* buffer, const gsl_rng* rng) {
         assert(m_shard_cnt < m_structure->m_cap);
         m_structure->m_bfs[m_shard_cnt] = new BloomFilter(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS, rng);
-        m_structure->m_shards[m_shard_cnt] = new WIRS<R>(buffer, m_structure->m_bfs[m_shard_cnt], m_tagging);
+        m_structure->m_shards[m_shard_cnt] = new Shard(buffer, m_structure->m_bfs[m_shard_cnt]);
         ++m_shard_cnt;
     }
 
     void append_merged_shards(InternalLevel* level, const gsl_rng* rng) {
         assert(m_shard_cnt < m_structure->m_cap);
         m_structure->m_bfs[m_shard_cnt] = new BloomFilter(BF_FPR, level->get_tombstone_count(), BF_HASH_FUNCS, rng);
-        m_structure->m_shards[m_shard_cnt] = new WIRS<R>(level->m_structure->m_shards, level->m_shard_cnt, m_structure->m_bfs[m_shard_cnt], m_tagging);
+        m_structure->m_shards[m_shard_cnt] = new Shard(level->m_structure->m_shards, level->m_shard_cnt, m_structure->m_bfs[m_shard_cnt]);
         ++m_shard_cnt;
     }
 
-    WIRS<R> *get_merged_shard() {
-        WIRS<R> *shards[m_shard_cnt];
+    Shard *get_merged_shard() {
+        Shard *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
             shards[i] = (m_structure->m_shards[i]) ? m_structure->m_shards[i] : nullptr;
         }
 
-        return new WIRS<R>(shards, m_shard_cnt, nullptr, m_tagging);
+        return new Shard(shards, m_shard_cnt, nullptr);
     }
 
     // Append the sample range in-order.....
-    void get_shard_weights(std::vector<uint64_t>& weights, std::vector<std::pair<ShardID, WIRS<R> *>> &shards, std::vector<void*>& shard_states, const K& low, const K& high) {
+    void get_shard_weights(std::vector<uint64_t>& weights, std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, const K& low, const K& high) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_structure->m_shards[i]) {
                 auto shard_state = m_structure->m_shards[i]->get_sample_shard_state(low, high);
@@ -119,7 +117,7 @@ public:
                     weights.push_back(shard_state->tot_weight);
                     shard_states.emplace_back(shard_state);
                 } else {
-                    WIRS<R>::delete_state(shard_state);
+                    Shard::delete_state(shard_state);
                 }
             }
         }
@@ -158,7 +156,7 @@ public:
         return m_structure->m_shards[shard_no]->get_record_at(idx);
     }
     
-    WIRS<R>* get_shard(size_t idx) {
+    Shard* get_shard(size_t idx) {
         return m_structure->m_shards[idx];
     }
 
@@ -253,7 +251,6 @@ private:
     
     size_t m_shard_cnt;
     size_t m_shard_size_cap;
-    bool m_tagging;
     std::shared_ptr<InternalLevelStructure> m_structure;
 };
 

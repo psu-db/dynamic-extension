@@ -359,7 +359,7 @@ public:
             }
         }
 
-        shards.emplace_back(new Shard(get_buffer(), nullptr, DELETE_TAGGING));
+        shards.emplace_back(new Shard(get_buffer(), nullptr));
 
         Shard *shards_array[shards.size()];
 
@@ -370,7 +370,7 @@ public:
             }
         }
 
-        Shard *flattened = new Shard(shards_array, j, nullptr, DELETE_TAGGING);
+        Shard *flattened = new Shard(shards_array, j, nullptr);
 
         for (auto shard : shards) {
             delete shard;
@@ -446,7 +446,7 @@ private:
         if (new_idx > 0) {
             assert(m_levels[new_idx - 1]->get_shard(0)->get_tombstone_count() == 0);
         }
-        m_levels.emplace_back(new InternalLevel<R>(new_idx, new_shard_cnt, DELETE_TAGGING));
+        m_levels.emplace_back(new InternalLevel<R>(new_idx, new_shard_cnt));
 
         m_last_level_idx++;
         return new_idx;
@@ -526,15 +526,14 @@ private:
         // merging two memory levels
         if (LSM_LEVELING) {
             auto tmp = m_levels[base_level];
-            m_levels[base_level] = InternalLevel<R>::merge_levels(m_levels[base_level], m_levels[incoming_level],
-                                                                          DELETE_TAGGING, rng);
+            m_levels[base_level] = InternalLevel<R>::merge_levels(m_levels[base_level], m_levels[incoming_level], rng);
             mark_as_unused(tmp);
         } else {
             m_levels[base_level]->append_merged_shards(m_levels[incoming_level], rng);
         }
 
         mark_as_unused(m_levels[incoming_level]);
-        m_levels[incoming_level] = new InternalLevel<R>(incoming_level, (LSM_LEVELING) ? 1 : m_scale_factor, DELETE_TAGGING);
+        m_levels[incoming_level] = new InternalLevel<R>(incoming_level, (LSM_LEVELING) ? 1 : m_scale_factor);
     }
 
 
@@ -543,9 +542,9 @@ private:
         if (LSM_LEVELING) {
             // FIXME: Kludgey implementation due to interface constraints.
             auto old_level = m_levels[0];
-            auto temp_level = new InternalLevel<R>(0, 1, DELETE_TAGGING);
+            auto temp_level = new InternalLevel<R>(0, 1);
             temp_level->append_mem_table(buffer, rng);
-            auto new_level = InternalLevel<R>::merge_levels(old_level, temp_level, DELETE_TAGGING, rng);
+            auto new_level = InternalLevel<R>::merge_levels(old_level, temp_level, rng);
 
             m_levels[0] = new_level;
             delete temp_level;
