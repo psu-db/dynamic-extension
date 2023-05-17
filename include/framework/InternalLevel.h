@@ -14,25 +14,26 @@
 
 #include "util/types.h"
 #include "util/bf_config.h"
-#include "shard/WIRS.h"
+#include "framework/ShardInterface.h"
+#include "framework/MutableBuffer.h"
 #include "ds/BloomFilter.h"
 
 namespace de {
 
-template <RecordInterface R>
+template <RecordInterface R, ShardInterface S>
 class InternalLevel {
 
     static const size_t REJECTION_TRIGGER_THRESHOLD = 1024;
 
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
-    typedef WIRS<R> Shard;
+    //typedef WIRS<R> S;
 
 private:
     struct InternalLevelStructure {
         InternalLevelStructure(size_t cap)
         : m_cap(cap)
-        , m_shards(new Shard*[cap]{nullptr})
+        , m_shards(new S*[cap]{nullptr})
         , m_bfs(new BloomFilter*[cap]{nullptr}) {} 
 
         ~InternalLevelStructure() {
@@ -46,7 +47,7 @@ private:
         }
 
         size_t m_cap;
-        Shard** m_shards;
+        S** m_shards;
         BloomFilter** m_bfs;
     };
 
@@ -75,49 +76,49 @@ public:
             new BloomFilter(BF_FPR,
                             new_level->get_tombstone_count() + base_level->get_tombstone_count(),
                             BF_HASH_FUNCS, rng);
-        Shard* shards[2];
+        S* shards[2];
         shards[0] = base_level->m_structure->m_shards[0];
         shards[1] = new_level->m_structure->m_shards[0];
 
-        res->m_structure->m_shards[0] = new Shard(shards, 2, res->m_structure->m_bfs[0]);
+        res->m_structure->m_shards[0] = new S(shards, 2, res->m_structure->m_bfs[0]);
         return res;
     }
 
     void append_mem_table(MutableBuffer<R>* buffer, const gsl_rng* rng) {
         assert(m_shard_cnt < m_structure->m_cap);
         m_structure->m_bfs[m_shard_cnt] = new BloomFilter(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS, rng);
-        m_structure->m_shards[m_shard_cnt] = new Shard(buffer, m_structure->m_bfs[m_shard_cnt]);
+        m_structure->m_shards[m_shard_cnt] = new S(buffer, m_structure->m_bfs[m_shard_cnt]);
         ++m_shard_cnt;
     }
 
     void append_merged_shards(InternalLevel* level, const gsl_rng* rng) {
         assert(m_shard_cnt < m_structure->m_cap);
         m_structure->m_bfs[m_shard_cnt] = new BloomFilter(BF_FPR, level->get_tombstone_count(), BF_HASH_FUNCS, rng);
-        m_structure->m_shards[m_shard_cnt] = new Shard(level->m_structure->m_shards, level->m_shard_cnt, m_structure->m_bfs[m_shard_cnt]);
+        m_structure->m_shards[m_shard_cnt] = new S(level->m_structure->m_shards, level->m_shard_cnt, m_structure->m_bfs[m_shard_cnt]);
         ++m_shard_cnt;
     }
 
-    Shard *get_merged_shard() {
-        Shard *shards[m_shard_cnt];
+    S *get_merged_shard() {
+        S *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
             shards[i] = (m_structure->m_shards[i]) ? m_structure->m_shards[i] : nullptr;
         }
 
-        return new Shard(shards, m_shard_cnt, nullptr);
+        return new S(shards, m_shard_cnt, nullptr);
     }
 
     // Append the sample range in-order.....
-    void get_shard_weights(std::vector<uint64_t>& weights, std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, const K& low, const K& high) {
+    void get_query_states(std::vector<uint64_t>& weights, std::vector<std::pair<ShardID, S *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_structure->m_shards[i]) {
-                auto shard_state = m_structure->m_shards[i]->get_sample_shard_state(low, high);
+                auto shard_state = m_structure->m_shards[i]->get_query_state(query_parms);
                 if (shard_state->tot_weight > 0) {
                     shards.push_back({{m_level_no, (ssize_t) i}, m_structure->m_shards[i]});
                     weights.push_back(shard_state->tot_weight);
                     shard_states.emplace_back(shard_state);
                 } else {
-                    Shard::delete_state(shard_state);
+                    S::delete_state(shard_state);
                 }
             }
         }
@@ -156,7 +157,7 @@ public:
         return m_structure->m_shards[shard_no]->get_record_at(idx);
     }
     
-    Shard* get_shard(size_t idx) {
+    S* get_shard(size_t idx) {
         return m_structure->m_shards[idx];
     }
 

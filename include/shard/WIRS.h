@@ -25,6 +25,7 @@ namespace de {
 
 thread_local size_t wirs_cancelations = 0;
 
+
 template <WeightedRecordInterface R>
 class WIRS {
 private:
@@ -53,6 +54,11 @@ private:
     };
 
 public:
+    struct wirs_query_parms {
+        K lower_bound;
+        K upper_bound;
+    };
+
     WIRS(MutableBuffer<R>* buffer, BloomFilter* bf)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_total_weight(0), m_rejection_cnt(0), 
       m_ts_check_cnt(0), m_root(nullptr) {
@@ -178,14 +184,6 @@ public:
         return false;
     }
 
-    void free_tree(struct wirs_node<R>* node) {
-        if (node) {
-            delete node->alias;
-            free_tree(node->left);
-            free_tree(node->right);
-            delete node;
-        }
-    }
 
     R* sorted_output() const {
         return m_data;
@@ -206,8 +204,10 @@ public:
 
     // low - high -> decompose to a set of nodes.
     // Build Alias across the decomposed nodes.
-    WIRSState<R>* get_sample_shard_state(const K& lower_key, const K& upper_key) {
+    WIRSState<R>* get_query_state(void *query_parameters) {
         auto res = new WIRSState();
+        K lower_key = ((wirs_query_parms *) query_parameters)->lower_bound;
+        K upper_key = ((wirs_query_parms *) query_parameters)->upper_bound;
 
         // Simulate a stack to unfold recursion.        
         double tot_weight = 0.0;
@@ -236,7 +236,7 @@ public:
         return res;
     }
 
-    static void delete_state(void *state) {
+    static void delete_query_state(void *state) {
         WIRSState<R> *s = (WIRSState<R> *) state;
         delete s;
     }
@@ -293,26 +293,6 @@ public:
         return min;
     }
 
-    /*
-    bool check_delete(K key, V val) {
-        size_t idx = get_lower_bound(key);
-        if (idx >= m_reccnt) {
-            return false;
-        }
-
-        auto ptr = m_data + get_lower_bound(key);
-
-        while (ptr < m_data + m_reccnt && *ptr < R {key, val}) {
-            ptr ++;
-        }
-
-        bool result = (m_tagging) ? ptr->is_deleted()
-                                  : *ptr == R {key, val} && ptr->is_tombstone();
-        m_rejection_cnt += result;
-        return result;
-    }
-   */
-
     bool check_tombstone(const R& rec) {
         m_ts_check_cnt++;
         size_t idx = get_lower_bound(rec.key);
@@ -332,11 +312,9 @@ public:
         return result;
     }
 
-
-    size_t get_memory_utilization() {
+    size_t get_memory_usage() {
         return 0;
     }
-
 
     size_t get_rejection_count() {
         return m_rejection_cnt;
@@ -416,6 +394,15 @@ private:
         assert(weights.size() == n_groups);
 
         m_root = construct_wirs_node(weights, 0, n_groups-1);
+    }
+
+    void free_tree(struct wirs_node<R>* node) {
+        if (node) {
+            delete node->alias;
+            free_tree(node->left);
+            free_tree(node->right);
+            delete node;
+        }
     }
 
     R* m_data;

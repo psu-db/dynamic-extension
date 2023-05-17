@@ -15,13 +15,14 @@
 
 #include "testing.h"
 #include "framework/DynamicExtension.h"
+#include "shard/WIRS.h"
 
 #include <check.h>
 using namespace de;
 
 START_TEST(t_create)
 {
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
 
 
     ck_assert_ptr_nonnull(ext_wirs);
@@ -35,7 +36,7 @@ END_TEST
 
 START_TEST(t_append)
 {
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -56,7 +57,7 @@ END_TEST
 
 START_TEST(t_append_with_mem_merges)
 {
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -77,7 +78,7 @@ END_TEST
 
 START_TEST(t_range_sample_memtable)
 {
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -112,7 +113,7 @@ END_TEST
 
 START_TEST(t_range_sample_memlevels)
 {
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -146,7 +147,7 @@ END_TEST
 
 START_TEST(t_range_sample_weighted)
 {
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
     size_t n = 10000;
 
     std::vector<uint64_t> keys;
@@ -217,7 +218,7 @@ END_TEST
 START_TEST(t_tombstone_merging_01)
 {
     size_t reccnt = 100000;
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, .01, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, .01, 1, g_rng);
 
     std::set<std::pair<uint64_t, uint32_t>> records; 
     std::set<std::pair<uint64_t, uint32_t>> to_delete;
@@ -265,8 +266,8 @@ START_TEST(t_tombstone_merging_01)
 }
 END_TEST
 
-DynamicExtension<WRec> *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
-    auto ext_wirs = new DynamicExtension<WRec>(1000, 1000, 2, 1, 1, g_rng);
+DynamicExtension<WRec, WIRS<WRec>> *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(1000, 1000, 2, 1, 1, g_rng);
 
     std::set<WRec> records; 
     std::set<WRec> to_delete;
@@ -309,7 +310,7 @@ DynamicExtension<WRec> *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
 START_TEST(t_sorted_array)
 {
     size_t reccnt = 100000;
-    auto ext_wirs = new DynamicExtension<WRec>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
 
     std::set<std::pair<uint64_t, uint32_t>> records; 
     std::set<std::pair<uint64_t, uint32_t>> to_delete;

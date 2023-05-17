@@ -185,7 +185,8 @@ START_TEST(t_weighted_sampling)
     results.reserve(k);
     size_t cnt[3] = {0};
     for (size_t i=0; i<1000; i++) {
-        auto state = shard->get_sample_shard_state(lower_key, upper_key);
+        WIRS<WRec>::wirs_query_parms parms = {lower_key, upper_key};
+        auto state = shard->get_query_state(&parms);
         
         shard->get_samples(state, results, lower_key, upper_key, k, g_rng);
 
@@ -193,7 +194,7 @@ START_TEST(t_weighted_sampling)
             cnt[results[j].key - 1]++;
         }
 
-        WIRS<WRec>::delete_state(state);
+        WIRS<WRec>::delete_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
