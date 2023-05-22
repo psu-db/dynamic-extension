@@ -10,7 +10,7 @@
 #pragma once
 
 #include "util/base.h"
-#include "util/Record.h"
+#include "framework/RecordInterface.h"
 #include "io/PagedFile.h"
 
 namespace de {

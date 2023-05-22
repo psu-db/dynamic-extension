@@ -15,18 +15,20 @@
 #include "util/types.h"
 #include "util/bf_config.h"
 #include "framework/ShardInterface.h"
-#include "framework/MutableBuffer.h"
 #include "framework/QueryInterface.h"
+#include "framework/RecordInterface.h"
+#include "framework/MutableBuffer.h"
 #include "ds/BloomFilter.h"
 
 namespace de {
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q>
 class InternalLevel {
-
+    typedef S Shard;
+    typedef MutableBuffer<R> Buffer;
 public:
     InternalLevel(ssize_t level_no, size_t shard_cap)
-    : m_level_no(level_no), m_shard_cnt(0), m_shards(new std::vector<S>(shard_cap, nullptr))
+    : m_level_no(level_no), m_shard_cnt(0), m_shards(new std::vector<Shard>(shard_cap, nullptr))
     {}
 
     // Create a new memory level sharing the shards and repurposing it as previous level_no + 1
@@ -45,7 +47,7 @@ public:
         assert(base_level->m_level_no > new_level->m_level_no || (base_level->m_level_no == 0 && new_level->m_level_no == 0));
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
-        S* shards[2];
+        Shard* shards[2];
         shards[0] = base_level->m_shards[0];
         shards[1] = new_level->m_shards[0];
 
@@ -53,7 +55,7 @@ public:
         return res;
     }
 
-    void append_buffer(MutableBuffer<R>* buffer) {
+    void append_buffer(Buffer* buffer) {
         assert(m_shard_cnt < m_shards.size());
         m_shards[m_shard_cnt] = new S(buffer);
         ++m_shard_cnt;
@@ -65,8 +67,8 @@ public:
         ++m_shard_cnt;
     }
 
-    S *get_merged_shard() {
-        S *shards[m_shard_cnt];
+    Shard *get_merged_shard() {
+        Shard *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
             shards[i] = m_shards[i];
@@ -76,7 +78,7 @@ public:
     }
 
     // Append the sample range in-order.....
-    void get_query_states(std::vector<std::pair<ShardID, S *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
+    void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_shards[i]) {
                 auto shard_state = Q::get_query_state(m_shards[i], query_parms);
@@ -90,23 +92,32 @@ public:
         if (m_shard_cnt == 0) return false;
 
         for (int i = m_shard_cnt - 1; i >= (ssize_t) shard_stop;  i--) {
-            if (m_shards[i] && m_shards[i]->check_tombstone(rec))
-                return true;
+            if (m_shards[i]) {
+                auto res = m_shards[i]->point_lookup(rec, true);
+                if (res && res->is_tombstone()) {
+                    return true;
+                }
+            }
         }
         return false;
     }
 
     bool delete_record(const R &rec) {
+        if (m_shard_cnt == 0) return false;
+
         for (size_t i = 0; i < m_shards.size();  ++i) {
-            if (m_shards[i] && m_shards[i]->delete_record(rec)) {
-                return true;
+            if (m_shards[i]) {
+                auto res = m_shards[i]->point_lookup(rec);
+                if (res) {
+                    res->set_delete();
+                }
             }
         }
 
         return false;
     }
 
-    S* get_shard(size_t idx) {
+    Shard* get_shard(size_t idx) {
         return m_shards[idx];
     }
 
@@ -170,7 +181,7 @@ private:
     size_t m_shard_cnt;
     size_t m_shard_size_cap;
 
-    std::shared_ptr<std::vector<S*>> m_shards;
+    std::shared_ptr<std::vector<Shard*>> m_shards;
 };
 
 }

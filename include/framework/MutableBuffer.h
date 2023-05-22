@@ -19,9 +19,9 @@
 #include "util/base.h"
 #include "util/bf_config.h"
 #include "ds/BloomFilter.h"
-#include "util/Record.h"
 #include "ds/Alias.h"
 #include "util/timer.h"
+#include "framework/RecordInterface.h"
 
 namespace de {
 

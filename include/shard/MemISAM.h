@@ -27,6 +27,8 @@ thread_local size_t mrun_cancelations = 0;
 template <RecordInterface R>
 class MemISAM {
 private:
+    friend class InternalLevel;
+
 typedef decltype(R::key) K;
 typedef decltype(R::value) V;
 
@@ -176,6 +178,26 @@ public:
 
     size_t get_tombstone_count() const {
         return m_tombstone_cnt;
+    }
+
+    R *point_lookup(R &rec, bool filter) {
+
+        if (filter && !m_bf->lookup(rec.key)) {
+            return nullptr;
+        }
+
+        size_t idx = get_lower_bound(rec.key);
+        if (idx >= m_reccnt) {
+            return false;
+        }
+
+        while (idx < m_reccnt && m_data[idx] < rec) ++idx;
+
+        if (m_data[idx] == rec) {
+            return m_data + idx;
+        }
+
+        return nullptr;
     }
 
     bool delete_record(const K& key, const V& val) {

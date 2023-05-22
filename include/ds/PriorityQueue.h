@@ -12,7 +12,7 @@
 #include <vector>
 #include <cassert>
 
-#include "util/Record.h"
+#include "framework/RecordInterface.h"
 
 namespace de {
 
