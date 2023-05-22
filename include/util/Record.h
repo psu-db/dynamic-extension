@@ -20,27 +20,15 @@ template<typename R>
 concept RecordInterface = requires(R r, R s) {
     r.key;
     r.value;
-    r.header;
 
-    {r.is_tombstone()} -> std::convertible_to<bool>;
-    {r.is_deleted()} -> std::convertible_to<bool>;
-    r.set_delete();
-    r.set_tombstone(std::declval<bool>);
     { r < s } ->std::convertible_to<bool>;
     { r == s } ->std::convertible_to<bool>;
-    { r.header < s.header } -> std::convertible_to<bool>;
 };
 
-template <typename R>
-concept WeightedRecordInterface = RecordInterface<R> && requires(R r) {
-    {r.weight} -> std::convertible_to<double>;
-};
-
-template <typename K, typename V>
-struct Record {
-    K key;
-    V value;
-    uint32_t header = 0;
+template<RecordInterface R>
+struct WrappedRecord {
+    R rec;
+    uint32_t header;
 
     inline void set_delete() {
         header |= 2;
@@ -61,8 +49,20 @@ struct Record {
     inline bool is_tombstone() const {
         return header & 1;
     }
+};
 
-    inline bool operator<(const Record& other) const {
+template <typename R>
+concept WeightedRecordInterface = RecordInterface<R> && requires(R r) {
+    {r.weight} -> std::convertible_to<double>;
+};
+
+template <typename K, typename V>
+struct Record {
+    K key;
+    V value;
+    uint32_t header = 0;
+
+       inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);
     }
 

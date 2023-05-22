@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "framework/MutableBuffer.h"
+#include "util/bf_config.h"
 #include "ds/PriorityQueue.h"
 #include "util/Cursor.h"
 #include "util/timer.h"
@@ -43,36 +44,10 @@ constexpr static size_t inmem_isam_node_keyskip = sizeof(K) * inmem_isam_fanout;
 static_assert(sizeof(InMemISAMNode) == inmem_isam_node_size, "node size does not match");
 
 public:
-    MemISAM(std::string data_fname, size_t record_cnt, size_t tombstone_cnt, BloomFilter *bf)
-    : m_reccnt(record_cnt), m_tombstone_cnt(tombstone_cnt), m_deleted_cnt(0) {
-
-        // read the stored data file the file
-        size_t alloc_size = (record_cnt * sizeof(R)) + (CACHELINE_SIZE - (record_cnt * sizeof(R)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (R*) std::aligned_alloc(CACHELINE_SIZE, alloc_size);
-
-        FILE *file = fopen(data_fname.c_str(), "rb");
-        assert(file);
-        auto res = fread(m_data, sizeof(R), m_reccnt, file);
-        assert (res == m_reccnt);
-        fclose(file);
-
-        // We can't really persist the internal structure, as it uses
-        // pointers, which are invalidated by the move. So we'll just
-        // rebuild it.
-        this->build_internal_levels();
-
-        // rebuild the bloom filter
-        for (size_t i=0; i<m_reccnt; i++) {
-            auto rec = this->get_record_at(i);
-            if (rec->is_tombstone()) {
-                bf->insert(rec->key);
-            }
-        }
-    }
-
-    MemISAM(MutableBuffer<R>* buffer, BloomFilter* bf)
+    MemISAM(MutableBuffer<R>* buffer)
     :m_reccnt(0), m_tombstone_cnt(0), m_isam_nodes(nullptr), m_deleted_cnt(0) {
+
+        m_bf = new BloomFilter<K>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
         size_t alloc_size = (buffer->get_record_count() * sizeof(R)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(R)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -104,9 +79,9 @@ public:
             //Masking off the ts.
             base->header &= 1;
             m_data[m_reccnt++] = *base;
-            if (bf && base->is_tombstone()) {
+            if (m_bf && base->is_tombstone()) {
                 ++m_tombstone_cnt;
-                bf->insert(base->key);
+                m_bf->insert(base->key);
             }
 
             base++;
@@ -124,25 +99,29 @@ public:
         //fprintf(stdout, "%ld %ld %ld\n", sort_time, copy_time, level_time);
     }
 
-    MemISAM(MemISAM** runs, size_t len, BloomFilter* bf)
-    :m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_isam_nodes(nullptr) {
+    MemISAM(MemISAM** runs, size_t len)
+    : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_isam_nodes(nullptr) {
         std::vector<Cursor<R>> cursors;
         cursors.reserve(len);
 
         PriorityQueue<R> pq(len);
 
         size_t attemp_reccnt = 0;
+        size_t tombstone_count = 0;
         
         for (size_t i = 0; i < len; ++i) {
             if (runs[i]) {
                 auto base = runs[i]->sorted_output();
                 cursors.emplace_back(Cursor{base, base + runs[i]->get_record_count(), 0, runs[i]->get_record_count()});
                 attemp_reccnt += runs[i]->get_record_count();
+                tombstone_count += runs[i]->get_tombstone_count();
                 pq.push(cursors[i].ptr, i);
             } else {
                 cursors.emplace_back(Cursor<R>{nullptr, nullptr, 0, 0});
             }
         }
+
+        m_bf = new BloomFilter<K>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
         size_t alloc_size = (attemp_reccnt * sizeof(R)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(R)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -167,7 +146,7 @@ public:
                     m_data[m_reccnt++] = *cursor.ptr;
                     if (cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
-                        bf->insert(cursor.ptr->key);
+                        m_bf->insert(cursor.ptr->key);
                     }
                 }
                 pq.pop();
@@ -184,6 +163,7 @@ public:
     ~MemISAM() {
         if (m_data) free(m_data);
         if (m_isam_nodes) free(m_isam_nodes);
+        if (m_bf) delete m_bf;
     }
 
     R* sorted_output() const {
@@ -259,7 +239,11 @@ public:
         return pos - m_data;
     }
 
-    bool check_tombstone(const K& key, const V& val) const {
+    bool check_tombstone(const R& rec) const{
+        if (!m_bf->lookup(rec.key)) {
+            return false;
+        }
+
         size_t idx = get_lower_bound(key);
         if (idx >= m_reccnt) {
             return false;
@@ -271,17 +255,10 @@ public:
         return *ptr == R {key, val} && ptr->is_tombstone();
     }
 
-    size_t get_memory_utilization() {
+    size_t get_memory_usage() {
         return m_reccnt * sizeof(R) + m_internal_node_cnt * inmem_isam_node_size;
     }
 
-    void persist_to_file(std::string data_fname) {
-        FILE *file = fopen(data_fname.c_str(), "wb");
-        assert(file);
-        fwrite(m_data, sizeof(R), m_reccnt, file);
-        fclose(file);
-    }
-    
 private:
     void build_internal_levels() {
         size_t n_leaf_nodes = m_reccnt / inmem_isam_leaf_fanout + (m_reccnt % inmem_isam_leaf_fanout != 0);
@@ -349,6 +326,7 @@ private:
 
     // Members: sorted data, internal ISAM levels, reccnt;
     R* m_data;
+    BloomFilter<K> *m_bf;
     InMemISAMNode* m_isam_nodes;
     InMemISAMNode* m_root;
     size_t m_reccnt;

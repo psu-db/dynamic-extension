@@ -1,5 +1,5 @@
 /*
- * include/shard/ShardInterface.h
+ * include/framework/ShardInterface.h
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *
@@ -14,12 +14,7 @@
 
 template <typename S>
 concept ShardInterface = requires(S s, void *p) {
-    //s.point_lookup();
-    //s.tombstone_lookup();
-    //s.delete_record();
-
-    {s.get_query_state(p)} -> std::convertible_to<void*>;
-    {s.delete_query_state(p)};
+    s.point_lookup();
 
     {s.get_record_count()} -> std::convertible_to<size_t>;
     {s.get_tombstone_count()} -> std::convertible_to<size_t>;
