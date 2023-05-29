@@ -151,6 +151,10 @@ public:
         return m_data;
     }
 
+    double get_max_weight() {
+        return m_max_weight;
+    }
+
 private:
     int32_t try_advance_tail() {
         size_t new_tail = m_reccnt.fetch_add(1);

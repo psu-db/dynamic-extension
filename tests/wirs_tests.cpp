@@ -44,6 +44,7 @@ START_TEST(t_mbuffer_init)
     delete shard;
 }
 
+
 START_TEST(t_wirs_init)
 {
     size_t n = 512;
@@ -94,31 +95,6 @@ START_TEST(t_wirs_init)
     delete shard4;
 }
 
-/*
-START_TEST(t_get_lower_bound_index)
-{
-    size_t n = 10000;
-    auto mbuffer = create_double_seq_mbuffer<WRec>(n);
-
-    ck_assert_ptr_nonnull(mbuffer);
-    Shard* shard = new Shard(mbuffer);
-
-    ck_assert_int_eq(shard->get_record_count(), n);
-    ck_assert_int_eq(shard->get_tombstone_count(), 0);
-
-    auto tbl_records = mbuffer->sorted_output();
-    for (size_t i=0; i<n; i++) {
-        const WRec *tbl_rec = mbuffer->get_record_at(i);
-        auto pos = shard->get_lower_bound(tbl_rec->key);
-        ck_assert_int_eq(shard->get_record_at(pos)->key, tbl_rec->key);
-        ck_assert_int_le(pos, i);
-    }
-
-    delete mbuffer;
-    delete shard;
-}
-
-*/
 
 START_TEST(t_full_cancelation)
 {
@@ -150,8 +126,7 @@ START_TEST(t_full_cancelation)
 END_TEST
 
 
-/*
-START_TEST(t_weighted_sampling)
+START_TEST(t_wirs_query)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -163,72 +138,156 @@ START_TEST(t_weighted_sampling)
 
     size_t k = 1000;
 
-    std::vector<WRec> results;
-    results.reserve(k);
     size_t cnt[3] = {0};
-    for (size_t i=0; i<1000; i++) {
-        WIRS<WRec>::wirs_query_parms parms = {lower_key, upper_key};
-        auto state = shard->get_query_state(&parms);
-        
-        shard->get_samples(state, results, lower_key, upper_key, k, g_rng);
+    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
-        for (size_t j=0; j<k; j++) {
-            cnt[results[j].key - 1]++;
+    for (size_t i=0; i<1000; i++) {
+        auto state = WIRSQuery<WRec>::get_query_state(shard, &parms);
+        auto result = WIRSQuery<WRec>::query(shard, state, &parms);
+
+        for (size_t j=0; j<result.size(); j++) {
+            cnt[result[j].rec.key - 1]++;
         }
 
-        WIRS<WRec>::delete_query_state(state);
+        WIRSQuery<WRec>::delete_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
     ck_assert(roughly_equal(cnt[1] / 1000, (double) k/4.0, k, .05));
     ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
 
+    gsl_rng_free(parms.rng);
     delete shard;
     delete buffer;
 }
 END_TEST
-*/
 
 
-/*
-START_TEST(t_tombstone_check)
+template <RecordInterface R> 
+std::vector<R> strip_wrapping(std::vector<Wrapped<R>> vec) {
+    std::vector<R> out(vec.size());
+    for (size_t i=0; i<vec.size(); i++) {
+        out[i] = vec[i].rec;
+    }
+
+    return out;
+}
+
+
+START_TEST(t_wirs_query_merge)
 {
-    size_t cnt = 1024;
-    size_t ts_cnt = 256;
-    auto buffer = new MutableBuffer<WRec>(cnt + ts_cnt, true, ts_cnt);
+    size_t n=1000;
+    auto buffer = create_weighted_mbuffer<WRec>(n);
 
-    std::vector<std::pair<uint64_t, uint32_t>> tombstones;
+    Shard* shard = new Shard(buffer);
 
-    uint64_t key = 1000;
-    uint32_t val = 101;
-    for (size_t i = 0; i < cnt; i++) {
-        buffer->append({key, val, 1});
-        key++;
-        val++;
+    uint64_t lower_key = 0;
+    uint64_t upper_key = 5;
+
+    size_t k = 1000;
+
+    size_t cnt[3] = {0};
+    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
+
+    std::vector<std::vector<WRec>> results(2);
+
+    for (size_t i=0; i<1000; i++) {
+        auto state1 = WIRSQuery<WRec>::get_query_state(shard, &parms);
+        results[0] = strip_wrapping(WIRSQuery<WRec>::query(shard, state1, &parms));
+
+        auto state2 = WIRSQuery<WRec>::get_query_state(shard, &parms);
+        results[1] = strip_wrapping(WIRSQuery<WRec>::query(shard, state2, &parms));
+
+        WIRSQuery<WRec>::delete_query_state(state1);
+        WIRSQuery<WRec>::delete_query_state(state2);
     }
 
-    // ensure that the key range doesn't overlap, so nothing
-    // gets cancelled.
-    for (size_t i=0; i<ts_cnt; i++) {
-        tombstones.push_back({i, i});
+    auto merged = WIRSQuery<WRec>::merge(results);
+
+    ck_assert_int_eq(merged.size(), 2*k);
+    for (size_t i=0; i<merged.size(); i++) {
+        ck_assert_int_ge(merged[i].key, lower_key);
+        ck_assert_int_le(merged[i].key, upper_key);
     }
 
-    for (size_t i=0; i<ts_cnt; i++) {
-        buffer->append({tombstones[i].first, tombstones[i].second, 1, 1});
-    }
-
-    auto shard = new Shard(buffer);
-
-    for (size_t i=0; i<tombstones.size(); i++) {
-        ck_assert(shard->check_tombstone({tombstones[i].first, tombstones[i].second}));
-        ck_assert_int_eq(shard->get_rejection_count(), i+1);
-    }
-
+    gsl_rng_free(parms.rng);
     delete shard;
     delete buffer;
 }
 END_TEST
-*/
+
+
+START_TEST(t_wirs_buffer_query_scan)
+{
+    size_t n=1000;
+    auto buffer = create_weighted_mbuffer<WRec>(n);
+
+    uint64_t lower_key = 0;
+    uint64_t upper_key = 5;
+
+    size_t k = 1000;
+
+    size_t cnt[3] = {0};
+    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
+
+    for (size_t i=0; i<1000; i++) {
+        auto state = WIRSQuery<WRec, false>::get_buffer_query_state(buffer, &parms);
+        auto result = WIRSQuery<WRec, false>::buffer_query(buffer, state, &parms);
+
+        for (size_t j=0; j<result.size(); j++) {
+            cnt[result[j].rec.key - 1]++;
+        }
+
+        WIRSQuery<WRec, false>::delete_buffer_query_state(state);
+    }
+
+    ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[1] / 1000, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
+
+    gsl_rng_free(parms.rng);
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_wirs_buffer_query_rejection)
+{
+    size_t n=1000;
+    auto buffer = create_weighted_mbuffer<WRec>(n);
+
+    uint64_t lower_key = 0;
+    uint64_t upper_key = 5;
+
+    size_t k = 1000;
+
+    size_t cnt[3] = {0};
+    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
+
+    for (size_t i=0; i<1000; i++) {
+        auto state = WIRSQuery<WRec>::get_buffer_query_state(buffer, &parms);
+        auto result = WIRSQuery<WRec>::buffer_query(buffer, state, &parms);
+
+        for (size_t j=0; j<result.size(); j++) {
+            cnt[result[j].rec.key - 1]++;
+        }
+
+        WIRSQuery<WRec>::delete_buffer_query_state(state);
+    }
+
+    ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[1] / 1000, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
+
+    gsl_rng_free(parms.rng);
+    delete buffer;
+}
+END_TEST
+
 
 Suite *unit_testing()
 {
@@ -241,29 +300,17 @@ Suite *unit_testing()
     suite_add_tcase(unit, create);
 
 
-    TCase *bounds = tcase_create("de:WIRS::get_{lower,upper}_bound Testing");
-    //tcase_add_test(bounds, t_get_lower_bound_index);
-    tcase_set_timeout(bounds, 100);   
-    suite_add_tcase(unit, bounds);
-
-
     TCase *tombstone = tcase_create("de:WIRS::tombstone cancellation Testing");
     tcase_add_test(tombstone, t_full_cancelation);
     suite_add_tcase(unit, tombstone);
 
 
-    /*
-    TCase *sampling = tcase_create("de:WIRS::sampling Testing");
-    tcase_add_test(sampling, t_weighted_sampling);
+    TCase *sampling = tcase_create("de:WIRS::WIRSQuery Testing");
+    tcase_add_test(sampling, t_wirs_query);
+    tcase_add_test(sampling, t_wirs_query_merge);
+    tcase_add_test(sampling, t_wirs_buffer_query_rejection);
+    tcase_add_test(sampling, t_wirs_buffer_query_scan);
     suite_add_tcase(unit, sampling);
-    */
-
-
-    /*
-    TCase *check_ts = tcase_create("de::WIRS::check_tombstone Testing");
-    tcase_add_test(check_ts, t_tombstone_check);
-    suite_add_tcase(unit, check_ts);
-    */
 
     return unit;
 }
