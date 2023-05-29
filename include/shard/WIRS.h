@@ -55,6 +55,11 @@ struct WIRSState {
     std::vector<wirs_node<R>*> nodes;
     Alias* top_level_alias;
 
+    WIRSState() {
+        tot_weight = 0;
+        top_level_alias = nullptr;
+    }
+
     ~WIRSState() {
         if (top_level_alias) delete top_level_alias;
     }

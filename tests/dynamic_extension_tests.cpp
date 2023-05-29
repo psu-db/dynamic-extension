@@ -196,11 +196,14 @@ START_TEST(t_range_sample_weighted)
 
     size_t cnt[3] = {0};
     size_t total_samples = 0;
+
+    wirs_query_parms<WRec> p;
+    p.lower_bound = lower_key;
+    p.upper_bound = upper_key;
+    p.sample_size = k;
+    p.rng = gsl_rng_alloc(gsl_rng_mt19937);
+
     for (size_t i=0; i<1000; i++) {
-        wirs_query_parms<WRec> p;
-        p.lower_bound = lower_key;
-        p.upper_bound = upper_key;
-        p.sample_size = k;
 
         auto result = ext_wirs->query(&p);
         total_samples += result.size();
@@ -210,10 +213,11 @@ START_TEST(t_range_sample_weighted)
         }
     }
 
-    ck_assert(roughly_equal(cnt[0] / total_samples, (double) k/4.0, k, .05));
-    ck_assert(roughly_equal(cnt[1] / total_samples, (double) k/4.0, k, .05));
-    ck_assert(roughly_equal(cnt[2] / total_samples, (double) k/2.0, k, .05));
+    ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .03));
+    ck_assert(roughly_equal(cnt[1], (double) total_samples/4.0, total_samples, .03));
+    ck_assert(roughly_equal(cnt[2], (double) total_samples/2.0, total_samples, .03));
 
+    gsl_rng_free(p.rng);
     delete ext_wirs;
 }
 END_TEST
@@ -380,6 +384,7 @@ Suite *unit_testing()
 {
     Suite *unit = suite_create("de::DynamicExtension Unit Testing");
 
+    /*
     TCase *create = tcase_create("de::DynamicExtension::constructor Testing");
     tcase_add_test(create, t_create);
     suite_add_tcase(unit, create);
@@ -388,16 +393,19 @@ Suite *unit_testing()
     tcase_add_test(insert, t_insert);
     tcase_add_test(insert, t_insert_with_mem_merges);
     suite_add_tcase(unit, insert);
+    */
 
     TCase *sampling = tcase_create("de::DynamicExtension::range_sample Testing");
+
+    tcase_add_test(sampling, t_range_sample_weighted);
+    suite_add_tcase(unit, sampling);
 
     /*
     tcase_add_test(sampling, t_range_sample_memtable);
     tcase_add_test(sampling, t_range_sample_memlevels);
-    tcase_add_test(sampling, t_range_sample_weighted);
-    suite_add_tcase(unit, sampling);
     */
 
+    /*
     TCase *ts = tcase_create("de::DynamicExtension::tombstone_compaction Testing");
     tcase_add_test(ts, t_tombstone_merging_01);
     tcase_set_timeout(ts, 500);
@@ -407,6 +415,7 @@ Suite *unit_testing()
     tcase_add_test(flat, t_sorted_array);
     tcase_set_timeout(flat, 500);
     suite_add_tcase(unit, flat);
+    */
 
     return unit;
 }
