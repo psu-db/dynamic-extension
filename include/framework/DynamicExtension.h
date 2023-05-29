@@ -282,8 +282,8 @@ private:
         return buffer->append(rec, ts);
     }
 
-    std::vector<R> *filter_deletes(std::vector<R> *records, ShardID shid, Buffer *buffer) {
-        std::vector<R> *processed_records = new std::vector<R>();
+    std::vector<R> filter_deletes(std::vector<Wrapped<R>> *records, ShardID shid, Buffer *buffer) {
+        std::vector<R> processed_records;
         processed_records->reserve(records->size());
 
         // For delete tagging, we just need to check the delete bit on each
@@ -294,7 +294,7 @@ private:
                     continue;
                 }
 
-                processed_records->emplace_back(static_cast<R>(rec.rec));
+                processed_records.emplace_back(rec.rec);
             }
 
             delete records;
@@ -324,7 +324,7 @@ private:
                 }
             }
 
-            processed_records->emplace_back(static_cast<R>(rec.rec));
+            processed_records.emplace_back(rec.rec);
         }
 
         delete records;
@@ -401,7 +401,7 @@ private:
         level_index merge_level_idx;
 
         size_t incoming_rec_cnt = get_level_record_count(idx, buffer);
-        for (level_index i=idx+1; i<=m_levels.size(); i++) {
+        for (level_index i=idx+1; i<m_levels.size(); i++) {
             if (can_merge_with(i, incoming_rec_cnt)) {
                 return i;
             }
@@ -466,9 +466,6 @@ private:
      * levels below idx are below the limit.
      */
     inline void enforce_delete_maximum(level_index idx) {
-        // FIXME: currently broken due to tombstone cancellation issues
-        return;
-
         long double ts_prop = (long double) m_levels[idx]->get_tombstone_count() / (long double) calc_level_record_capacity(idx);
 
         if (ts_prop > (long double) m_max_delete_prop) {
