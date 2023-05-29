@@ -28,7 +28,7 @@ class InternalLevel {
     typedef MutableBuffer<R> Buffer;
 public:
     InternalLevel(ssize_t level_no, size_t shard_cap)
-    : m_level_no(level_no), m_shard_cnt(0), m_shards(new std::vector<Shard>(shard_cap, nullptr))
+    : m_level_no(level_no), m_shard_cnt(0), m_shards(new std::vector<Shard*>(shard_cap, nullptr))
     {}
 
     // Create a new memory level sharing the shards and repurposing it as previous level_no + 1
@@ -36,7 +36,7 @@ public:
     InternalLevel(InternalLevel* level)
     : m_level_no(level->m_level_no + 1), m_shard_cnt(level->m_shard_cnt)
     , m_shards(level->m_shards) {
-        assert(m_shard_cnt == 1 && m_shards.size() == 1);
+        assert(m_shard_cnt == 1 && m_shards->size() == 1);
     }
 
     ~InternalLevel() {}
@@ -48,22 +48,22 @@ public:
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
         Shard* shards[2];
-        shards[0] = base_level->m_shards[0];
-        shards[1] = new_level->m_shards[0];
+        shards[0] = (*base_level->m_shards)[0];
+        shards[1] = (*new_level->m_shards)[0];
 
-        res->m_shards[0] = new S(shards, 2);
+        (*res->m_shards)[0] = new S(shards, 2);
         return res;
     }
 
     void append_buffer(Buffer* buffer) {
-        assert(m_shard_cnt < m_shards.size());
-        m_shards[m_shard_cnt] = new S(buffer);
+        assert(m_shard_cnt < m_shards->size());
+        (*m_shards)[m_shard_cnt] = new S(buffer);
         ++m_shard_cnt;
     }
 
     void append_merged_shards(InternalLevel* level) {
-        assert(m_shard_cnt < m_shards.size());
-        m_shards[m_shard_cnt] = new S(level->m_shards, level->m_shard_cnt);
+        assert(m_shard_cnt < m_shards->size());
+        (*m_shards)[m_shard_cnt] = new S(level->m_shards->data(), level->m_shard_cnt);
         ++m_shard_cnt;
     }
 
@@ -71,7 +71,7 @@ public:
         Shard *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
-            shards[i] = m_shards[i];
+            shards[i] = (*m_shards)[i];
         }
 
         return new S(shards, m_shard_cnt);
@@ -80,9 +80,9 @@ public:
     // Append the sample range in-order.....
     void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
-            if (m_shards[i]) {
-                auto shard_state = Q::get_query_state(m_shards[i], query_parms);
-                shards.push_back({{m_level_no, (ssize_t) i}, m_shards[i]});
+            if ((*m_shards)[i]) {
+                auto shard_state = Q::get_query_state((*m_shards)[i], query_parms);
+                shards.push_back({{m_level_no, (ssize_t) i}, (*m_shards)[i]});
                 shard_states.emplace_back(shard_state);
             }
         }
@@ -92,8 +92,8 @@ public:
         if (m_shard_cnt == 0) return false;
 
         for (int i = m_shard_cnt - 1; i >= (ssize_t) shard_stop;  i--) {
-            if (m_shards[i]) {
-                auto res = m_shards[i]->point_lookup(rec, true);
+            if ((*m_shards)[i]) {
+                auto res = (*m_shards)[i]->point_lookup(rec, true);
                 if (res && res->is_tombstone()) {
                     return true;
                 }
@@ -105,9 +105,9 @@ public:
     bool delete_record(const R &rec) {
         if (m_shard_cnt == 0) return false;
 
-        for (size_t i = 0; i < m_shards.size();  ++i) {
-            if (m_shards[i]) {
-                auto res = m_shards[i]->point_lookup(rec);
+        for (size_t i = 0; i < (*m_shards)->size();  ++i) {
+            if ((*m_shards)[i]) {
+                auto res = (*m_shards)[i]->point_lookup(rec);
                 if (res) {
                     res->set_delete();
                 }
@@ -118,7 +118,7 @@ public:
     }
 
     Shard* get_shard(size_t idx) {
-        return m_shards[idx];
+        return (*m_shards)[idx];
     }
 
     size_t get_shard_count() {
@@ -128,7 +128,7 @@ public:
     size_t get_record_cnt() {
         size_t cnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
-            cnt += m_shards[i]->get_record_count();
+            cnt += (*m_shards)[i]->get_record_count();
         }
 
         return cnt;
@@ -137,7 +137,7 @@ public:
     size_t get_tombstone_count() {
         size_t res = 0;
         for (size_t i = 0; i < m_shard_cnt; ++i) {
-            res += m_shards[i]->get_tombstone_count();
+            res += (*m_shards)[i]->get_tombstone_count();
         }
         return res;
     }
@@ -145,7 +145,7 @@ public:
     size_t get_aux_memory_usage() {
         size_t cnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
-            cnt += m_shards[i]->get_aux_memory_usage();
+            cnt += (*m_shards)[i]->get_aux_memory_usage();
         }
 
         return cnt;
@@ -154,8 +154,8 @@ public:
     size_t get_memory_usage() {
         size_t cnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
-            if (m_shards[i]) {
-                cnt += m_shards[i]->get_memory_usage();
+            if ((*m_shards)[i]) {
+                cnt += (*m_shards)[i]->get_memory_usage();
             }
         }
 
@@ -166,9 +166,9 @@ public:
         size_t tscnt = 0;
         size_t reccnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
-            if (m_shards[i]) {
-                tscnt += m_shards[i]->get_tombstone_count();
-                reccnt += m_shards[i]->get_record_count();
+            if ((*m_shards)[i]) {
+                tscnt += (*m_shards)[i]->get_tombstone_count();
+                reccnt += (*m_shards[i])->get_record_count();
             }
         }
 

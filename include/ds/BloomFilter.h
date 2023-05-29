@@ -14,7 +14,7 @@
 #include "ds/BitArray.h"
 #include "util/hash.h"
 #include "util/base.h"
-#include "util/Record.h"
+#include "framework/RecordInterface.h"
 
 namespace de {
 

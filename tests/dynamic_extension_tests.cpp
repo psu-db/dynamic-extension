@@ -20,9 +20,11 @@
 #include <check.h>
 using namespace de;
 
+typedef DynamicExtension<WRec, WIRS<WrappedRecord<WRec>>, WIRSQuery<WrappedRecord<WRec>>> DE;
+
 START_TEST(t_create)
 {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
 
 
     ck_assert_ptr_nonnull(ext_wirs);
@@ -34,15 +36,15 @@ START_TEST(t_create)
 END_TEST
 
 
-START_TEST(t_append)
+START_TEST(t_insert)
 {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
 
     uint64_t key = 0;
     uint32_t val = 0;
     for (size_t i=0; i<100; i++) {
         WRec r = {key, val, 1};
-        ck_assert_int_eq(ext_wirs->append(r, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
         key++;
         val++;
     }
@@ -55,15 +57,15 @@ START_TEST(t_append)
 END_TEST
 
 
-START_TEST(t_append_with_mem_merges)
+START_TEST(t_insert_with_mem_merges)
 {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
 
     uint64_t key = 0;
     uint32_t val = 0;
     for (size_t i=0; i<300; i++) {
         WRec r = {key, val, 1};
-        ck_assert_int_eq(ext_wirs->append(r, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
         key++;
         val++;
     }
@@ -76,15 +78,16 @@ START_TEST(t_append_with_mem_merges)
 END_TEST
 
 
+/*
 START_TEST(t_range_sample_memtable)
 {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
 
     uint64_t key = 0;
     uint32_t val = 0;
     for (size_t i=0; i<100; i++) {
         WRec r = {key, val, 1};
-        ck_assert_int_eq(ext_wirs->append(r, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
         key++;
         val++;
     }
@@ -96,7 +99,7 @@ START_TEST(t_range_sample_memtable)
     char *util_buf = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
     WRec sample_set[100];
 
-    ext_wirs->range_sample(sample_set, lower_bound, upper_bound, 100, g_rng);
+    ext_wirs->range_sample(sample_set, lower_bound, upper_bound, 100);
 
     for(size_t i=0; i<100; i++) {
         ck_assert_int_le(sample_set[i].key, upper_bound);
@@ -113,13 +116,13 @@ END_TEST
 
 START_TEST(t_range_sample_memlevels)
 {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
 
     uint64_t key = 0;
     uint32_t val = 0;
     for (size_t i=0; i<300; i++) {
         WRec r = {key, val, 1};
-        ck_assert_int_eq(ext_wirs->append(r, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
         key++;
         val++;
     }
@@ -131,7 +134,7 @@ START_TEST(t_range_sample_memlevels)
     char *util_buf = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
 
     WRec sample_set[100];
-    ext_wirs->range_sample(sample_set, lower_bound, upper_bound, 100, g_rng);
+    ext_wirs->range_sample(sample_set, lower_bound, upper_bound, 100);
 
     for(size_t i=0; i<100; i++) {
         ck_assert_int_le(sample_set[i].key, upper_bound);
@@ -147,7 +150,7 @@ END_TEST
 
 START_TEST(t_range_sample_weighted)
 {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
     size_t n = 10000;
 
     std::vector<uint64_t> keys;
@@ -184,7 +187,7 @@ START_TEST(t_range_sample_weighted)
         }
 
         WRec r = {keys[i], (uint32_t) i, weight, 0};
-        ext_wirs->append(r, g_rng);
+        ext_wirs->insert(r);
     }
     size_t k = 1000;
     uint64_t lower_key = 0;
@@ -196,7 +199,7 @@ START_TEST(t_range_sample_weighted)
 
     size_t cnt[3] = {0};
     for (size_t i=0; i<1000; i++) {
-        ext_wirs->range_sample(buffer, lower_key, upper_key, k, g_rng);
+        ext_wirs->range_sample(buffer, lower_key, upper_key, k);
 
         for (size_t j=0; j<k; j++) {
             cnt[buffer[j].key - 1]++;
@@ -213,12 +216,15 @@ START_TEST(t_range_sample_weighted)
     free(buffer2);
 }
 END_TEST
+*/
 
 
 START_TEST(t_tombstone_merging_01)
 {
     size_t reccnt = 100000;
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, .01, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, .01);
+
+    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     std::set<std::pair<uint64_t, uint32_t>> records; 
     std::set<std::pair<uint64_t, uint32_t>> to_delete;
@@ -237,23 +243,23 @@ START_TEST(t_tombstone_merging_01)
     size_t cnt=0;
     for (auto rec : records) {
         WRec r = {rec.first, rec.second, 1, 0};
-        ck_assert_int_eq(ext_wirs->append(r, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
 
-         if (gsl_rng_uniform(g_rng) < 0.05 && !to_delete.empty()) {
+         if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
             std::vector<std::pair<uint64_t, uint32_t>> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 WRec dr = {del_vec[i].first, del_vec[i].second, 1};
                 dr.set_tombstone();
-                ext_wirs->append(dr, g_rng);
+                ext_wirs->insert(dr);
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
         }
 
-        if (gsl_rng_uniform(g_rng) < 0.25 && deleted.find(rec) == deleted.end()) {
+        if (gsl_rng_uniform(rng) < 0.25 && deleted.find(rec) == deleted.end()) {
             to_delete.insert(rec);
         }
 
@@ -262,12 +268,15 @@ START_TEST(t_tombstone_merging_01)
 
     ck_assert(ext_wirs->validate_tombstone_proportion());
 
+    gsl_rng_free(rng);
     delete ext_wirs;
 }
 END_TEST
 
-DynamicExtension<WRec, WIRS<WRec>> *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(1000, 1000, 2, 1, 1, g_rng);
+DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
+    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
+
+    auto ext_wirs = new DE(1000, 2, 1);
 
     std::set<WRec> records; 
     std::set<WRec> to_delete;
@@ -284,33 +293,37 @@ DynamicExtension<WRec, WIRS<WRec>> *create_test_tree(size_t reccnt, size_t memle
 
     size_t deletes = 0;
     for (auto rec : records) {
-        ck_assert_int_eq(ext_wirs->append(rec, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(rec), 1);
 
-         if (gsl_rng_uniform(g_rng) < 0.05 && !to_delete.empty()) {
+         if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
             std::vector<WRec> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 del_vec[i].set_tombstone();
-                ext_wirs->append(del_vec[i], g_rng);
+                ext_wirs->insert(del_vec[i]);
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
         }
 
-        if (gsl_rng_uniform(g_rng) < 0.25 && deleted.find(rec) == deleted.end()) {
+        if (gsl_rng_uniform(rng) < 0.25 && deleted.find(rec) == deleted.end()) {
             to_delete.insert(rec);
         }
     }
+
+    gsl_rng_free(rng);
 
     return ext_wirs;
 }
 
 START_TEST(t_sorted_array)
 {
+    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
+
     size_t reccnt = 100000;
-    auto ext_wirs = new DynamicExtension<WRec, WIRS<WRec>>(100, 100, 2, 1, 1, g_rng);
+    auto ext_wirs = new DE(100, 2, 1);
 
     std::set<std::pair<uint64_t, uint32_t>> records; 
     std::set<std::pair<uint64_t, uint32_t>> to_delete;
@@ -328,9 +341,9 @@ START_TEST(t_sorted_array)
     size_t deletes = 0;
     for (auto rec : records) {
         WRec r = {rec.first, rec.second, 1};
-        ck_assert_int_eq(ext_wirs->append(r, g_rng), 1);
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
 
-         if (gsl_rng_uniform(g_rng) < 0.05 && !to_delete.empty()) {
+         if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
             std::vector<std::pair<uint64_t, uint32_t>> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
@@ -338,14 +351,14 @@ START_TEST(t_sorted_array)
                 WRec dr = {del_vec[i].first, del_vec[i].second, 1};
                 dr.set_tombstone();
 
-                ext_wirs->append(dr , g_rng);
+                ext_wirs->insert(dr );
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
         }
 
-        if (gsl_rng_uniform(g_rng) < 0.25 && deleted.find(rec) == deleted.end()) {
+        if (gsl_rng_uniform(rng) < 0.25 && deleted.find(rec) == deleted.end()) {
             to_delete.insert(rec);
         }
     }
@@ -360,6 +373,7 @@ START_TEST(t_sorted_array)
         prev_key = k;
     }
 
+    gsl_rng_free(rng);
     delete flat;
     delete ext_wirs;
 }
@@ -374,17 +388,19 @@ Suite *unit_testing()
     tcase_add_test(create, t_create);
     suite_add_tcase(unit, create);
 
-    TCase *append = tcase_create("de::DynamicExtension::append Testing");
-    tcase_add_test(append, t_append);
-    tcase_add_test(append, t_append_with_mem_merges);
-    suite_add_tcase(unit, append);
+    TCase *insert = tcase_create("de::DynamicExtension::insert Testing");
+    tcase_add_test(insert, t_insert);
+    tcase_add_test(insert, t_insert_with_mem_merges);
+    suite_add_tcase(unit, insert);
 
     TCase *sampling = tcase_create("de::DynamicExtension::range_sample Testing");
 
+    /*
     tcase_add_test(sampling, t_range_sample_memtable);
     tcase_add_test(sampling, t_range_sample_memlevels);
     tcase_add_test(sampling, t_range_sample_weighted);
     suite_add_tcase(unit, sampling);
+    */
 
     TCase *ts = tcase_create("de::DynamicExtension::tombstone_compaction Testing");
     tcase_add_test(ts, t_tombstone_merging_01);

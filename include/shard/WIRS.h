@@ -23,6 +23,8 @@
 #include "util/bf_config.h"
 #include "framework/MutableBuffer.h"
 #include "framework/RecordInterface.h"
+#include "framework/ShardInterface.h"
+#include "framework/QueryInterface.h"
 
 namespace de {
 
@@ -33,8 +35,6 @@ struct wirs_query_parms {
     decltype(R::key) lower_bound;
     decltype(R::key) upper_bound;
 };
-
-class InternalLevel;
 
 template <WeightedRecordInterface R>
 class WIRSQuery;
@@ -60,7 +60,6 @@ struct WIRSState {
 
 template <WeightedRecordInterface R>
 class WIRS {
-    friend class InternalLevel;
 private:
 
     typedef decltype(R::key) K;
@@ -82,8 +81,10 @@ public:
 
         size_t offset = 0;
         m_reccnt = 0;
-        auto base = buffer->sorted_output();
+        auto base = buffer->get_data();
         auto stop = base + buffer->get_record_count();
+
+        std::sort(base, stop, memtable_record_cmp<R>);
 
         while (base < stop) {
             if (!(base->is_tombstone()) && (base + 1) < stop) {
@@ -186,7 +187,7 @@ public:
     }
 
     R *point_lookup(R &rec, bool filter=false) {
-        if (filter && !m_bf.lookup(rec.key)) {
+        if (filter && !m_bf->lookup(rec.key)) {
             return nullptr;
         }
 
@@ -292,6 +293,29 @@ private:
         m_root = construct_wirs_node(weights, 0, n_groups-1);
     }
 
+     struct wirs_node<R>* construct_wirs_node(const std::vector<W>& weights, size_t low, size_t high) {
+        if (low == high) {
+            return new wirs_node<R>{nullptr, nullptr, low, high, weights[low], new Alias({1.0})};
+        } else if (low > high) return nullptr;
+
+        std::vector<double> node_weights;
+        W sum = 0;
+        for (size_t i = low; i < high; ++i) {
+            node_weights.emplace_back(weights[i]);
+            sum += weights[i];
+        }
+
+        for (auto& w: node_weights)
+            if (sum) w /= sum;
+            else w = 1.0 / node_weights.size();
+        
+        
+        size_t mid = (low + high) / 2;
+        return new wirs_node<R>{construct_wirs_node(weights, low, mid),
+                                construct_wirs_node(weights, mid + 1, high),
+                                low, high, sum, new Alias(node_weights)};
+    }
+
     void free_tree(struct wirs_node<R>* node) {
         if (node) {
             delete node->alias;
@@ -308,7 +332,7 @@ private:
     size_t m_reccnt;
     size_t m_tombstone_cnt;
     size_t m_group_size;
-    BloomFilter<K> m_bf;
+    BloomFilter<K> *m_bf;
 };
 
 
@@ -394,7 +418,8 @@ public:
         return output;
     }
 
-    static void delete_query_state(wirs_query_parms<R> *parameters) {
+    static void delete_query_state(void *parm) {
+        wirs_query_parms<R> *parameters = parm;
         delete parameters;
     }
 

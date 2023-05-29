@@ -16,16 +16,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "util/Record.h"
 #include "util/types.h"
 #include "util/base.h"
 #include "framework/MutableBuffer.h"
-//#include "framework/InternalLevel.h"
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
-
-static gsl_rng *g_rng = gsl_rng_alloc(gsl_rng_mt19937);
+typedef de::WrappedRecord<WRec> WrappedWRec;
+typedef de::WrappedRecord<Rec> WrappedRec;
 
 static bool initialize_test_file(std::string fname, size_t page_cnt)
 {
@@ -71,7 +69,7 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
 template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
 
     R rec;
     for (size_t i = 0; i < cnt; i++) {
@@ -91,7 +89,7 @@ static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, ts_cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, ts_cnt);
 
     std::vector<std::pair<uint64_t, uint32_t>> tombstones;
 
@@ -122,7 +120,7 @@ static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t t
 template <de::WeightedRecordInterface R>
 static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
     
     // Put in half of the count with weight one.
     for (uint32_t i=0; i< cnt / 2; i++) {
@@ -145,9 +143,9 @@ static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt, g_rng);
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
 
-    for (size_t i = 0; i < cnt / 2; i++) {
+    for (size_t i = 0; i < cnt / 2; i++) { 
         R rec;
         rec.key = i;
         rec.value = i;

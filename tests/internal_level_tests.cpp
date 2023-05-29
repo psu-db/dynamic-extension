@@ -11,28 +11,33 @@
  */
 #include "shard/WIRS.h"
 #include "framework/InternalLevel.h"
-#include "util/bf_config.h"
+#include "framework/RecordInterface.h"
+#include "framework/QueryInterface.h"
+#include "framework/ShardInterface.h"
+
 #include "testing.h"
 
 #include <check.h>
 
 using namespace de;
 
+typedef InternalLevel<WrappedRecord<WRec>, WIRS<WrappedRecord<WRec>>, WIRSQuery<WrappedRecord<WRec>>> ILevel;
+
 START_TEST(t_memlevel_merge)
 {
-    auto tbl1 = create_test_mbuffer<WRec>(100);
-    auto tbl2 = create_test_mbuffer<WRec>(100);
+    auto tbl1 = create_test_mbuffer<WrappedWRec>(100);
+    auto tbl2 = create_test_mbuffer<WrappedWRec>(100);
 
-    auto base_level = new InternalLevel<WRec, WIRS<WRec>>(1, 1);
-    base_level->append_mem_table(tbl1, g_rng);
+    auto base_level = new ILevel(1, 1);
+    base_level->append_buffer(tbl1);
     ck_assert_int_eq(base_level->get_record_cnt(), 100);
 
-    auto merging_level = new InternalLevel<WRec, WIRS<WRec>>(0, 1);
-    merging_level->append_mem_table(tbl2, g_rng);
+    auto merging_level = new ILevel(0, 1);
+    merging_level->append_buffer(tbl2);
     ck_assert_int_eq(merging_level->get_record_cnt(), 100);
 
     auto old_level = base_level;
-    base_level = InternalLevel<WRec, WIRS<WRec>>::merge_levels(old_level, merging_level, g_rng);
+    base_level = ILevel::merge_levels(old_level, merging_level);
 
     delete old_level;
     delete merging_level;
@@ -44,13 +49,13 @@ START_TEST(t_memlevel_merge)
 }
 
 
-InternalLevel<WRec, WIRS<WRec>> *create_test_memlevel(size_t reccnt) {
-    auto tbl1 = create_test_mbuffer<WRec>(reccnt/2);
-    auto tbl2 = create_test_mbuffer<WRec>(reccnt/2);
+ILevel *create_test_memlevel(size_t reccnt) {
+    auto tbl1 = create_test_mbuffer<WrappedWRec>(reccnt/2);
+    auto tbl2 = create_test_mbuffer<WrappedWRec>(reccnt/2);
 
-    auto base_level = new InternalLevel<WRec, WIRS<WRec>>(1, 2);
-    base_level->append_mem_table(tbl1, g_rng);
-    base_level->append_mem_table(tbl2, g_rng);
+    auto base_level = new ILevel(1, 2);
+    base_level->append_buffer(tbl1); 
+    base_level->append_buffer(tbl2);
 
     delete tbl1;
     delete tbl2;

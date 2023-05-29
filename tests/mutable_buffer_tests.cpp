@@ -11,7 +11,6 @@
  */
 #include <string>
 #include <thread>
-#include <gsl/gsl_rng.h>
 #include <vector>
 #include <algorithm>
 
@@ -26,32 +25,29 @@ using namespace de;
 
 START_TEST(t_create)
 {
-    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
-    auto buffer = new MutableBuffer<Rec>(100, true, 50, rng);
+    auto buffer = new MutableBuffer<WrappedRec>(100, true, 50);
 
     ck_assert_ptr_nonnull(buffer);
     ck_assert_int_eq(buffer->get_capacity(), 100);
     ck_assert_int_eq(buffer->get_record_count(), 0);
     ck_assert_int_eq(buffer->is_full(), false);
-    ck_assert_ptr_nonnull(buffer->sorted_output());
+    ck_assert_ptr_nonnull(buffer->get_data());
     ck_assert_int_eq(buffer->get_tombstone_count(), 0);
     ck_assert_int_eq(buffer->get_tombstone_capacity(), 50);
 
     delete buffer;
-    gsl_rng_free(rng);
 }
 END_TEST
 
 
 START_TEST(t_insert)
 {
-    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
-    auto buffer = new MutableBuffer<WRec>(100, true, 50, rng);
+    auto buffer = new MutableBuffer<WrappedWRec>(100, true, 50);
 
     uint64_t key = 0;
     uint32_t val = 5;
 
-    WRec rec = {0, 5, 1};
+    WrappedWRec rec = {0, 5, 1};
 
     for (size_t i=0; i<99; i++) {
         ck_assert_int_eq(buffer->append(rec), 1);
@@ -74,7 +70,6 @@ START_TEST(t_insert)
     ck_assert_int_eq(buffer->append(rec), 0);
 
     delete buffer;
-    gsl_rng_free(rng);
 
 }
 END_TEST
@@ -82,12 +77,11 @@ END_TEST
 
 START_TEST(t_insert_tombstones)
 {
-    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
-    auto buffer = new MutableBuffer<Rec>(100, true, 50, rng);
+    auto buffer = new MutableBuffer<WrappedRec>(100, true, 50);
 
     size_t ts_cnt = 0;
 
-    Rec rec = {0, 5};
+    WrappedRec rec = {0, 5};
 
     for (size_t i=0; i<99; i++) {
         bool ts = false;
@@ -124,18 +118,16 @@ START_TEST(t_insert_tombstones)
     ck_assert_int_eq(buffer->append(rec), 0);
 
     delete buffer;
-    gsl_rng_free(rng);
 }
 END_TEST
 
 
 START_TEST(t_truncate)
 {
-    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
-    auto buffer = new MutableBuffer<Rec>(100, true, 100, rng);
+    auto buffer = new MutableBuffer<WrappedRec>(100, true, 100);
 
     size_t ts_cnt = 0;
-    Rec rec = {0, 5};
+    WrappedRec rec = {0, 5};
 
     for (size_t i=0; i<100; i++) {
         bool ts = false;
@@ -168,7 +160,6 @@ START_TEST(t_truncate)
     ck_assert_int_eq(buffer->append(rec), 1);
 
     delete buffer;
-    gsl_rng_free(rng);
 
 }
 END_TEST
@@ -178,8 +169,7 @@ START_TEST(t_sorted_output)
 {
     size_t cnt = 100;
 
-    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
-    auto buffer = new MutableBuffer<Rec>(cnt, true, cnt/2, rng);
+    auto buffer = new MutableBuffer<WrappedRec>(cnt, true, cnt/2);
 
 
     std::vector<uint64_t> keys(cnt);
@@ -194,19 +184,19 @@ START_TEST(t_sorted_output)
 
     uint32_t val = 12345;
     for (size_t i=0; i<cnt-2; i++) {
-        buffer->append(Rec {keys[i], val});
+        buffer->append(WrappedRec {keys[i], val});
     }
 
-    Rec r1 = {keys[cnt-2], val};
+    WrappedRec r1 = {keys[cnt-2], val};
     r1.set_tombstone();
     buffer->append(r1);
 
-    Rec r2 = {keys[cnt-1], val};
+    WrappedRec r2 = {keys[cnt-1], val};
     r2.set_tombstone();
     buffer->append(r2);
 
 
-    auto *sorted_records = buffer->sorted_output();
+    auto *sorted_records = buffer->get_data();
     std::sort(keys.begin(), keys.end());
 
     for (size_t i=0; i<cnt; i++) {
@@ -214,12 +204,11 @@ START_TEST(t_sorted_output)
     }
 
     delete buffer;
-    gsl_rng_free(rng);
 }
 END_TEST
 
 
-void insert_records(std::vector<std::pair<uint64_t, uint32_t>> *values, size_t start, size_t stop, MutableBuffer<Rec> *buffer)
+void insert_records(std::vector<std::pair<uint64_t, uint32_t>> *values, size_t start, size_t stop, MutableBuffer<WrappedRec> *buffer)
 {
     for (size_t i=start; i<stop; i++) {
         buffer->append({(*values)[i].first, (*values)[i].second});
@@ -231,12 +220,11 @@ void insert_records(std::vector<std::pair<uint64_t, uint32_t>> *values, size_t s
 START_TEST(t_multithreaded_insert)
 {
     size_t cnt = 10000;
-    auto rng = gsl_rng_alloc(gsl_rng_mt19937);
-    auto buffer = new MutableBuffer<Rec>(cnt, true, cnt/2, rng);
+    auto buffer = new MutableBuffer<WrappedRec>(cnt, true, cnt/2);
 
-    std::vector<Rec> records(cnt);
+    std::vector<WrappedRec> records(cnt);
     for (size_t i=0; i<cnt; i++) {
-        records[i] = Rec {(uint64_t) rand(), (uint32_t) rand()};
+        records[i] = WrappedRec {(uint64_t) rand(), (uint32_t) rand()};
     }
 
     // perform a t_multithreaded insertion
@@ -267,7 +255,6 @@ START_TEST(t_multithreaded_insert)
     }
 
     delete buffer;
-    gsl_rng_free(rng);
 }
 END_TEST
 #endif

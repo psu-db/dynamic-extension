@@ -26,8 +26,8 @@ concept RecordInterface = requires(R r, R s) {
 };
 
 template<RecordInterface R>
-struct WrappedRecord {
-    R rec;
+struct WrappedRecord : R {
+    //R rec;
     uint32_t header;
 
     inline void set_delete() {
