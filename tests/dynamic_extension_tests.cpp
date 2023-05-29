@@ -149,7 +149,6 @@ START_TEST(t_range_sample_memlevels)
 END_TEST
 */
 
-/*
 START_TEST(t_range_sample_weighted)
 {
     auto ext_wirs = new DE(100, 2, 1);
@@ -196,6 +195,7 @@ START_TEST(t_range_sample_weighted)
     uint64_t upper_key = 5;
 
     size_t cnt[3] = {0};
+    size_t total_samples = 0;
     for (size_t i=0; i<1000; i++) {
         wirs_query_parms<WRec> p;
         p.lower_bound = lower_key;
@@ -203,20 +203,20 @@ START_TEST(t_range_sample_weighted)
         p.sample_size = k;
 
         auto result = ext_wirs->query(&p);
+        total_samples += result.size();
 
-        for (size_t j=0; j<k; j++) {
+        for (size_t j=0; j<result.size(); j++) {
             cnt[result[j].key - 1]++;
         }
     }
 
-    ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
-    ck_assert(roughly_equal(cnt[1] / 1000, (double) k/4.0, k, .05));
-    ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
+    ck_assert(roughly_equal(cnt[0] / total_samples, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[1] / total_samples, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[2] / total_samples, (double) k/2.0, k, .05));
 
     delete ext_wirs;
 }
 END_TEST
-*/
 
 
 START_TEST(t_tombstone_merging_01)

@@ -268,9 +268,13 @@ START_TEST(t_wirs_buffer_query_rejection)
     wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
+    size_t total_samples = 0;
+
     for (size_t i=0; i<1000; i++) {
         auto state = WIRSQuery<WRec>::get_buffer_query_state(buffer, &parms);
         auto result = WIRSQuery<WRec>::buffer_query(buffer, state, &parms);
+
+        total_samples += result.size();
 
         for (size_t j=0; j<result.size(); j++) {
             cnt[result[j].rec.key - 1]++;
@@ -279,9 +283,9 @@ START_TEST(t_wirs_buffer_query_rejection)
         WIRSQuery<WRec>::delete_buffer_query_state(state);
     }
 
-    ck_assert(roughly_equal(cnt[0] / 1000, (double) k/4.0, k, .05));
-    ck_assert(roughly_equal(cnt[1] / 1000, (double) k/4.0, k, .05));
-    ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
+    ck_assert(roughly_equal(cnt[0] / total_samples, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[1] / total_samples, (double) k/4.0, k, .05));
+    ck_assert(roughly_equal(cnt[2] / total_samples, (double) k/2.0, k, .05));
 
     gsl_rng_free(parms.rng);
     delete buffer;

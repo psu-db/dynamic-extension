@@ -203,7 +203,7 @@ public:
         free_tree(m_root);
     }
 
-    Wrapped<R> *point_lookup(R &rec, bool filter=false) {
+    Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
         if (filter && !m_bf->lookup(rec.key)) {
             return nullptr;
         }
@@ -213,9 +213,9 @@ public:
             return nullptr;
         }
 
-        while (idx < m_reccnt && m_data[idx] < rec) ++idx;
+        while (idx < m_reccnt && m_data[idx].rec < rec) ++idx;
 
-        if (m_data[idx] == rec) {
+        if (m_data[idx].rec == rec) {
             return m_data + idx;
         }
 
@@ -254,7 +254,7 @@ private:
         while (min < max) {
             size_t mid = (min + max) / 2;
 
-            if (key > m_data[mid].key) {
+            if (key > m_data[mid].rec.key) {
                 min = mid + 1;
             } else {
                 max = mid;

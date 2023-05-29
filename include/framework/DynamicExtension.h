@@ -142,23 +142,26 @@ public:
             level->get_query_states(shards, states, parms);
         }
 
-        std::vector<std::vector<R>*> query_results(shards.size() + 1, nullptr);
+        std::vector<std::vector<R>> query_results(shards.size() + 1);
 
         // Execute the query for the buffer
-        query_results[0] = filter_deletes(Q::buffer_query(buffer, buffer_state, parms), {-1, -1}, buffer);
+        auto buffer_results = Q::buffer_query(buffer, buffer_state, parms);
+        query_results[0] = filter_deletes(buffer_results, {-1, -1}, buffer);
 
         // Execute the query for each shard
         for (size_t i=0; i<shards.size(); i++) {
-           query_results[i] = filter_deletes(Q::query(shards[i].second, states[i], parms), shards[i].first, buffer);
+            auto shard_results = Q::query(shards[i].second, states[i], parms);
+            query_results[i] = filter_deletes(shard_results, shards[i].first, buffer);
         }
         
         // Merge the results together
-        auto result = Q::merge(&query_results);
+        auto result = Q::merge(query_results);
 
         for (size_t i=0; i<query_results.size(); i++) {
-            delete query_results[i];
             Q::delete_query_state(states[i]);
         }
+
+        Q::delete_buffer_query_state(buffer_state);
 
         return result;
     }
@@ -282,9 +285,9 @@ private:
         return buffer->append(rec, ts);
     }
 
-    std::vector<R> filter_deletes(std::vector<Wrapped<R>> *records, ShardID shid, Buffer *buffer) {
+    std::vector<R> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, Buffer *buffer) {
         std::vector<R> processed_records;
-        processed_records->reserve(records->size());
+        processed_records.reserve(records.size());
 
         // For delete tagging, we just need to check the delete bit on each
         // record.
@@ -297,7 +300,6 @@ private:
                 processed_records.emplace_back(rec.rec);
             }
 
-            delete records;
             return processed_records;
         }
 
@@ -327,7 +329,7 @@ private:
             processed_records.emplace_back(rec.rec);
         }
 
-        delete records;
+        return processed_records;
     }
 
     /*

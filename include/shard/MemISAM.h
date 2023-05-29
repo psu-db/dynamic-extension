@@ -180,7 +180,7 @@ public:
         return m_tombstone_cnt;
     }
 
-    R *point_lookup(R &rec, bool filter) {
+    R *point_lookup(const R &rec, bool filter) {
 
         if (filter && !m_bf->lookup(rec.key)) {
             return nullptr;
