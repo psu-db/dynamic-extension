@@ -26,9 +26,9 @@ concept RecordInterface = requires(R r, R s) {
 };
 
 template<RecordInterface R>
-struct WrappedRecord : R {
-    //R rec;
+struct Wrapped {
     uint32_t header;
+    R rec;
 
     inline void set_delete() {
         header |= 2;
@@ -49,7 +49,13 @@ struct WrappedRecord : R {
     inline bool is_tombstone() const {
         return header & 1;
     }
+
+    inline bool operator<(const Wrapped& other) const {
+        return (rec.key < other.rec.key) || (rec.key == other.rec.key && rec.value < other.rec.value)
+            || (rec.key == other.rec.key && rec.value == other.rec.value && header < other.header);
+    }
 };
+
 
 template <typename R>
 concept WeightedRecordInterface = RecordInterface<R> && requires(R r) {
@@ -76,46 +82,14 @@ struct WeightedRecord {
     K key;
     V value;
     W weight = 1;
-    uint32_t header = 0;
-
-    inline void set_delete() {
-        header |= 2;
-    }
-
-    inline bool is_deleted() const {
-        return header & 2;
-    }
-
-    inline void set_tombstone(bool val=true) {
-        if (val) {
-            header |= val;
-        } else {
-            header &= 0;
-        }
-    }
-
-    inline bool is_tombstone() const {
-        return header & 1;
-    }
-
-    inline int match(const WeightedRecord* other) const {
-        return key == other->key && value == other->value;
-    }
-
-    inline bool operator<(const WeightedRecord& other) const {
-        return key < other.key || (key == other.key && value < other.value);
-    }
 
     inline bool operator==(const WeightedRecord& other) const {
         return key == other.key && value == other.value;
     }
+
+   inline bool operator<(const WeightedRecord& other) const {
+        return key < other.key || (key == other.key && value < other.value);
+    }
 };
-
-
-template <RecordInterface R>
-static bool memtable_record_cmp(const R& a, const R& b) {
-    return (a.key < b.key) || (a.key == b.key && a.value < b.value)
-        || (a.key == b.key && a.value == b.value && a.header < b.header);
-}
 
 }

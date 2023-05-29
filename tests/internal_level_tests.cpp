@@ -21,12 +21,12 @@
 
 using namespace de;
 
-typedef InternalLevel<WrappedRecord<WRec>, WIRS<WrappedRecord<WRec>>, WIRSQuery<WrappedRecord<WRec>>> ILevel;
+typedef InternalLevel<WRec, WIRS<WRec>, WIRSQuery<WRec>> ILevel;
 
 START_TEST(t_memlevel_merge)
 {
-    auto tbl1 = create_test_mbuffer<WrappedWRec>(100);
-    auto tbl2 = create_test_mbuffer<WrappedWRec>(100);
+    auto tbl1 = create_test_mbuffer<WRec>(100);
+    auto tbl2 = create_test_mbuffer<WRec>(100);
 
     auto base_level = new ILevel(1, 1);
     base_level->append_buffer(tbl1);
@@ -50,8 +50,8 @@ START_TEST(t_memlevel_merge)
 
 
 ILevel *create_test_memlevel(size_t reccnt) {
-    auto tbl1 = create_test_mbuffer<WrappedWRec>(reccnt/2);
-    auto tbl2 = create_test_mbuffer<WrappedWRec>(reccnt/2);
+    auto tbl1 = create_test_mbuffer<WRec>(reccnt/2);
+    auto tbl2 = create_test_mbuffer<WRec>(reccnt/2);
 
     auto base_level = new ILevel(1, 2);
     base_level->append_buffer(tbl1); 

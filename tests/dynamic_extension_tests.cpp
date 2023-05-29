@@ -20,7 +20,7 @@
 #include <check.h>
 using namespace de;
 
-typedef DynamicExtension<WRec, WIRS<WrappedRecord<WRec>>, WIRSQuery<WrappedRecord<WRec>>> DE;
+typedef DynamicExtension<WRec, WIRS<WRec>, WIRSQuery<WRec>> DE;
 
 START_TEST(t_create)
 {
@@ -147,7 +147,9 @@ START_TEST(t_range_sample_memlevels)
     delete ext_wirs;
 }
 END_TEST
+*/
 
+/*
 START_TEST(t_range_sample_weighted)
 {
     auto ext_wirs = new DE(100, 2, 1);
@@ -186,23 +188,24 @@ START_TEST(t_range_sample_weighted)
             weight = 8;
         }
 
-        WRec r = {keys[i], (uint32_t) i, weight, 0};
+        WRec r = {keys[i], (uint32_t) i, weight};
         ext_wirs->insert(r);
     }
     size_t k = 1000;
     uint64_t lower_key = 0;
     uint64_t upper_key = 5;
 
-    WRec* buffer = new WRec[k]();
-    char *buffer1 = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
-    char *buffer2 = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
-
     size_t cnt[3] = {0};
     for (size_t i=0; i<1000; i++) {
-        ext_wirs->range_sample(buffer, lower_key, upper_key, k);
+        wirs_query_parms<WRec> p;
+        p.lower_bound = lower_key;
+        p.upper_bound = upper_key;
+        p.sample_size = k;
+
+        auto result = ext_wirs->query(&p);
 
         for (size_t j=0; j<k; j++) {
-            cnt[buffer[j].key - 1]++;
+            cnt[result[j].key - 1]++;
         }
     }
 
@@ -211,9 +214,6 @@ START_TEST(t_range_sample_weighted)
     ck_assert(roughly_equal(cnt[2] / 1000, (double) k/2.0, k, .05));
 
     delete ext_wirs;
-    delete[] buffer;
-    free(buffer1);
-    free(buffer2);
 }
 END_TEST
 */
@@ -242,7 +242,7 @@ START_TEST(t_tombstone_merging_01)
     size_t deletes = 0;
     size_t cnt=0;
     for (auto rec : records) {
-        WRec r = {rec.first, rec.second, 1, 0};
+        WRec r = {rec.first, rec.second, 1};
         ck_assert_int_eq(ext_wirs->insert(r), 1);
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
@@ -251,8 +251,7 @@ START_TEST(t_tombstone_merging_01)
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 WRec dr = {del_vec[i].first, del_vec[i].second, 1};
-                dr.set_tombstone();
-                ext_wirs->insert(dr);
+                ext_wirs->erase(dr);
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
@@ -300,8 +299,7 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
-                del_vec[i].set_tombstone();
-                ext_wirs->insert(del_vec[i]);
+                ext_wirs->erase(del_vec[i]);
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
@@ -349,9 +347,7 @@ START_TEST(t_sorted_array)
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 WRec dr = {del_vec[i].first, del_vec[i].second, 1};
-                dr.set_tombstone();
-
-                ext_wirs->insert(dr );
+                ext_wirs->erase(dr);
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
@@ -368,7 +364,7 @@ START_TEST(t_sorted_array)
 
     uint64_t prev_key = 0;
     for (size_t i=0; i<flat->get_record_count(); i++) {
-        auto k = flat->get_record_at(i)->key;
+        auto k = flat->get_record_at(i)->rec.key;
         ck_assert_int_ge(k, prev_key);
         prev_key = k;
     }

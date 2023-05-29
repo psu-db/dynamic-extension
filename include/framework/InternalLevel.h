@@ -28,18 +28,18 @@ class InternalLevel {
     typedef MutableBuffer<R> Buffer;
 public:
     InternalLevel(ssize_t level_no, size_t shard_cap)
-    : m_level_no(level_no), m_shard_cnt(0), m_shards(new std::vector<Shard*>(shard_cap, nullptr))
+    : m_level_no(level_no), m_shard_cnt(0), m_shards(new std::vector<Shard*>(shard_cap, nullptr), free_shards)
     {}
 
     // Create a new memory level sharing the shards and repurposing it as previous level_no + 1
     // WARNING: for leveling only.
     InternalLevel(InternalLevel* level)
     : m_level_no(level->m_level_no + 1), m_shard_cnt(level->m_shard_cnt)
-    , m_shards(level->m_shards) {
+    , m_shards(level->m_shards, free_shards) {
         assert(m_shard_cnt == 1 && m_shards->size() == 1);
     }
 
-    ~InternalLevel() {}
+    ~InternalLevel() { }
 
     // WARNING: for leveling only.
     // assuming the base level is the level new level is merging into. (base_level is larger.)
@@ -180,6 +180,10 @@ private:
     
     size_t m_shard_cnt;
     size_t m_shard_size_cap;
+
+    static void free_shards(std::vector<Shard*>* vec) {
+        for (size_t i=0; i<vec->size(); i++) delete (*vec)[i];
+    }
 
     std::shared_ptr<std::vector<Shard*>> m_shards;
 };

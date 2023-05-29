@@ -34,6 +34,7 @@ template <WeightedRecordInterface R>
 struct wirs_query_parms {
     decltype(R::key) lower_bound;
     decltype(R::key) upper_bound;
+    size_t sample_size;
 };
 
 template <WeightedRecordInterface R>
@@ -73,9 +74,9 @@ public:
     WIRS(MutableBuffer<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_root(nullptr) {
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(R)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(R)) % CACHELINE_SIZE);
+        size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (R*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
         m_bf = new BloomFilter<K>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
@@ -84,11 +85,11 @@ public:
         auto base = buffer->get_data();
         auto stop = base + buffer->get_record_count();
 
-        std::sort(base, stop, memtable_record_cmp<R>);
+        std::sort(base, stop, std::less<Wrapped<R>>());
 
         while (base < stop) {
             if (!(base->is_tombstone()) && (base + 1) < stop) {
-                if (*base == *(base + 1) && (base + 1)->is_tombstone()) {
+                if (base->rec == (base + 1)->rec && (base + 1)->is_tombstone()) {
                     base += 2;
                     wirs_cancelations++;
                     continue;
@@ -100,11 +101,11 @@ public:
 
             base->header &= 1;
             m_data[m_reccnt++] = *base;
-            m_total_weight+= base->weight;
+            m_total_weight+= base->rec.weight;
 
             if (m_bf && base->is_tombstone()) {
                 m_tombstone_cnt++;
-                m_bf->insert(base->key);
+                m_bf->insert(base->rec.key);
             }
             
             base++;
@@ -117,56 +118,56 @@ public:
 
     WIRS(WIRS** shards, size_t len)
     : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_root(nullptr) {
-        std::vector<Cursor<R>> cursors;
+        std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(len);
 
-        PriorityQueue<R> pq(len);
+        PriorityQueue<Wrapped<R>> pq(len);
 
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
         
         for (size_t i = 0; i < len; ++i) {
             if (shards[i]) {
-                auto base = shards[i]->sorted_output();
+                auto base = shards[i]->get_data();
                 cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
                 attemp_reccnt += shards[i]->get_record_count();
                 tombstone_count += shards[i]->get_tombstone_count();
                 pq.push(cursors[i].ptr, i);
             } else {
-                cursors.emplace_back(Cursor<R>{nullptr, nullptr, 0, 0});
+                cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
             }
         }
 
         m_bf = new BloomFilter<K>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
-        size_t alloc_size = (attemp_reccnt * sizeof(R)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(R)) % CACHELINE_SIZE);
+        size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (R*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
         
         while (pq.size()) {
             auto now = pq.peek();
-            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<R>{nullptr, 0};
+            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
             if (!now.data->is_tombstone() && next.data != nullptr &&
-                *now.data == *next.data && next.data->is_tombstone()) {
+                now.data->rec == next.data->rec && next.data->is_tombstone()) {
                 
                 pq.pop(); pq.pop();
                 auto& cursor1 = cursors[now.version];
                 auto& cursor2 = cursors[next.version];
-                if (advance_cursor<R>(cursor1)) pq.push(cursor1.ptr, now.version);
-                if (advance_cursor<R>(cursor2)) pq.push(cursor2.ptr, next.version);
+                if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
+                if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
             } else {
                 auto& cursor = cursors[now.version];
                 if (!cursor.ptr->is_deleted()) {
                     m_data[m_reccnt++] = *cursor.ptr;
-                    m_total_weight += cursor.ptr->weight;
+                    m_total_weight += cursor.ptr->rec.weight;
                     if (m_bf && cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
-                        if (m_bf) m_bf->insert(cursor.ptr->key);
+                        if (m_bf) m_bf->insert(cursor.ptr->rec.key);
                     }
                 }
                 pq.pop();
                 
-                if (advance_cursor<R>(cursor)) pq.push(cursor.ptr, now.version);
+                if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);
             }
         }
 
@@ -186,7 +187,7 @@ public:
         free_tree(m_root);
     }
 
-    R *point_lookup(R &rec, bool filter=false) {
+    Wrapped<R> *point_lookup(R &rec, bool filter=false) {
         if (filter && !m_bf->lookup(rec.key)) {
             return nullptr;
         }
@@ -205,7 +206,7 @@ public:
         return nullptr;
     }
 
-    R* sorted_output() const {
+    Wrapped<R>* get_data() const {
         return m_data;
     }
     
@@ -217,7 +218,7 @@ public:
         return m_tombstone_cnt;
     }
 
-    const R* get_record_at(size_t idx) const {
+    const Wrapped<R>* get_record_at(size_t idx) const {
         if (idx >= m_reccnt) return nullptr;
         return m_data + idx;
     }
@@ -273,7 +274,7 @@ private:
             double group_weight = 0.0;
             group_norm_weight.clear();
             for (size_t k = 0; k < m_group_size && i < m_reccnt; ++k, ++i) {
-                auto w = m_data[i].weight;
+                auto w = m_data[i].rec.weight;
                 group_norm_weight.emplace_back(w);
                 group_weight += w;
                 sum_weight += w;
@@ -325,7 +326,7 @@ private:
         }
     }
 
-    R* m_data;
+    Wrapped<R>* m_data;
     std::vector<Alias *> m_alias;
     wirs_node<R>* m_root;
     W m_total_weight;
@@ -339,10 +340,10 @@ private:
 template <WeightedRecordInterface R>
 class WIRSQuery {
 public:
-    static void *get_query_state(wirs_query_parms<R> *parameters, WIRS<R> *wirs) {
+    static void *get_query_state(WIRS<R> *wirs, void *parms) {
         auto res = new WIRSState<R>();
-        decltype(R::key) lower_key = ((wirs_query_parms<R> *) parameters)->lower_bound;
-        decltype(R::key) upper_key = ((wirs_query_parms<R> *) parameters)->upper_bound;
+        decltype(R::key) lower_key = ((wirs_query_parms<R> *) parms)->lower_bound;
+        decltype(R::key) upper_key = ((wirs_query_parms<R> *) parms)->upper_bound;
 
         // Simulate a stack to unfold recursion.        
         double tot_weight = 0.0;
@@ -351,13 +352,13 @@ public:
         size_t top = 1;
         while(top > 0) {
             auto now = st[--top];
-            if (covered_by(now, lower_key, upper_key) ||
-                (now->left == nullptr && now->right == nullptr && intersects(now, lower_key, upper_key))) {
+            if (wirs->covered_by(now, lower_key, upper_key) ||
+                (now->left == nullptr && now->right == nullptr && wirs->intersects(now, lower_key, upper_key))) {
                 res->nodes.emplace_back(now);
                 tot_weight += now->weight;
             } else {
-                if (now->left && intersects(now->left, lower_key, upper_key)) st[top++] = now->left;
-                if (now->right && intersects(now->right, lower_key, upper_key)) st[top++] = now->right;
+                if (now->left && wirs->intersects(now->left, lower_key, upper_key)) st[top++] = now->left;
+                if (now->right && wirs->intersects(now->right, lower_key, upper_key)) st[top++] = now->right;
             }
         }
         
@@ -371,13 +372,19 @@ public:
         return res;
     }
 
-    static std::vector<R> *query(wirs_query_parms<R> *parameters, WIRSState<R> *state, WIRS<R> *wirs) {
-        auto sample_sz = parameters->sample_size;
-        auto lower_key = parameters->lower_bound;
-        auto upper_key = parameters->upper_bound;
-        auto rng = parameters->rng;
+    static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
+        return nullptr;
+    }
 
-        std::vector<R> *result_set = new std::vector<R>();
+    static std::vector<Wrapped<R>> *query(WIRS<R> *wirs, void *q_state, void *parms) { 
+        auto sample_sz = ((wirs_query_parms<R> *) parms)->sample_size;
+        auto lower_key = ((wirs_query_parms<R> *) parms)->lower_bound;
+        auto upper_key = ((wirs_query_parms<R> *) parms)->upper_bound;
+        auto rng = ((wirs_query_parms<R> *) parms)->rng;
+
+        auto state = (WIRSState<R> *) q_state;
+
+        std::vector<Wrapped<R>> *result_set = new std::vector<Wrapped<R>>();
 
         if (sample_sz == 0) {
             return 0;
@@ -407,14 +414,19 @@ public:
         return result_set;
     }
 
-    static std::vector<R> *merge(std::vector<std::vector<R>> *results) {
-        std::vector<R> *output = new std::vector<R>();
+    static std::vector<Wrapped<R>> *buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
+        return new std::vector<Wrapped<R>>();
+    }
+
+    static std::vector<R> merge(std::vector<std::vector<R>*> *results) {
+        std::vector<R> output;
 
         for (size_t i=0; i<results->size(); i++) {
             for (size_t j=0; j<(*results)[i]->size(); j++) {
                 output->emplace_back(*((*results)[i])[j]);
             }
         }
+
         return output;
     }
 

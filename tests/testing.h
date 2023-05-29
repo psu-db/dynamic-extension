@@ -22,8 +22,6 @@
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
-typedef de::WrappedRecord<WRec> WrappedWRec;
-typedef de::WrappedRecord<Rec> WrappedRec;
 
 static bool initialize_test_file(std::string fname, size_t page_cnt)
 {
@@ -149,18 +147,16 @@ static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false
         R rec;
         rec.key = i;
         rec.value = i;
-        if (ts) rec.set_tombstone();
 
-        buffer->append(rec);
+        buffer->append(rec, ts);
     }
 
     for (size_t i = 0; i < cnt / 2; i++) {
         R rec;
         rec.key = i;
         rec.value = i + 1;
-        if (ts) rec.set_tombstone();
 
-        buffer->append(rec);
+        buffer->append(rec, ts);
     }
 
     return buffer;
