@@ -384,7 +384,6 @@ Suite *unit_testing()
 {
     Suite *unit = suite_create("de::DynamicExtension Unit Testing");
 
-    /*
     TCase *create = tcase_create("de::DynamicExtension::constructor Testing");
     tcase_add_test(create, t_create);
     suite_add_tcase(unit, create);
@@ -393,7 +392,6 @@ Suite *unit_testing()
     tcase_add_test(insert, t_insert);
     tcase_add_test(insert, t_insert_with_mem_merges);
     suite_add_tcase(unit, insert);
-    */
 
     TCase *sampling = tcase_create("de::DynamicExtension::range_sample Testing");
 
@@ -405,7 +403,6 @@ Suite *unit_testing()
     tcase_add_test(sampling, t_range_sample_memlevels);
     */
 
-    /*
     TCase *ts = tcase_create("de::DynamicExtension::tombstone_compaction Testing");
     tcase_add_test(ts, t_tombstone_merging_01);
     tcase_set_timeout(ts, 500);
@@ -415,7 +412,6 @@ Suite *unit_testing()
     tcase_add_test(flat, t_sorted_array);
     tcase_set_timeout(flat, 500);
     suite_add_tcase(unit, flat);
-    */
 
     return unit;
 }

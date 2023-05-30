@@ -55,6 +55,7 @@ public:
 
         Wrapped<R> wrec;
         wrec.rec = rec;
+        wrec.header = 0;
         if (tombstone) wrec.set_tombstone();
 
         m_data[pos] = wrec;
