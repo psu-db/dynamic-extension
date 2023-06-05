@@ -139,6 +139,60 @@ START_TEST(t_point_lookup_miss)
 }
 
 
+START_TEST(t_range_query)
+{
+    auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
+    auto shard = Shard(buffer);
+
+    pgm_range_query_parms<Rec> parms;
+    parms.lower_bound = 300;
+    parms.upper_bound = 500;
+
+    auto state = PGMRangeQuery<Rec>::get_query_state(&shard, &parms);
+    auto result = PGMRangeQuery<Rec>::query(&shard, state, &parms);
+    PGMRangeQuery<Rec>::delete_query_state(state);
+
+    ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
+    for (size_t i=0; i<result.size(); i++) {
+        ck_assert_int_le(result[i].rec.key, parms.upper_bound);
+        ck_assert_int_ge(result[i].rec.key, parms.lower_bound);
+    }
+
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_buffer_range_query)
+{
+    auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
+
+    pgm_range_query_parms<Rec> parms;
+    parms.lower_bound = 300;
+    parms.upper_bound = 500;
+
+    auto state = PGMRangeQuery<Rec>::get_buffer_query_state(buffer, &parms);
+    auto result = PGMRangeQuery<Rec>::buffer_query(buffer, state, &parms);
+    PGMRangeQuery<Rec>::delete_buffer_query_state(state);
+
+    ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
+    for (size_t i=0; i<result.size(); i++) {
+        ck_assert_int_le(result[i].rec.key, parms.upper_bound);
+        ck_assert_int_ge(result[i].rec.key, parms.lower_bound);
+    }
+
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_range_query_merge)
+{
+
+}
+END_TEST
+
+
 START_TEST(t_full_cancelation)
 {
     size_t n = 100;
@@ -190,6 +244,11 @@ Suite *unit_testing()
     tcase_add_test(lookup, t_point_lookup_miss);
     suite_add_tcase(unit, lookup);
 
+    TCase *range_query = tcase_create("de:PGM::range_query Testing");
+    tcase_add_test(range_query, t_range_query);
+    tcase_add_test(range_query, t_buffer_range_query);
+    tcase_add_test(range_query, t_range_query_merge);
+    suite_add_tcase(unit, range_query);
 
     return unit;
 }

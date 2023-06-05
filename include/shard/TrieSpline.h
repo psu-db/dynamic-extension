@@ -30,28 +30,24 @@ namespace de {
 size_t g_max_error = 1024;
 
 template <RecordInterface R>
-struct ts_lookup_parms {
-    size_t sample_size;
-    gsl_rng *rng;
+struct ts_range_query_parms {
+    decltype(R::key) lower_bound;
+    decltype(R::key) upper_bound;
 };
 
-template <RecordInterface R, bool Rejection>
-class TrieSplineLookup;
+template <RecordInterface R>
+class TrieSplineRangeQuery;
 
 template <RecordInterface R>
 struct TrieSplineState {
-    decltype(R::weight) tot_weight;
-
-    TrieSplineState() {
-        tot_weight = 0;
-    }
+    size_t start_idx;
+    size_t stop_idx;
 };
 
 template <RecordInterface R>
 struct TrieSplineBufferState {
     size_t cutoff;
     Alias* alias;
-    decltype(R::weight) max_weight;
 
     ~TrieSplineBufferState() {
         delete alias;
@@ -68,8 +64,7 @@ private:
 public:
 
     // FIXME: there has to be a better way to do this
-    friend class TrieSplineLookup<R, true>;
-    friend class TrieSplineLookup<R, false>;
+    friend class TrieSplineRangeQuery<R>;
 
     TrieSpline(MutableBuffer<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0) {
@@ -247,9 +242,6 @@ public:
 
 private:
 
-    // FIXME: depending upon the size of the returned bound,
-    // it may be better to switch between binary search and
-    // linear scan.
     size_t get_lower_bound(const K& key) const {
         auto bound = m_ts.GetSearchBound(key);
         size_t idx = bound.begin;
@@ -258,29 +250,29 @@ private:
             return m_reccnt;
         }
 
-        // if the found location _is_ the key, we're done.
-        if (m_data[idx].rec.key == key) {
-            return idx;
-        }
-
-        // if the found location is larger than the key, we need to
-        // move backwards towards the beginning of the array
-        if (m_data[idx].rec.key > key) {
-            for (ssize_t i=idx; i>=0; i--) {
-                if (m_data[i].rec.key < key) {
-                    return i+1;
-                }
+        // If the region to search is less than some pre-specified
+        // amount, perform a linear scan to locate the record.
+        if (bound.end - bound.begin < 256) {
+            while (idx < bound.end && m_data[idx].rec.key < key) {
+                idx++;
             }
-        // otherwise, we move forward towards the end
         } else {
-            for (size_t i=idx; i<m_reccnt; i++) {
-                if (m_data[i].rec.key >= key) {
-                    return i - 1;
+            // Otherwise, perform a binary search
+            idx = bound.begin;
+            size_t max = bound.end;
+
+            while (idx < max) {
+                size_t mid = (idx + max) / 2;
+                if (key > m_data[mid].rec.key) {
+                    idx = mid + 1;
+                } else {
+                    max = mid;
                 }
             }
+
         }
 
-        return m_reccnt;
+        return (m_data[idx].rec.key <= key) ? idx : m_reccnt;
     }
 
     Wrapped<R>* m_data;
@@ -293,25 +285,63 @@ private:
 };
 
 
-template <RecordInterface R, bool Rejection=true>
-class TrieSplineLookup {
+template <RecordInterface R>
+class TrieSplineRangeQuery {
 public:
-    static void *get_query_state(TrieSpline<R> *wss, void *parms) {
+    static void *get_query_state(TrieSpline<R> *ts, void *parms) {
         auto res = new TrieSplineState<R>();
+        auto p = (ts_range_query_parms<R> *) parms;
+
+        res->start_idx = ts->get_lower_bound(p->lower_bound);
+        res->stop_idx = ts->get_record_count();
 
         return res;
     }
 
     static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
+        auto res = new TrieSplineBufferState<R>();
+        res->cutoff = buffer->get_record_count();
 
+        return res;
     }
 
-    static std::vector<Wrapped<R>> query(TrieSpline<R> *wss, void *q_state, void *parms) {
+    static std::vector<Wrapped<R>> query(TrieSpline<R> *ts, void *q_state, void *parms) {
+        std::vector<Wrapped<R>> records;
+        auto p = (ts_range_query_parms<R> *) parms;
+        auto s = (TrieSplineState<R> *) q_state;
 
+        // if the returned index is one past the end of the
+        // records for the TrieSpline, then there are not records
+        // in the index falling into the specified range.
+        if (s->start_idx == ts->get_record_count()) {
+            return records;
+        }
+
+        auto ptr = ts->get_record_at(s->start_idx);
+        size_t i = 0;
+        while (ptr[i].rec.key <= p->upper_bound && i < s->stop_idx - s->start_idx) {
+            records.emplace_back(ptr[i]);
+            i++;
+        }
+
+        return records;
     }
 
     static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
+        auto p = (ts_range_query_parms<R> *) parms;
+        auto s = (TrieSplineBufferState<R> *) state;
 
+        std::vector<Wrapped<R>> records;
+        for (size_t i=0; i<s->cutoff; i++) {
+            auto rec = buffer->get_data() + i;
+            if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
+                records.emplace_back(*rec);
+            }
+
+        }
+
+
+        return records;
     }
 
     static std::vector<R> merge(std::vector<std::vector<R>> &results) {
@@ -335,11 +365,6 @@ public:
         auto s = (TrieSplineBufferState<R> *) state;
         delete s;
     }
-
-
-    //{q.get_buffer_query_state(p, p)};
-    //{q.buffer_query(p, p)};
-
 };
 
 }

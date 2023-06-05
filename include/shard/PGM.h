@@ -28,13 +28,13 @@
 namespace de {
 
 template <RecordInterface R>
-struct ts_range_query_parms {
+struct pgm_range_query_parms {
     decltype(R::key) lower_bound;
     decltype(R::key) upper_bound;
 };
 
-template <RecordInterface R, bool Rejection>
-class PGMLookup;
+template <RecordInterface R>
+class PGMRangeQuery;
 
 template <RecordInterface R>
 struct PGMState {
@@ -46,7 +46,6 @@ template <RecordInterface R>
 struct PGMBufferState {
     size_t cutoff;
     Alias* alias;
-    decltype(R::weight) max_weight;
 
     ~PGMBufferState() {
         delete alias;
@@ -63,8 +62,7 @@ private:
 public:
 
     // FIXME: there has to be a better way to do this
-    friend class PGMLookup<R, true>;
-    friend class PGMLookup<R, false>;
+    friend class PGMRangeQuery<R>;
 
     PGM(MutableBuffer<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0) {
@@ -225,10 +223,6 @@ public:
     }
 
 private:
-
-    // FIXME: depending upon the size of the returned bound,
-    // it may be better to switch between binary search and
-    // linear scan.
     size_t get_lower_bound(const K& key) const {
         auto bound = m_pgm.search(key);
         size_t idx = bound.lo;
@@ -237,29 +231,29 @@ private:
             return m_reccnt;
         }
 
-        // if the found location _is_ the key, we're done.
-        if (m_data[idx].rec.key == key) {
-            return idx;
-        }
-
-        // if the found location is larger than the key, we need to
-        // move backwards towards the beginning of the array
-        if (m_data[idx].rec.key > key) {
-            for (ssize_t i=idx; i>=0; i--) {
-                if (m_data[i].rec.key < key) {
-                    return i+1;
-                }
+        // If the region to search is less than some pre-specified
+        // amount, perform a linear scan to locate the record.
+        if (bound.hi - bound.lo < 256) {
+            while (idx < bound.hi && m_data[idx].rec.key < key) {
+                idx++;
             }
-        // otherwise, we move forward towards the end
         } else {
-            for (size_t i=idx; i<m_reccnt; i++) {
-                if (m_data[i].rec.key >= key) {
-                    return i - 1;
+            // Otherwise, perform a binary search
+            idx = bound.lo;
+            size_t max = bound.hi;
+
+            while (idx < max) {
+                size_t mid = (idx + max) / 2;
+                if (key > m_data[mid].rec.key) {
+                    idx = mid + 1;
+                } else {
+                    max = mid;
                 }
             }
+
         }
 
-        return m_reccnt;
+        return (m_data[idx].rec.key <= key) ? idx : m_reccnt;
     }
 
     Wrapped<R>* m_data;
@@ -277,7 +271,7 @@ class PGMRangeQuery {
 public:
     static void *get_query_state(PGM<R> *ts, void *parms) {
         auto res = new PGMState<R>();
-        auto p = (ts_range_query_parms<R> *) parms;
+        auto p = (pgm_range_query_parms<R> *) parms;
 
         res->start_idx = ts->get_lower_bound(p->lower_bound);
         res->stop_idx = ts->get_record_count();
@@ -287,18 +281,26 @@ public:
 
     static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
         auto res = new PGMBufferState<R>();
-        res.cutoff = buffer->get_record_count();
+        res->cutoff = buffer->get_record_count();
 
         return res;
     }
 
     static std::vector<Wrapped<R>> query(PGM<R> *ts, void *q_state, void *parms) {
         std::vector<Wrapped<R>> records;
-        auto p = (ts_range_query_parms<R> *) parms;
+        auto p = (pgm_range_query_parms<R> *) parms;
         auto s = (PGMState<R> *) q_state;
-        auto ptr = ts->get_record_at(s->lower_bound);
+
+        // if the returned index is one past the end of the
+        // records for the PGM, then there are not records
+        // in the index falling into the specified range.
+        if (s->start_idx == ts->get_record_count()) {
+            return records;
+        }
+
+        auto ptr = ts->get_record_at(s->start_idx);
         size_t i = 0;
-        while (ptr->rec.key <= p->upper_bound && i < s->stop_idx) {
+        while (ptr[i].rec.key <= p->upper_bound && i < s->stop_idx - s->start_idx) {
             records.emplace_back(ptr[i]);
             i++;
         }
@@ -307,11 +309,20 @@ public:
     }
 
     static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
-        auto p = (ts_range_query_parms<R> *) parms;
+        auto p = (pgm_range_query_parms<R> *) parms;
         auto s = (PGMBufferState<R> *) state;
 
+        std::vector<Wrapped<R>> records;
+        for (size_t i=0; i<s->cutoff; i++) {
+            auto rec = buffer->get_data() + i;
+            if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
+                records.emplace_back(*rec);
+            }
+
+        }
 
 
+        return records;
     }
 
     static std::vector<R> merge(std::vector<std::vector<R>> &results) {
@@ -335,11 +346,8 @@ public:
         auto s = (PGMBufferState<R> *) state;
         delete s;
     }
-
-
-    //{q.get_buffer_query_state(p, p)};
-    //{q.buffer_query(p, p)};
-
 };
+
+;
 
 }

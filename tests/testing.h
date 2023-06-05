@@ -96,6 +96,27 @@ static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 }
 
 template <de::RecordInterface R>
+static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, decltype(R::key) stop)
+{
+    size_t cnt = stop - start;
+    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
+
+    for (size_t i=start; i<stop; i++) {
+        R rec;
+        rec.key = i;
+        rec.value = i;
+
+        if constexpr (de::WeightedRecordInterface<R>) {
+            rec.weight = 1;
+        }
+
+        buffer->append(rec);
+    }
+
+    return buffer;
+}
+
+template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
     auto buffer = new de::MutableBuffer<R>(cnt, true, ts_cnt);

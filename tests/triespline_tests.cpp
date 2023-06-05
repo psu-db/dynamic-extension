@@ -1,5 +1,5 @@
 /*
- * tests/irs_tests.cpp
+ * tests/triespline_tests.cpp
  *
  * Unit tests for TrieSpline (Augmented B+Tree) shard
  *
@@ -45,7 +45,7 @@ START_TEST(t_mbuffer_init)
 }
 
 
-START_TEST(t_irs_init)
+START_TEST(t_init)
 {
     size_t n = 512;
     auto mbuffer1 = create_test_mbuffer<Rec>(n);
@@ -169,13 +169,67 @@ START_TEST(t_full_cancelation)
 END_TEST
 
 
+START_TEST(t_range_query)
+{
+    auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
+    auto shard = Shard(buffer);
+
+    ts_range_query_parms<Rec> parms;
+    parms.lower_bound = 300;
+    parms.upper_bound = 500;
+
+    auto state = TrieSplineRangeQuery<Rec>::get_query_state(&shard, &parms);
+    auto result = TrieSplineRangeQuery<Rec>::query(&shard, state, &parms);
+    TrieSplineRangeQuery<Rec>::delete_query_state(state);
+
+    ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
+    for (size_t i=0; i<result.size(); i++) {
+        ck_assert_int_le(result[i].rec.key, parms.upper_bound);
+        ck_assert_int_ge(result[i].rec.key, parms.lower_bound);
+    }
+
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_buffer_range_query)
+{
+    auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
+
+    ts_range_query_parms<Rec> parms;
+    parms.lower_bound = 300;
+    parms.upper_bound = 500;
+
+    auto state = TrieSplineRangeQuery<Rec>::get_buffer_query_state(buffer, &parms);
+    auto result = TrieSplineRangeQuery<Rec>::buffer_query(buffer, state, &parms);
+    TrieSplineRangeQuery<Rec>::delete_buffer_query_state(state);
+
+    ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
+    for (size_t i=0; i<result.size(); i++) {
+        ck_assert_int_le(result[i].rec.key, parms.upper_bound);
+        ck_assert_int_ge(result[i].rec.key, parms.lower_bound);
+    }
+
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_range_query_merge)
+{
+
+}
+END_TEST
+
+
 Suite *unit_testing()
 {
     Suite *unit = suite_create("TrieSpline Shard Unit Testing");
 
     TCase *create = tcase_create("de::TrieSpline constructor Testing");
     tcase_add_test(create, t_mbuffer_init);
-    tcase_add_test(create, t_irs_init);
+    tcase_add_test(create, t_init);
     tcase_set_timeout(create, 100);
     suite_add_tcase(unit, create);
 
@@ -189,6 +243,13 @@ Suite *unit_testing()
     tcase_add_test(lookup, t_point_lookup);
     tcase_add_test(lookup, t_point_lookup_miss);
     suite_add_tcase(unit, lookup);
+
+
+    TCase *range_query = tcase_create("de:TrieSpline::range_query Testing");
+    tcase_add_test(range_query, t_range_query);
+    tcase_add_test(range_query, t_buffer_range_query);
+    tcase_add_test(range_query, t_range_query_merge);
+    suite_add_tcase(unit, range_query);
 
 
     return unit;
