@@ -15,7 +15,7 @@
 #include <memory>
 #include <concepts>
 
-#include "PLEX/include/ts/builder.h"
+#include "ts/builder.h"
 #include "ds/PriorityQueue.h"
 #include "util/Cursor.h"
 #include "ds/BloomFilter.h"
@@ -88,7 +88,7 @@ public:
         std::sort(base, stop, std::less<Wrapped<R>>());
 
         K min_key = base->rec.key;
-        K max_key = stop->rec.key;
+        K max_key = (stop - 1)->rec.key;
 
         auto bldr = ts::Builder<K>(min_key, max_key, g_max_error);
 
@@ -104,16 +104,16 @@ public:
             }
 
             if (m_reccnt == 0) {
-                m_max_key = m_min_key = base->key;
-            } else if (base->key > m_max_key) {
-                m_max_key = base->key;
-            } else if (base->key < m_min_key) {
-                m_min_key = base->key;
+                m_max_key = m_min_key = base->rec.key;
+            } else if (base->rec.key > m_max_key) {
+                m_max_key = base->rec.key;
+            } else if (base->rec.key < m_min_key) {
+                m_min_key = base->rec.key;
             }
 
             base->header &= 1;
             m_data[m_reccnt++] = *base;
-            bldr.AddKey(base->key);
+            bldr.AddKey(base->rec.key);
 
             if (m_bf && base->is_tombstone()) {
                 m_tombstone_cnt++;
@@ -258,19 +258,24 @@ private:
             return m_reccnt;
         }
 
+        // if the found location _is_ the key, we're done.
+        if (m_data[idx].rec.key == key) {
+            return idx;
+        }
+
         // if the found location is larger than the key, we need to
         // move backwards towards the beginning of the array
-        if (m_data[idx].key > key) {
+        if (m_data[idx].rec.key > key) {
             for (ssize_t i=idx; i>=0; i--) {
-                if (m_data[i].key < key) {
+                if (m_data[i].rec.key < key) {
                     return i+1;
                 }
             }
         // otherwise, we move forward towards the end
         } else {
             for (size_t i=idx; i<m_reccnt; i++) {
-                if (m_data[i].key >= key) {
-                    return i-1;
+                if (m_data[i].rec.key >= key) {
+                    return i - 1;
                 }
             }
         }

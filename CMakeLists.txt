@@ -12,6 +12,8 @@ set(bench True)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
+add_compile_options(-Iinclude -Iexternal/PLEX/include)
+
 if (debug) 
     add_compile_options(-g -O0)
     add_compile_options(-fsanitize=address)
@@ -22,12 +24,10 @@ else()
     add_compile_options(-O3)
 endif()
 
-
 # Test build instructions
 if (tests) 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/tests")
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-    add_compile_options(-Iinclude)
 
     add_executable(pagedfile_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pagedfile_tests.cpp)
     target_link_libraries(pagedfile_tests PUBLIC gsl check subunit pthread)
@@ -56,6 +56,10 @@ if (tests)
     add_executable(wss_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/wss_tests.cpp)
     target_link_libraries(wss_tests PUBLIC gsl check subunit pthread)
     target_include_directories(wss_tests PRIVATE include)
+
+    add_executable(triespline_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_tests.cpp)
+    target_link_libraries(triespline_tests PUBLIC gsl check subunit pthread)
+    target_include_directories(triespline_tests PRIVATE include external/PLEX/include)
 endif()
 
 # Benchmark build instructions
