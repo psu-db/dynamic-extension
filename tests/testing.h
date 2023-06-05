@@ -19,9 +19,20 @@
 #include "util/types.h"
 #include "util/base.h"
 #include "framework/MutableBuffer.h"
+#include "framework/RecordInterface.h"
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
+
+template <de::RecordInterface R> 
+std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {
+    std::vector<R> out(vec.size());
+    for (size_t i=0; i<vec.size(); i++) {
+        out[i] = vec[i].rec;
+    }
+
+    return out;
+}
 
 static bool initialize_test_file(std::string fname, size_t page_cnt)
 {

@@ -212,17 +212,6 @@ START_TEST(t_wirs_query)
 END_TEST
 
 
-template <RecordInterface R> 
-std::vector<R> strip_wrapping(std::vector<Wrapped<R>> vec) {
-    std::vector<R> out(vec.size());
-    for (size_t i=0; i<vec.size(); i++) {
-        out[i] = vec[i].rec;
-    }
-
-    return out;
-}
-
-
 START_TEST(t_wirs_query_merge)
 {
     size_t n=1000;
