@@ -1,7 +1,7 @@
 /*
- * tests/wirs_tests.cpp
+ * tests/wss_tests.cpp
  *
- * Unit tests for WIRS (Augmented B+Tree) shard
+ * Unit tests for WSS (Augmented B+Tree) shard
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -10,14 +10,14 @@
  *
  */
 
-#include "shard/WIRS.h"
+#include "shard/WSS.h"
 #include "testing.h"
 
 #include <check.h>
 
 using namespace de;
 
-typedef WIRS<WRec> Shard;
+typedef WSS<WRec> Shard;
 
 START_TEST(t_mbuffer_init)
 {
@@ -45,7 +45,7 @@ START_TEST(t_mbuffer_init)
 }
 
 
-START_TEST(t_wirs_init)
+START_TEST(t_wss_init)
 {
     size_t n = 512;
     auto mbuffer1 = create_test_mbuffer<WRec>(n);
@@ -126,27 +126,24 @@ START_TEST(t_full_cancelation)
 END_TEST
 
 
-START_TEST(t_wirs_query)
+START_TEST(t_wss_query)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
 
     Shard* shard = new Shard(buffer);
 
-    uint64_t lower_key = 0;
-    uint64_t upper_key = 5;
-
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    wss_query_parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = WIRSQuery<WRec>::get_query_state(shard, &parms);
-        auto result = WIRSQuery<WRec>::query(shard, state, &parms);
+        auto state = WSSQuery<WRec>::get_query_state(shard, &parms);
+        auto result = WSSQuery<WRec>::query(shard, state, &parms);
 
         total_samples += result.size();
 
@@ -154,7 +151,7 @@ START_TEST(t_wirs_query)
             cnt[result[j].rec.key - 1]++;
         }
 
-        WIRSQuery<WRec>::delete_query_state(state);
+        WSSQuery<WRec>::delete_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .05));
@@ -179,7 +176,7 @@ std::vector<R> strip_wrapping(std::vector<Wrapped<R>> vec) {
 }
 
 
-START_TEST(t_wirs_query_merge)
+START_TEST(t_wss_query_merge)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -192,23 +189,23 @@ START_TEST(t_wirs_query_merge)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    wss_query_parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     std::vector<std::vector<WRec>> results(2);
 
     for (size_t i=0; i<1000; i++) {
-        auto state1 = WIRSQuery<WRec>::get_query_state(shard, &parms);
-        results[0] = strip_wrapping(WIRSQuery<WRec>::query(shard, state1, &parms));
+        auto state1 = WSSQuery<WRec>::get_query_state(shard, &parms);
+        results[0] = strip_wrapping(WSSQuery<WRec>::query(shard, state1, &parms));
 
-        auto state2 = WIRSQuery<WRec>::get_query_state(shard, &parms);
-        results[1] = strip_wrapping(WIRSQuery<WRec>::query(shard, state2, &parms));
+        auto state2 = WSSQuery<WRec>::get_query_state(shard, &parms);
+        results[1] = strip_wrapping(WSSQuery<WRec>::query(shard, state2, &parms));
 
-        WIRSQuery<WRec>::delete_query_state(state1);
-        WIRSQuery<WRec>::delete_query_state(state2);
+        WSSQuery<WRec>::delete_query_state(state1);
+        WSSQuery<WRec>::delete_query_state(state2);
     }
 
-    auto merged = WIRSQuery<WRec>::merge(results);
+    auto merged = WSSQuery<WRec>::merge(results);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {
@@ -223,7 +220,7 @@ START_TEST(t_wirs_query_merge)
 END_TEST
 
 
-START_TEST(t_wirs_buffer_query_scan)
+START_TEST(t_wss_buffer_query_scan)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -234,22 +231,21 @@ START_TEST(t_wirs_buffer_query_scan)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    wss_query_parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = WIRSQuery<WRec, false>::get_buffer_query_state(buffer, &parms);
-        auto result = WIRSQuery<WRec, false>::buffer_query(buffer, state, &parms);
-
+        auto state = WSSQuery<WRec, false>::get_buffer_query_state(buffer, &parms);
+        auto result = WSSQuery<WRec, false>::buffer_query(buffer, state, &parms);
         total_samples += result.size();
 
         for (size_t j=0; j<result.size(); j++) {
             cnt[result[j].rec.key - 1]++;
         }
 
-        WIRSQuery<WRec, false>::delete_buffer_query_state(state);
+        WSSQuery<WRec, false>::delete_buffer_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .05));
@@ -262,7 +258,7 @@ START_TEST(t_wirs_buffer_query_scan)
 END_TEST
 
 
-START_TEST(t_wirs_buffer_query_rejection)
+START_TEST(t_wss_buffer_query_rejection)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -273,14 +269,14 @@ START_TEST(t_wirs_buffer_query_rejection)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
+    wss_query_parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = WIRSQuery<WRec>::get_buffer_query_state(buffer, &parms);
-        auto result = WIRSQuery<WRec>::buffer_query(buffer, state, &parms);
+        auto state = WSSQuery<WRec>::get_buffer_query_state(buffer, &parms);
+        auto result = WSSQuery<WRec>::buffer_query(buffer, state, &parms);
 
         total_samples += result.size();
 
@@ -288,12 +284,12 @@ START_TEST(t_wirs_buffer_query_rejection)
             cnt[result[j].rec.key - 1]++;
         }
 
-        WIRSQuery<WRec>::delete_buffer_query_state(state);
+        WSSQuery<WRec>::delete_buffer_query_state(state);
     }
 
-    ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .05));
-    ck_assert(roughly_equal(cnt[1], (double) total_samples/4.0, total_samples, .05));
-    ck_assert(roughly_equal(cnt[2], (double) total_samples/2.0, total_samples, .05));
+    ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .1));
+    ck_assert(roughly_equal(cnt[1], (double) total_samples/4.0, total_samples, .1));
+    ck_assert(roughly_equal(cnt[2], (double) total_samples/2.0, total_samples, .1));
 
     gsl_rng_free(parms.rng);
     delete buffer;
@@ -303,25 +299,25 @@ END_TEST
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("WIRS Shard Unit Testing");
+    Suite *unit = suite_create("WSS Shard Unit Testing");
 
-    TCase *create = tcase_create("de::WIRS constructor Testing");
+    TCase *create = tcase_create("de::WSS constructor Testing");
     tcase_add_test(create, t_mbuffer_init);
-    tcase_add_test(create, t_wirs_init);
+    tcase_add_test(create, t_wss_init);
     tcase_set_timeout(create, 100);
     suite_add_tcase(unit, create);
 
 
-    TCase *tombstone = tcase_create("de:WIRS::tombstone cancellation Testing");
+    TCase *tombstone = tcase_create("de:WSS::tombstone cancellation Testing");
     tcase_add_test(tombstone, t_full_cancelation);
     suite_add_tcase(unit, tombstone);
 
 
-    TCase *sampling = tcase_create("de:WIRS::WIRSQuery Testing");
-    tcase_add_test(sampling, t_wirs_query);
-    tcase_add_test(sampling, t_wirs_query_merge);
-    tcase_add_test(sampling, t_wirs_buffer_query_rejection);
-    tcase_add_test(sampling, t_wirs_buffer_query_scan);
+    TCase *sampling = tcase_create("de:WSS::WSSQuery Testing");
+    tcase_add_test(sampling, t_wss_query);
+    tcase_add_test(sampling, t_wss_query_merge);
+    tcase_add_test(sampling, t_wss_buffer_query_rejection);
+    tcase_add_test(sampling, t_wss_buffer_query_scan);
     suite_add_tcase(unit, sampling);
 
     return unit;

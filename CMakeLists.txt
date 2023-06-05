@@ -52,6 +52,10 @@ if (tests)
     add_executable(memisam_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/memisam_tests.cpp)
     target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread)
     target_include_directories(memisam_tests PRIVATE include)
+
+    add_executable(wss_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/wss_tests.cpp)
+    target_link_libraries(wss_tests PUBLIC gsl check subunit pthread)
+    target_include_directories(wss_tests PRIVATE include)
 endif()
 
 # Benchmark build instructions

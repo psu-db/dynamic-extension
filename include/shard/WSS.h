@@ -74,7 +74,7 @@ public:
     friend class WSSQuery<R, false>;
 
     WSS(MutableBuffer<R>* buffer)
-    : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0) {
+    : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_alias(nullptr), m_bf(nullptr) {
 
         size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -117,12 +117,12 @@ public:
         }
 
         if (m_reccnt > 0) {
-            build_alias_structure();
+            build_alias_structure(weights);
         }
     }
 
     WSS(WSS** shards, size_t len)
-    : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0) {
+    : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_alias(nullptr), m_bf(nullptr) {
         std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(len);
 
@@ -186,7 +186,7 @@ public:
 
     ~WSS() {
         if (m_data) free(m_data);
-        if (m_alias) free(m_alias);
+        if (m_alias) delete m_alias;
         if (m_bf) delete m_bf;
 
     }
@@ -253,13 +253,16 @@ private:
     }
 
     void build_alias_structure(std::vector<W> &weights) {
+
         // normalize the weights vector
+        std::vector<double> norm_weights(weights.size());
+
         for (size_t i=0; i<weights.size(); i++) {
-            weights[i] = weights[i] / (double) m_total_weight;
+            norm_weights[i] = (double) weights[i] / (double) m_total_weight;
         }
 
         // build the alias structure
-        m_alias = new Alias(weights);
+        m_alias = new Alias(norm_weights);
     }
 
     Wrapped<R>* m_data;
@@ -298,7 +301,6 @@ public:
         for (size_t i = 0; i <= state->cutoff; i++) {
             auto rec = buffer->get_data() + i;
             weights.push_back(rec->rec.weight);
-            state->records.push_back(*rec);
             tot_weight += rec->rec.weight;
         }
 
