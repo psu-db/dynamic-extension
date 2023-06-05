@@ -77,25 +77,26 @@ public:
 
         m_bf = new BloomFilter<K>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(R)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(R)) % CACHELINE_SIZE);
+        size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (R*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
         TIMER_INIT();
 
         size_t offset = 0;
         m_reccnt = 0;
-        TIMER_START();
-        R* base = buffer->sorted_output();
-        TIMER_STOP();
+        auto base = buffer->get_data();
+        auto stop = base + buffer->get_record_count();
 
+        TIMER_START();
+        std::sort(base, stop, std::less<Wrapped<R>>());
+        TIMER_STOP();
         auto sort_time = TIMER_RESULT();
-        R* stop = base + buffer->get_record_count();
 
         TIMER_START();
         while (base < stop) {
             if (!base->is_tombstone() && (base + 1 < stop)
-                && *base == *(base + 1)  && (base + 1)->is_tombstone()) {
+                && base->rec == (base + 1)->rec  && (base + 1)->is_tombstone()) {
                 base += 2;
                 mrun_cancelations++;
                 continue;
@@ -109,7 +110,7 @@ public:
             m_data[m_reccnt++] = *base;
             if (m_bf && base->is_tombstone()) {
                 ++m_tombstone_cnt;
-                m_bf->insert(base->key);
+                m_bf->insert(base->rec.key);
             }
 
             base++;
@@ -127,39 +128,39 @@ public:
 
     MemISAM(MemISAM** runs, size_t len)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_isam_nodes(nullptr) {
-        std::vector<Cursor<R>> cursors;
+        std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(len);
 
-        PriorityQueue<R> pq(len);
+        PriorityQueue<Wrapped<R>> pq(len);
 
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
         
         for (size_t i = 0; i < len; ++i) {
             if (runs[i]) {
-                auto base = runs[i]->sorted_output();
+                auto base = runs[i]->get_data();
                 cursors.emplace_back(Cursor{base, base + runs[i]->get_record_count(), 0, runs[i]->get_record_count()});
                 attemp_reccnt += runs[i]->get_record_count();
                 tombstone_count += runs[i]->get_tombstone_count();
                 pq.push(cursors[i].ptr, i);
             } else {
-                cursors.emplace_back(Cursor<R>{nullptr, nullptr, 0, 0});
+                cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
             }
         }
 
         m_bf = new BloomFilter<K>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
-        size_t alloc_size = (attemp_reccnt * sizeof(R)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(R)) % CACHELINE_SIZE);
+        size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (R*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
         size_t offset = 0;
         
         while (pq.size()) {
             auto now = pq.peek();
-            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<R>{nullptr, 0};
+            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
             if (!now.data->is_tombstone() && next.data != nullptr &&
-                *now.data == *next.data && next.data->is_tombstone()) {
+                now.data->rec == next.data->rec && next.data->is_tombstone()) {
                 
                 pq.pop(); pq.pop();
                 auto& cursor1 = cursors[now.version];
@@ -172,7 +173,7 @@ public:
                     m_data[m_reccnt++] = *cursor.ptr;
                     if (cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
-                        m_bf->insert(cursor.ptr->key);
+                        m_bf->insert(cursor.ptr->rec.key);
                     }
                 }
                 pq.pop();
@@ -211,7 +212,7 @@ public:
         return nullptr;
     }
 
-    R* get_data() const {
+    Wrapped<R>* get_data() const {
         return m_data;
     }
     
@@ -223,7 +224,7 @@ public:
         return m_tombstone_cnt;
     }
 
-    const R* get_record_at(size_t idx) const {
+    const Wrapped<R>* get_record_at(size_t idx) const {
         return (idx < m_reccnt) ? m_data + idx : nullptr;
     }
 
@@ -246,8 +247,8 @@ private:
             now = next ? next : reinterpret_cast<const InMemISAMNode*>(now->child[inmem_isam_fanout - 1]);
         }
 
-        const R* pos = reinterpret_cast<const R*>(now);
-        while (pos < m_data + m_reccnt && pos->key < key) pos++;
+        const Wrapped<R>* pos = reinterpret_cast<const Wrapped<R>*>(now);
+        while (pos < m_data + m_reccnt && pos->rec.key < key) pos++;
 
         return pos - m_data;
     }
@@ -266,8 +267,8 @@ private:
             now = next ? next : reinterpret_cast<const InMemISAMNode*>(now->child[inmem_isam_fanout - 1]);
         }
 
-        const R* pos = reinterpret_cast<const R*>(now);
-        while (pos < m_data + m_reccnt && pos->key <= key) pos++;
+        const Wrapped<R>* pos = reinterpret_cast<const Wrapped<R>*>(now);
+        while (pos < m_data + m_reccnt && pos->rec.key <= key) pos++;
 
         return pos - m_data;
     }
@@ -290,15 +291,15 @@ private:
 
         InMemISAMNode* current_node = m_isam_nodes;
 
-        const R* leaf_base = m_data;
-        const R* leaf_stop = m_data + m_reccnt;
+        const Wrapped<R>* leaf_base = m_data;
+        const Wrapped<R>* leaf_stop = m_data + m_reccnt;
         while (leaf_base < leaf_stop) {
             size_t fanout = 0;
             for (size_t i = 0; i < inmem_isam_fanout; ++i) {
                 auto rec_ptr = leaf_base + inmem_isam_leaf_fanout * i;
                 if (rec_ptr >= leaf_stop) break;
-                const R* sep_key = std::min(rec_ptr + inmem_isam_leaf_fanout - 1, leaf_stop - 1);
-                current_node->keys[i] = sep_key->key;
+                const Wrapped<R>* sep_key = std::min(rec_ptr + inmem_isam_leaf_fanout - 1, leaf_stop - 1);
+                current_node->keys[i] = sep_key->rec.key;
                 current_node->child[i] = (char*)rec_ptr;
                 ++fanout;
             }
@@ -337,7 +338,7 @@ private:
     }
 
     // Members: sorted data, internal ISAM levels, reccnt;
-    R* m_data;
+    Wrapped<R>* m_data;
     BloomFilter<K> *m_bf;
     InMemISAMNode* m_isam_nodes;
     InMemISAMNode* m_root;
@@ -347,8 +348,8 @@ private:
     size_t m_deleted_cnt;
 };
 
-template <WeightedRecordInterface R, bool Rejection=true>
-class WIRSQuery {
+template <RecordInterface R, bool Rejection=true>
+class IRSQuery {
 public:
 
     static void *get_query_state(MemISAM<R> *isam, void *parms) {
@@ -375,7 +376,7 @@ public:
         auto upper_key = ((irs_query_parms<R> *) parms)->upper_bound;
 
         for (size_t i=0; i<res->cutoff; i++) {
-            if (((buffer->get_data() + i)->key >= lower_key) && ((buffer->get_data() + i) <= upper_key)) { 
+            if (((buffer->get_data() + i)->rec.key >= lower_key) && ((buffer->get_data() + i)->rec.key <= upper_key)) { 
                 res->records.emplace_back(*(buffer->get_data() + i));
             }
         }
@@ -402,7 +403,7 @@ public:
         do {
             attempts++;
             size_t idx = gsl_rng_uniform_int(rng, range_length);
-            result_set.emplace_back(isam->get_record_at(idx));
+            result_set.emplace_back(*isam->get_record_at(state->lower_bound + idx));
         } while (attempts < sample_sz);
 
         return result_set;
