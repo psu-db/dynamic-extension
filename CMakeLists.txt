@@ -60,6 +60,10 @@ if (tests)
     add_executable(triespline_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_tests.cpp)
     target_link_libraries(triespline_tests PUBLIC gsl check subunit pthread)
     target_include_directories(triespline_tests PRIVATE include external/PLEX/include)
+
+    add_executable(pgm_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pgm_tests.cpp)
+    target_link_libraries(pgm_tests PUBLIC gsl check subunit pthread)
+    target_include_directories(pgm_tests PRIVATE include external/PGM-index/include)
 endif()
 
 # Benchmark build instructions

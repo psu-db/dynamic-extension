@@ -1,3 +1,6 @@
 [submodule "external/PLEX"]
 	path = external/PLEX
 	url = git@github.com:stoianmihail/PLEX.git
+[submodule "external/PGM-index"]
+	path = external/PGM-index
+	url = https://github.com/gvinciguerra/PGM-index.git
