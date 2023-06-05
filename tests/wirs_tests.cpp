@@ -96,6 +96,50 @@ START_TEST(t_wirs_init)
 }
 
 
+START_TEST(t_point_lookup) 
+{
+    size_t n = 10000;
+
+    auto buffer = create_double_seq_mbuffer<WRec>(n, false);
+    auto wirs = Shard(buffer);
+
+    for (size_t i=0; i<n; i++) {
+        WRec r;
+        auto rec = (buffer->get_data() + i);
+        r.key = rec->rec.key;
+        r.value = rec->rec.value;
+
+        auto result = wirs.point_lookup(r);
+        ck_assert_ptr_nonnull(result);
+        ck_assert_int_eq(result->rec.key, r.key);
+        ck_assert_int_eq(result->rec.value, r.value);
+    }
+
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_point_lookup_miss) 
+{
+    size_t n = 10000;
+
+    auto buffer = create_double_seq_mbuffer<WRec>(n, false);
+    auto wirs = Shard(buffer);
+
+    for (size_t i=n + 100; i<2*n; i++) {
+        WRec r;
+        r.key = i;
+        r.value = i;
+
+        auto result = wirs.point_lookup(r);
+        ck_assert_ptr_null(result);
+    }
+
+    delete buffer;
+}
+
+
 START_TEST(t_full_cancelation)
 {
     size_t n = 100;
@@ -315,6 +359,12 @@ Suite *unit_testing()
     TCase *tombstone = tcase_create("de:WIRS::tombstone cancellation Testing");
     tcase_add_test(tombstone, t_full_cancelation);
     suite_add_tcase(unit, tombstone);
+
+
+    TCase *lookup = tcase_create("de:WIRS:point_lookup Testing");
+    tcase_add_test(lookup, t_point_lookup);
+    tcase_add_test(lookup, t_point_lookup_miss);
+    suite_add_tcase(unit, lookup);
 
 
     TCase *sampling = tcase_create("de:WIRS::WIRSQuery Testing");

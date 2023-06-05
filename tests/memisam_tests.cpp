@@ -348,6 +348,7 @@ Suite *unit_testing()
     tcase_add_test(tombstone, t_full_cancelation);
     suite_add_tcase(unit, tombstone);
 
+
     TCase *lookup = tcase_create("de:MemISAM:point_lookup Testing");
     tcase_add_test(lookup, t_point_lookup);
     tcase_add_test(lookup, t_point_lookup_miss);
