@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug true)
+set(debug false)
 set(tests True)
 set(bench True)
 
@@ -69,5 +69,10 @@ endif()
 # Benchmark build instructions
 if (bench)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
+
+    add_executable(sampling_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/sampling_tput.cpp)
+    target_link_libraries(sampling_tput PUBLIC gsl pthread)
+    target_include_directories(sampling_tput PRIVATE include)
+
 
 endif()
