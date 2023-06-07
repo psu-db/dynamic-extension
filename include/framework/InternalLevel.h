@@ -122,7 +122,7 @@ public:
     bool delete_record(const R &rec) {
         if (m_shard_cnt == 0) return false;
 
-        for (size_t i = 0; i < m_shards->size();  ++i) {
+        for (size_t i = 0; i < m_shards.size();  ++i) {
             if (m_shards[i]) {
                 auto res = m_shards[i]->point_lookup(rec);
                 if (res) {
