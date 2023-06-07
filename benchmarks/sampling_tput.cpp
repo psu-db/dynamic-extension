@@ -91,6 +91,8 @@ static void sample_benchmark(ExtendedWSS *tree, size_t k, size_t trial_cnt)
 
     WRec sample_set[k];
 
+    size_t total_samples = 0;
+
     de::wss_query_parms<WRec> parms;
     parms.rng = g_rng;
     parms.sample_size = k;
@@ -100,6 +102,7 @@ static void sample_benchmark(ExtendedWSS *tree, size_t k, size_t trial_cnt)
         auto start = std::chrono::high_resolution_clock::now();
         for (int j=0; j < batch_size; j++) {
             auto res = tree->query(&parms);
+            total_samples += res.size();
         }
         auto stop = std::chrono::high_resolution_clock::now();
 
@@ -108,7 +111,7 @@ static void sample_benchmark(ExtendedWSS *tree, size_t k, size_t trial_cnt)
 
     progress_update(1.0, progbuf);
 
-    size_t throughput = (((double)(trial_cnt * k) / (double) total_time) * 1e9);
+    size_t throughput = (((double)(total_samples) / (double) total_time) * 1e9);
 
     fprintf(stdout, "%ld\n", throughput);
     fflush(stdout);
@@ -147,7 +150,7 @@ int main(int argc, char **argv)
     size_t insert_cnt = record_count - warmup_cnt;
 
     insert_benchmark(&sampling_lsm, &datafile, insert_cnt, delete_prop);
-//    sample_benchmark(&sampling_lsm, 1000, 10000);
+    sample_benchmark(&sampling_lsm, 1000, 10000);
 
     delete_bench_env();
     fflush(stdout);

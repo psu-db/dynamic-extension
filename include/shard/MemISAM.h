@@ -361,6 +361,7 @@ public:
 
         res->lower_bound = isam->get_lower_bound(lower_key);
         res->upper_bound = isam->get_upper_bound(upper_key);
+        res->sample_size = 0;
 
         return res;
     }
@@ -369,6 +370,7 @@ public:
         auto res = new IRSBufferState<R>();
 
         res->cutoff = buffer->get_record_count();
+        res->sample_size = 0;
 
         if constexpr (Rejection) {
             return res;
@@ -390,7 +392,7 @@ public:
         auto p = (irs_query_parms<R> *) query_parms;
         auto bs = (IRSBufferState<R> *) buff_state;
 
-        std::vector<size_t> shard_sample_sizes = {0};
+        std::vector<size_t> shard_sample_sizes(shard_states.size()+1, 0);
         size_t buffer_sz = 0;
 
         std::vector<size_t> weights;
@@ -400,7 +402,7 @@ public:
             weights.push_back(bs->records.size());
         }
 
-        decltype(R::weight) total_weight;
+        decltype(R::weight) total_weight = 0;
         for (auto &s : shard_states) {
             auto state = (IRSState<R> *) s;
             total_weight += state->upper_bound - state->lower_bound;
@@ -422,21 +424,20 @@ public:
             }
         }
 
-
         bs->sample_size = buffer_sz;
-        size_t i=1;
-        for (auto &s : shard_states) {
-            auto state = (IRSState<R> *) s;
-            state->sample_size = shard_sample_sizes[i++];
+        for (size_t i=0; i<shard_states.size(); i++) {
+            auto state = (IRSState<R> *) shard_states[i];
+            state->sample_size = shard_sample_sizes[i+1];
         }
     }
+
     static std::vector<Wrapped<R>> query(MemISAM<R> *isam, void *q_state, void *parms) { 
-        auto sample_sz = ((irs_query_parms<R> *) parms)->sample_size;
         auto lower_key = ((irs_query_parms<R> *) parms)->lower_bound;
         auto upper_key = ((irs_query_parms<R> *) parms)->upper_bound;
         auto rng = ((irs_query_parms<R> *) parms)->rng;
 
         auto state = (IRSState<R> *) q_state;
+        auto sample_sz = state->sample_size;
 
         std::vector<Wrapped<R>> result_set;
 
@@ -460,10 +461,10 @@ public:
         auto p = (irs_query_parms<R> *) parms;
 
         std::vector<Wrapped<R>> result;
-        result.reserve(p->sample_size);
+        result.reserve(st->sample_size);
 
         if constexpr (Rejection) {
-            for (size_t i=0; i<p->sample_size; i++) {
+            for (size_t i=0; i<st->sample_size; i++) {
                 auto idx = gsl_rng_uniform_int(p->rng, st->cutoff);
                 auto rec = buffer->get_data() + idx;
 
@@ -475,7 +476,7 @@ public:
             return result;
         }
 
-        for (size_t i=0; i<p->sample_size; i++) {
+        for (size_t i=0; i<st->sample_size; i++) {
             auto idx = gsl_rng_uniform_int(p->rng, st->records.size());
             result.emplace_back(st->records[idx]);
         }
