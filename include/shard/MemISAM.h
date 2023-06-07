@@ -39,12 +39,14 @@ template <RecordInterface R>
 struct IRSState {
     size_t lower_bound;
     size_t upper_bound;
+    size_t sample_size;
 };
 
 template <RecordInterface R>
 struct IRSBufferState {
     size_t cutoff;
     std::vector<Wrapped<R>> records;
+    size_t sample_size;
 };
 
 
@@ -384,6 +386,50 @@ public:
         return res;
     }
 
+    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+        auto p = (irs_query_parms<R> *) query_parms;
+        auto bs = (IRSBufferState<R> *) buff_state;
+
+        std::vector<size_t> shard_sample_sizes = {0};
+        size_t buffer_sz = 0;
+
+        std::vector<size_t> weights;
+        if (Rejection) {
+            weights.push_back(bs->cutoff);
+        } else {
+            weights.push_back(bs->records.size());
+        }
+
+        decltype(R::weight) total_weight;
+        for (auto &s : shard_states) {
+            auto state = (IRSState<R> *) s;
+            total_weight += state->upper_bound - state->lower_bound;
+            weights.push_back(state->total_weight);
+        }
+
+        std::vector<double> normalized_weights;
+        for (auto w : weights) {
+            normalized_weights.push_back((double) w / (double) total_weight);
+        }
+
+        auto shard_alias = Alias(normalized_weights);
+        for (size_t i=0; i<p->sample_size; i++) {
+            auto idx = shard_alias.get(p->rng);            
+            if (idx == 0) {
+                buffer_sz++;
+            } else {
+                shard_sample_sizes[idx - 1]++;
+            }
+        }
+
+
+        bs->sample_size = buffer_sz;
+        size_t i=1;
+        for (auto &s : shard_states) {
+            auto state = (IRSState<R> *) s;
+            state->sample_size = shard_sample_sizes[i++];
+        }
+    }
     static std::vector<Wrapped<R>> query(MemISAM<R> *isam, void *q_state, void *parms) { 
         auto sample_sz = ((irs_query_parms<R> *) parms)->sample_size;
         auto lower_key = ((irs_query_parms<R> *) parms)->lower_bound;

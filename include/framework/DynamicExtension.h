@@ -56,7 +56,7 @@ static constexpr bool LSM_REJ_SAMPLE = false;
 // True for leveling, false for tiering
 static constexpr bool LSM_LEVELING = false;
 
-static constexpr bool DELETE_TAGGING = false;
+static constexpr bool DELETE_TAGGING = true;
 
 // TODO: Replace the constexpr bools above
 // with template parameters based on these
@@ -141,6 +141,8 @@ public:
         for (auto &level : m_levels) {
             level->get_query_states(shards, states, parms);
         }
+
+        Q::process_query_states(parms, states, buffer_state);
 
         std::vector<std::vector<R>> query_results(shards.size() + 1);
 

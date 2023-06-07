@@ -286,6 +286,10 @@ public:
         return res;
     }
 
+    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+        return;
+    }
+
     static std::vector<Wrapped<R>> query(PGM<R> *ts, void *q_state, void *parms) {
         std::vector<Wrapped<R>> records;
         auto p = (pgm_range_query_parms<R> *) parms;
