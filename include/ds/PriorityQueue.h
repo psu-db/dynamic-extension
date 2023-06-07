@@ -12,8 +12,6 @@
 #include <vector>
 #include <cassert>
 
-#include "framework/RecordInterface.h"
-
 namespace de {
 
 template <typename R>
@@ -21,7 +19,6 @@ struct queue_record {
     const R *data;
     size_t version;
 };
-
 
 template <typename R>
 class PriorityQueue {

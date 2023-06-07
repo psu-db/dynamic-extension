@@ -1,5 +1,5 @@
 /*
- * include/ds/BloomFilter.h
+ * include/ds/BitArray.h
  *
  * Copyright (C) 2023 Dong Xie <dongx@psu.edu>
  *

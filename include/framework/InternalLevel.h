@@ -13,12 +13,10 @@
 #include <memory>
 
 #include "util/types.h"
-#include "util/bf_config.h"
 #include "framework/ShardInterface.h"
 #include "framework/QueryInterface.h"
 #include "framework/RecordInterface.h"
 #include "framework/MutableBuffer.h"
-#include "ds/BloomFilter.h"
 
 namespace de {
 

@@ -1,8 +1,8 @@
 /*
-    {s.get_tombstone_count()} -> std::convertible_to<size_t>;
  * include/shard/WSS.h
  *
  * Copyright (C) 2023 Dong Xie <dongx@psu.edu>
+ *                    Douglas Rumbaugh <drumbaugh@psu.edu>
  *
  * All rights reserved. Published under the Modified BSD License.
  *

@@ -44,7 +44,7 @@ const Timestamp TIMESTAMP_MAX = UINT32_MAX;
 // Invalid values for various IDs. Used throughout the code base to indicate
 // uninitialized values and error conditions.
 const PageNum INVALID_PNUM = 0;
-const FrameId INVALID_Fshid = -1;
+const FrameId INVALID_FRID = -1;
 
 // An ID for a given shard within the index. The level_idx is the index
 // in the memory_levels and disk_levels vectors corresponding to the
@@ -63,7 +63,7 @@ struct ShardID {
 const ShardID INVALID_SHID = {-1, -1};
 
 struct SampleRange {
-    ShardID run_id;
+    ShardID shid;
     size_t low;
     size_t high;
 };
