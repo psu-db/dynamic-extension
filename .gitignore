@@ -3,6 +3,7 @@
 build/*
 lib/*
 bin/*
+data
 
 tests/data
 
