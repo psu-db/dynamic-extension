@@ -78,7 +78,7 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
 template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
 
     R rec;
     for (size_t i = 0; i < cnt; i++) {
@@ -99,7 +99,7 @@ template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, decltype(R::key) stop)
 {
     size_t cnt = stop - start;
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
 
     for (size_t i=start; i<stop; i++) {
         R rec;
@@ -119,7 +119,7 @@ static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, d
 template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, ts_cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt, ts_cnt);
 
     std::vector<std::pair<uint64_t, uint32_t>> tombstones;
 
@@ -150,7 +150,7 @@ static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t t
 template <de::WeightedRecordInterface R>
 static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
     
     // Put in half of the count with weight one.
     for (uint32_t i=0; i< cnt / 2; i++) {
@@ -173,7 +173,7 @@ static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, true, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
 
     for (size_t i = 0; i < cnt / 2; i++) { 
         R rec;

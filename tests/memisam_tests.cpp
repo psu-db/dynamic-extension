@@ -21,7 +21,7 @@ typedef MemISAM<Rec> Shard;
 
 START_TEST(t_mbuffer_init)
 {
-    auto buffer = new MutableBuffer<Rec>(1024, true, 1024);
+    auto buffer = new MutableBuffer<Rec>(1024, 1024);
     for (uint64_t i = 512; i > 0; i--) {
         uint32_t v = i;
         buffer->append({i,v, 1});

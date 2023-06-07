@@ -29,7 +29,7 @@ namespace de {
 template <RecordInterface R>
 class MutableBuffer {
 public:
-    MutableBuffer(size_t capacity, bool rej_sampling, size_t max_tombstone_cap)
+    MutableBuffer(size_t capacity, size_t max_tombstone_cap)
     : m_cap(capacity), m_tombstone_cap(max_tombstone_cap), m_reccnt(0)
     , m_tombstonecnt(0), m_weight(0), m_max_weight(0) {
         auto len = capacity * sizeof(Wrapped<R>);

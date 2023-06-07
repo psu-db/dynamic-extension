@@ -25,7 +25,7 @@ using namespace de;
 
 START_TEST(t_create)
 {
-    auto buffer = new MutableBuffer<Rec>(100, true, 50);
+    auto buffer = new MutableBuffer<Rec>(100, 50);
 
     ck_assert_ptr_nonnull(buffer);
     ck_assert_int_eq(buffer->get_capacity(), 100);
@@ -42,7 +42,7 @@ END_TEST
 
 START_TEST(t_insert)
 {
-    auto buffer = new MutableBuffer<WRec>(100, true, 50);
+    auto buffer = new MutableBuffer<WRec>(100, 50);
 
     uint64_t key = 0;
     uint32_t val = 5;
@@ -77,7 +77,7 @@ END_TEST
 
 START_TEST(t_insert_tombstones)
 {
-    auto buffer = new MutableBuffer<Rec>(100, true, 50);
+    auto buffer = new MutableBuffer<Rec>(100, 50);
 
     size_t ts_cnt = 0;
 
@@ -120,7 +120,7 @@ END_TEST
 
 START_TEST(t_truncate)
 {
-    auto buffer = new MutableBuffer<Rec>(100, true, 100);
+    auto buffer = new MutableBuffer<Rec>(100, 100);
 
     size_t ts_cnt = 0;
     Rec rec = {0, 5};
@@ -162,7 +162,7 @@ START_TEST(t_get_data)
 {
     size_t cnt = 100;
 
-    auto buffer = new MutableBuffer<Rec>(cnt, true, cnt/2);
+    auto buffer = new MutableBuffer<Rec>(cnt, cnt/2);
 
 
     std::vector<uint64_t> keys(cnt);

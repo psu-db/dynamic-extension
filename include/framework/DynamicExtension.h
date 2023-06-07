@@ -46,21 +46,6 @@ thread_local size_t disklevel_sample_time = 0;
 thread_local size_t sampling_bailouts = 0;
 
 
-/*
- * LSM Tree configuration global variables
- */
-
-// True for buffer rejection sampling
-static constexpr bool LSM_REJ_SAMPLE = false;
-
-// True for leveling, false for tiering
-static constexpr bool LSM_LEVELING = false;
-
-static constexpr bool DELETE_TAGGING = true;
-
-// TODO: Replace the constexpr bools above
-// with template parameters based on these
-// enums.
 enum class LayoutPolicy {
     LEVELING,
     TEIRING
@@ -73,7 +58,7 @@ enum class DeletePolicy {
 
 typedef ssize_t level_index;
 
-template <RecordInterface R, ShardInterface S, QueryInterface Q, typename FQ=void>
+template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING, DeletePolicy D=DeletePolicy::TAGGING>
 class DynamicExtension {
     //typedef typename S<R> Shard;
     typedef S Shard;
@@ -82,7 +67,7 @@ class DynamicExtension {
 public:
     DynamicExtension(size_t buffer_cap, size_t scale_factor, double max_delete_prop)
         : m_scale_factor(scale_factor), m_max_delete_prop(max_delete_prop),
-          m_buffer(new Buffer(buffer_cap, LSM_REJ_SAMPLE, buffer_cap * max_delete_prop))
+          m_buffer(new Buffer(buffer_cap, buffer_cap * max_delete_prop))
     { }
 
     ~DynamicExtension() {
@@ -100,7 +85,7 @@ public:
     int erase(const R &rec) {
         Buffer *buffer;
 
-        if constexpr (DELETE_TAGGING) {
+        if constexpr (L == LayoutPolicy::LEVELING) {
             auto buffer = get_buffer();
 
             // Check the levels first. This assumes there aren't 
@@ -121,14 +106,6 @@ public:
     }
 
     std::vector<R> query(void *parms) {
-
-        // Use the provided top-level query function is one 
-        // is specified. Otherwise, use the default framework
-        // behavior.
-        if constexpr (!std::is_same<FQ, void>::value) {
-            return FQ(parms);
-        }
-
         auto buffer = get_buffer();
 
         // Get the buffer query state
@@ -293,7 +270,7 @@ private:
 
         // For delete tagging, we just need to check the delete bit on each
         // record.
-        if constexpr (DELETE_TAGGING) {
+        if constexpr (D == DeletePolicy::TAGGING) {
             for (auto &rec : records) {
                 if (rec.is_deleted()) {
                     continue;
@@ -342,7 +319,7 @@ private:
     inline level_index grow() {
         level_index new_idx;
 
-        size_t new_shard_cnt = (LSM_LEVELING) ? 1 : m_scale_factor;
+        size_t new_shard_cnt = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
         new_idx = m_levels.size();
         if (new_idx > 0) {
             assert(m_levels[new_idx - 1]->get_shard(0)->get_tombstone_count() == 0);
@@ -424,7 +401,7 @@ private:
      */
     inline void merge_levels(level_index base_level, level_index incoming_level) {
         // merging two memory levels
-        if (LSM_LEVELING) {
+        if constexpr (L == LayoutPolicy::LEVELING) {
             auto tmp = m_levels[base_level];
             m_levels[base_level] = InternalLevel<R, Shard, Q>::merge_levels(m_levels[base_level], m_levels[incoming_level]);
             mark_as_unused(tmp);
@@ -433,13 +410,13 @@ private:
         }
 
         mark_as_unused(m_levels[incoming_level]);
-        m_levels[incoming_level] = new InternalLevel<R, Shard, Q>(incoming_level, (LSM_LEVELING) ? 1 : m_scale_factor);
+        m_levels[incoming_level] = new InternalLevel<R, Shard, Q>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor);
     }
 
 
     inline void merge_buffer_into_l0(Buffer *buffer) {
         assert(m_levels[0]);
-        if (LSM_LEVELING) {
+        if constexpr (L == LayoutPolicy::LEVELING) {
             // FIXME: Kludgey implementation due to interface constraints.
             auto old_level = m_levels[0];
             auto temp_level = new InternalLevel<R, Shard, Q>(0, 1);
@@ -515,7 +492,7 @@ private:
             return false;
         }
 
-        if (LSM_LEVELING) {
+        if (L == LayoutPolicy::LEVELING) {
             return m_levels[idx]->get_record_cnt() + incoming_rec_cnt <= calc_level_record_capacity(idx);
         } else {
             return m_levels[idx]->get_shard_count() < m_scale_factor;
