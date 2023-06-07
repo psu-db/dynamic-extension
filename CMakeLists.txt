@@ -45,9 +45,25 @@ if (tests)
     target_link_libraries(mutable_buffer_tests PUBLIC gsl check subunit pthread)
     target_include_directories(mutable_buffer_tests PRIVATE include)
 
-    add_executable(dynamic_extension_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/dynamic_extension_tests.cpp)
-    target_link_libraries(dynamic_extension_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(dynamic_extension_tests PRIVATE include)
+    #add_executable(dynamic_extension_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/dynamic_extension_tests.cpp)
+    #target_link_libraries(dynamic_extension_tests PUBLIC gsl check subunit pthread)
+    #target_include_directories(dynamic_extension_tests PRIVATE include)
+
+    add_executable(de_tier_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tag.cpp)
+    target_link_libraries(de_tier_tag PUBLIC gsl check subunit pthread)
+    target_include_directories(de_tier_tag PRIVATE include)
+
+    add_executable(de_tier_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tomb.cpp)
+    target_link_libraries(de_tier_tomb PUBLIC gsl check subunit pthread)
+    target_include_directories(de_tier_tomb PRIVATE include)
+
+    add_executable(de_level_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tag.cpp)
+    target_link_libraries(de_level_tag PUBLIC gsl check subunit pthread)
+    target_include_directories(de_level_tag PRIVATE include)
+
+    add_executable(de_level_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tomb.cpp)
+    target_link_libraries(de_level_tomb PUBLIC gsl check subunit pthread)
+    target_include_directories(de_level_tomb PRIVATE include)
     
     add_executable(memisam_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/memisam_tests.cpp)
     target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread)

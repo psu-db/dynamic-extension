@@ -9,18 +9,6 @@
  * All rights reserved. Published under the Modified BSD License.
  *
  */
-#include <set>
-#include <random>
-#include <algorithm>
-
-#include "testing.h"
-#include "framework/DynamicExtension.h"
-#include "shard/WIRS.h"
-
-#include <check.h>
-using namespace de;
-
-typedef DynamicExtension<WRec, WIRS<WRec>, WIRSQuery<WRec>> DE;
 
 START_TEST(t_create)
 {
