@@ -73,7 +73,7 @@ static bool insert_benchmark(ExtendedWSS *tree, std::fstream *file,
     progress_update(1.0, "inserting:");
     size_t throughput = (((double) (applied_inserts + applied_deletes) / (double) total_time) * 1e9);
 
-    fprintf(stdout, "%ld\t", throughput);
+    fprintf(stdout, "\n%ld\n", throughput);
     reset_de_perf_metrics();
 
     return continue_benchmark;
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     size_t insert_cnt = record_count - warmup_cnt;
 
     insert_benchmark(&sampling_lsm, &datafile, insert_cnt, delete_prop);
-    sample_benchmark(&sampling_lsm, 1000, 10000);
+//    sample_benchmark(&sampling_lsm, 1000, 10000);
 
     delete_bench_env();
     fflush(stdout);
