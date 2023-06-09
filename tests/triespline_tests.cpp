@@ -10,6 +10,8 @@
  *
  */
 
+#include <functional>
+
 #include "shard/TrieSpline.h"
 #include "testing.h"
 
