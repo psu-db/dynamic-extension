@@ -315,9 +315,9 @@ START_TEST(t_static_structure)
     size_t reccnt = 100000;
     auto ext_wirs = new DE(100, 2, 1);
 
-    std::set<std::pair<uint64_t, uint32_t>> records; 
-    std::set<std::pair<uint64_t, uint32_t>> to_delete;
-    std::set<std::pair<uint64_t, uint32_t>> deleted;
+    std::set<WRec> records; 
+    std::set<WRec> to_delete;
+    std::set<WRec> deleted;
 
     while (records.size() < reccnt) {
         uint64_t key = rand();
@@ -325,21 +325,20 @@ START_TEST(t_static_structure)
 
         if (records.find({key, val}) != records.end()) continue;
 
-        records.insert({key, val});
+        records.insert({key, val, 1});
     }
 
     size_t deletes = 0;
     for (auto rec : records) {
-        WRec r = {rec.first, rec.second, 1};
-        ck_assert_int_eq(ext_wirs->insert(r), 1);
+        ck_assert_int_eq(ext_wirs->insert(rec), 1);
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
-            std::vector<std::pair<uint64_t, uint32_t>> del_vec;
+            std::vector<WRec> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
-                WRec dr = {del_vec[i].first, del_vec[i].second, 1};
-                ck_assert_int_eq(ext_wirs->erase(dr), 1);
+                ck_assert_int_eq(ext_wirs->erase(del_vec[i]), 1);
+
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);

@@ -107,8 +107,11 @@ public:
                 continue;
             }
 
-            //Masking off the ts.
-            base->header &= 1;
+            // FIXME: this shouldn't be necessary, but the tagged record
+            // bypass doesn't seem to be working on this code-path, so this
+            // ensures that tagged records from the buffer are able to be
+            // dropped, eventually. It should only need to be &= 1
+            base->header &= 3;
             m_data[m_reccnt++] = *base;
             if (m_bf && base->is_tombstone()) {
                 ++m_tombstone_cnt;

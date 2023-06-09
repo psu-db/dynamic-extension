@@ -125,6 +125,7 @@ public:
                 auto res = m_shards[i]->point_lookup(rec);
                 if (res) {
                     res->set_delete();
+                    return true;
                 }
             }
         }

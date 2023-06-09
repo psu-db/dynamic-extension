@@ -85,7 +85,7 @@ public:
     int erase(const R &rec) {
         Buffer *buffer;
 
-        if constexpr (L == LayoutPolicy::LEVELING) {
+        if constexpr (D == DeletePolicy::TAGGING) {
             auto buffer = get_buffer();
 
             // Check the levels first. This assumes there aren't 
