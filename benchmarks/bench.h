@@ -164,12 +164,12 @@ static bool warmup(std::fstream *file, ExtendedWSS *extended_wss, size_t count, 
         extended_wss->insert(rec);
 
         if (delete_prop > 0 && i > extended_wss->get_buffer_capacity() && delete_idx >= delbuf.size()) {
-            extended_wss->query(&parms);
+            delbuf = extended_wss->query(&parms);
             delete_idx = 0;
             deleted_keys.clear();
         }
 
-        if (delete_prop > 0 && i > extended_wss->get_buffer_capacity() && gsl_rng_uniform(g_rng) < delete_prop) {
+        if (delete_prop > 0 && i > extended_wss->get_buffer_capacity() && gsl_rng_uniform(g_rng) < delete_prop && delete_idx < delbuf.size()) {
             auto rec = delbuf[delete_idx];
             delete_idx++;
 
