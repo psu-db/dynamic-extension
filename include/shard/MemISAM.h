@@ -77,7 +77,7 @@ public:
     MemISAM(MutableBuffer<R>* buffer)
     :m_reccnt(0), m_tombstone_cnt(0), m_isam_nodes(nullptr), m_deleted_cnt(0) {
 
-        m_bf = new BloomFilter<K>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
+        m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
         size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -115,7 +115,7 @@ public:
             m_data[m_reccnt++] = *base;
             if (m_bf && base->is_tombstone()) {
                 ++m_tombstone_cnt;
-                m_bf->insert(base->rec.key);
+                m_bf->insert(base->rec);
             }
 
             base++;
@@ -153,7 +153,7 @@ public:
             }
         }
 
-        m_bf = new BloomFilter<K>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
+        m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
         size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -178,7 +178,7 @@ public:
                     m_data[m_reccnt++] = *cursor.ptr;
                     if (cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
-                        m_bf->insert(cursor.ptr->rec.key);
+                        m_bf->insert(cursor.ptr->rec);
                     }
                 }
                 pq.pop();
@@ -199,7 +199,7 @@ public:
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
-        if (filter && !m_bf->lookup(rec.key)) {
+        if (filter && !m_bf->lookup(rec)) {
             return nullptr;
         }
 
@@ -344,7 +344,7 @@ private:
 
     // Members: sorted data, internal ISAM levels, reccnt;
     Wrapped<R>* m_data;
-    BloomFilter<K> *m_bf;
+    BloomFilter<R> *m_bf;
     InMemISAMNode* m_isam_nodes;
     InMemISAMNode* m_root;
     size_t m_reccnt;

@@ -83,7 +83,7 @@ public:
         assert(alloc_size % CACHELINE_SIZE == 0);
         m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
 
-        m_bf = new BloomFilter<K>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
+        m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
         size_t offset = 0;
         m_reccnt = 0;
@@ -117,7 +117,7 @@ public:
 
             if (m_bf && base->is_tombstone()) {
                 m_tombstone_cnt++;
-                m_bf->insert(base->rec.key);
+                m_bf->insert(base->rec);
             }
             
             base++;
@@ -150,7 +150,7 @@ public:
             }
         }
 
-        m_bf = new BloomFilter<K>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
+        m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
         size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
@@ -177,7 +177,7 @@ public:
                     weights.push_back(cursor.ptr->rec.weight);
                     if (m_bf && cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
-                        if (m_bf) m_bf->insert(cursor.ptr->rec.key);
+                        if (m_bf) m_bf->insert(cursor.ptr->rec);
                     }
                 }
                 pq.pop();
@@ -199,7 +199,7 @@ public:
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
-        if (filter && !m_bf->lookup(rec.key)) {
+        if (filter && !m_bf->lookup(rec)) {
             return nullptr;
         }
 
@@ -278,7 +278,7 @@ private:
     size_t m_reccnt;
     size_t m_tombstone_cnt;
     size_t m_group_size;
-    BloomFilter<K> *m_bf;
+    BloomFilter<R> *m_bf;
 };
 
 
