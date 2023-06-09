@@ -188,6 +188,7 @@ START_TEST(t_irs_query)
 
     for (size_t i=0; i<1000; i++) {
         auto state = IRSQuery<Rec, false>::get_query_state(&isam, &parms);
+        ((IRSState<WRec> *) state)->sample_size = k;
         auto result = IRSQuery<Rec, false>::query(&isam, state, &parms);
 
         ck_assert_int_eq(result.size(), k);
@@ -226,9 +227,11 @@ START_TEST(t_irs_query_merge)
 
     for (size_t i=0; i<1000; i++) {
         auto state1 = IRSQuery<Rec>::get_query_state(&shard, &parms);
+        ((IRSState<WRec> *) state1)->sample_size = k;
         results[0] = strip_wrapping(IRSQuery<Rec>::query(&shard, state1, &parms));
 
         auto state2 = IRSQuery<Rec>::get_query_state(&shard, &parms);
+        ((IRSState<WRec> *) state2)->sample_size = k;
         results[1] = strip_wrapping(IRSQuery<Rec>::query(&shard, state2, &parms));
 
         IRSQuery<Rec>::delete_query_state(state1);
@@ -267,6 +270,7 @@ START_TEST(t_irs_buffer_query_scan)
 
     for (size_t i=0; i<1000; i++) {
         auto state = IRSQuery<Rec, false>::get_buffer_query_state(buffer, &parms);
+        ((IRSBufferState<WRec> *) state)->sample_size = k;
         auto result = IRSQuery<Rec, false>::buffer_query(buffer, state, &parms);
 
         ck_assert_int_eq(result.size(), k);
@@ -303,6 +307,7 @@ START_TEST(t_irs_buffer_query_rejection)
 
     for (size_t i=0; i<1000; i++) {
         auto state = IRSQuery<Rec>::get_buffer_query_state(buffer, &parms);
+        ((IRSBufferState<WRec> *) state)->sample_size = k;
         auto result = IRSQuery<Rec>::buffer_query(buffer, state, &parms);
 
         ck_assert_int_gt(result.size(), 0);

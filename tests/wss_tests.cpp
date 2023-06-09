@@ -186,6 +186,7 @@ START_TEST(t_wss_query)
 
     for (size_t i=0; i<1000; i++) {
         auto state = WSSQuery<WRec>::get_query_state(shard, &parms);
+        ((WSSState<WRec> *) state)->sample_size = k;
         auto result = WSSQuery<WRec>::query(shard, state, &parms);
 
         total_samples += result.size();
@@ -228,9 +229,11 @@ START_TEST(t_wss_query_merge)
 
     for (size_t i=0; i<1000; i++) {
         auto state1 = WSSQuery<WRec>::get_query_state(shard, &parms);
+        ((WSSState<WRec> *) state1)->sample_size = k;
         results[0] = strip_wrapping(WSSQuery<WRec>::query(shard, state1, &parms));
 
         auto state2 = WSSQuery<WRec>::get_query_state(shard, &parms);
+        ((WSSState<WRec> *) state2)->sample_size = k;
         results[1] = strip_wrapping(WSSQuery<WRec>::query(shard, state2, &parms));
 
         WSSQuery<WRec>::delete_query_state(state1);
@@ -270,6 +273,7 @@ START_TEST(t_wss_buffer_query_scan)
 
     for (size_t i=0; i<1000; i++) {
         auto state = WSSQuery<WRec, false>::get_buffer_query_state(buffer, &parms);
+        ((WSSBufferState<WRec> *) state)->sample_size = k;
         auto result = WSSQuery<WRec, false>::buffer_query(buffer, state, &parms);
         total_samples += result.size();
 
@@ -308,6 +312,7 @@ START_TEST(t_wss_buffer_query_rejection)
 
     for (size_t i=0; i<1000; i++) {
         auto state = WSSQuery<WRec>::get_buffer_query_state(buffer, &parms);
+        ((WSSBufferState<WRec> *) state)->sample_size = k;
         auto result = WSSQuery<WRec>::buffer_query(buffer, state, &parms);
 
         total_samples += result.size();
