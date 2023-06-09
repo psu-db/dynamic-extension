@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug false)
+set(debug true)
 set(tests True)
 set(bench True)
 
@@ -78,8 +78,9 @@ if (tests)
     target_include_directories(triespline_tests PRIVATE include external/PLEX/include)
 
     add_executable(pgm_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pgm_tests.cpp)
-    target_link_libraries(pgm_tests PUBLIC gsl check subunit pthread)
+    target_link_libraries(pgm_tests PUBLIC gsl check subunit pthread gomp)
     target_include_directories(pgm_tests PRIVATE include external/PGM-index/include)
+    target_compile_options(pgm_tests PUBLIC -fopenmp)
 endif()
 
 # Benchmark build instructions

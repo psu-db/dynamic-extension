@@ -145,11 +145,11 @@ public:
         return result;
     }
 
-    size_t get_record_cnt() {
+    size_t get_record_count() {
         size_t cnt = get_buffer()->get_record_count();
 
         for (size_t i=0; i<m_levels.size(); i++) {
-            if (m_levels[i]) cnt += m_levels[i]->get_record_cnt();
+            if (m_levels[i]) cnt += m_levels[i]->get_record_count();
         }
 
         return cnt;
@@ -209,7 +209,7 @@ public:
         return m_buffer->get_capacity();
     }
     
-    Shard *create_ssi() {
+    Shard *create_static_structure() {
         std::vector<Shard *> shards;
 
         if (m_levels.size() > 0) {
@@ -477,7 +477,7 @@ private:
             return (buffer) ? buffer->get_record_count() : get_buffer()->get_record_count();
         }
 
-        return (m_levels[idx]) ? m_levels[idx]->get_record_cnt() : 0;
+        return (m_levels[idx]) ? m_levels[idx]->get_record_count() : 0;
     }
 
     /*
@@ -493,7 +493,7 @@ private:
         }
 
         if (L == LayoutPolicy::LEVELING) {
-            return m_levels[idx]->get_record_cnt() + incoming_rec_cnt <= calc_level_record_capacity(idx);
+            return m_levels[idx]->get_record_count() + incoming_rec_cnt <= calc_level_record_capacity(idx);
         } else {
             return m_levels[idx]->get_shard_count() < m_scale_factor;
         }

@@ -16,7 +16,7 @@ START_TEST(t_create)
 
 
     ck_assert_ptr_nonnull(ext_wirs);
-    ck_assert_int_eq(ext_wirs->get_record_cnt(), 0);
+    ck_assert_int_eq(ext_wirs->get_record_count(), 0);
     ck_assert_int_eq(ext_wirs->get_height(), 0);
 
     delete ext_wirs;
@@ -38,7 +38,7 @@ START_TEST(t_insert)
     }
 
     ck_assert_int_eq(ext_wirs->get_height(), 0);
-    ck_assert_int_eq(ext_wirs->get_record_cnt(), 100);
+    ck_assert_int_eq(ext_wirs->get_record_count(), 100);
 
     delete ext_wirs;
 }
@@ -58,7 +58,7 @@ START_TEST(t_insert_with_mem_merges)
         val++;
     }
 
-    ck_assert_int_eq(ext_wirs->get_record_cnt(), 300);
+    ck_assert_int_eq(ext_wirs->get_record_count(), 300);
     ck_assert_int_eq(ext_wirs->get_height(), 1);
 
     delete ext_wirs;
@@ -308,7 +308,7 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
     return ext_wirs;
 }
 
-START_TEST(t_sorted_array)
+START_TEST(t_static_structure)
 {
     auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
@@ -339,7 +339,7 @@ START_TEST(t_sorted_array)
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 WRec dr = {del_vec[i].first, del_vec[i].second, 1};
-                ext_wirs->erase(dr);
+                ck_assert_int_eq(ext_wirs->erase(dr), 1);
                 deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
@@ -351,7 +351,7 @@ START_TEST(t_sorted_array)
         }
     }
 
-    auto flat = ext_wirs->create_ssi();
+    auto flat = ext_wirs->create_static_structure();
     ck_assert_int_eq(flat->get_record_count(), reccnt - deletes);
 
     uint64_t prev_key = 0;
@@ -376,12 +376,12 @@ Suite *unit_testing()
     tcase_add_test(create, t_create);
     suite_add_tcase(unit, create);
 
-    TCase *insert = tcase_create("de::DynamicExtension::insert Testing");
+    TCase *insert = tcase_create("de::DynamicExtension<WIRS>::insert Testing");
     tcase_add_test(insert, t_insert);
     tcase_add_test(insert, t_insert_with_mem_merges);
     suite_add_tcase(unit, insert);
 
-    TCase *sampling = tcase_create("de::DynamicExtension::range_sample Testing");
+    TCase *sampling = tcase_create("de::DynamicExtension<WIRS>::range_sample Testing");
 
     tcase_add_test(sampling, t_range_sample_weighted);
     suite_add_tcase(unit, sampling);
@@ -396,8 +396,8 @@ Suite *unit_testing()
     tcase_set_timeout(ts, 500);
     suite_add_tcase(unit, ts);
 
-    TCase *flat = tcase_create("de::DynamicExtension::get_flattened_wirs_run Testing");
-    tcase_add_test(flat, t_sorted_array);
+    TCase *flat = tcase_create("de::DynamicExtension::create_static_structure Testing");
+    tcase_add_test(flat, t_static_structure);
     tcase_set_timeout(flat, 500);
     suite_add_tcase(unit, flat);
 

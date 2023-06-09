@@ -30,18 +30,18 @@ START_TEST(t_memlevel_merge)
 
     auto base_level = new ILevel(1, 1);
     base_level->append_buffer(tbl1);
-    ck_assert_int_eq(base_level->get_record_cnt(), 100);
+    ck_assert_int_eq(base_level->get_record_count(), 100);
 
     auto merging_level = new ILevel(0, 1);
     merging_level->append_buffer(tbl2);
-    ck_assert_int_eq(merging_level->get_record_cnt(), 100);
+    ck_assert_int_eq(merging_level->get_record_count(), 100);
 
     auto old_level = base_level;
     base_level = ILevel::merge_levels(old_level, merging_level);
 
     delete old_level;
     delete merging_level;
-    ck_assert_int_eq(base_level->get_record_cnt(), 200);
+    ck_assert_int_eq(base_level->get_record_count(), 200);
 
     delete base_level;
     delete tbl1;

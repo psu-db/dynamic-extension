@@ -140,7 +140,7 @@ public:
         return m_shard_cnt;
     }
 
-    size_t get_record_cnt() {
+    size_t get_record_count() {
         size_t cnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
             cnt += m_shards[i]->get_record_count();
