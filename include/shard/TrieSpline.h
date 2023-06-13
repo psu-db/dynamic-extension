@@ -27,8 +27,6 @@
 
 namespace de {
 
-size_t g_max_error = 1024;
-
 template <RecordInterface R>
 struct ts_range_query_parms {
     decltype(R::key) lower_bound;
@@ -55,7 +53,7 @@ struct TrieSplineBufferState {
 
 };
 
-template <RecordInterface R>
+template <RecordInterface R, size_t E=1024>
 class TrieSpline {
 private:
     typedef decltype(R::key) K;
@@ -85,7 +83,7 @@ public:
         K min_key = base->rec.key;
         K max_key = (stop - 1)->rec.key;
 
-        auto bldr = ts::Builder<K>(min_key, max_key, g_max_error);
+        auto bldr = ts::Builder<K>(min_key, max_key, E);
 
         while (base < stop) {
             if (!(base->is_tombstone()) && (base + 1) < stop) {
@@ -159,7 +157,7 @@ public:
         }
 
         m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
-        auto bldr = ts::Builder<K>(m_min_key, m_max_key, g_max_error);
+        auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
 
         size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
