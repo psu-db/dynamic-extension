@@ -53,7 +53,6 @@ struct IRSBufferState {
 template <RecordInterface R>
 class MemISAM {
 private:
-    friend class InternalLevel;
     friend class IRSQuery<R, true>;
     friend class IRSQuery<R, false>;
 
