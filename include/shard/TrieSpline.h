@@ -134,6 +134,12 @@ public:
 
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
+
+        // initialize m_max_key and m_min_key using the values from the
+        // first shard. These will later be updated when building
+        // the initial priority queue to their true values.
+        m_max_key = shards[0]->m_max_key;
+        m_min_key = shards[0]->m_min_key;
         
         for (size_t i = 0; i < len; ++i) {
             if (shards[i]) {
@@ -143,12 +149,11 @@ public:
                 tombstone_count += shards[i]->get_tombstone_count();
                 pq.push(cursors[i].ptr, i);
 
-                if (i == 0) {
+                if (shards[i]->m_max_key > m_max_key) {
                     m_max_key = shards[i]->m_max_key;
-                    m_min_key = shards[i]->m_min_key;
-                } else if (shards[i]->m_max_key > m_max_key) {
-                    m_max_key = shards[i]->m_max_key;
-                } else if (shards[i]->m_min_key < m_min_key) {
+                } 
+
+                if (shards[i]->m_min_key < m_min_key) {
                     m_min_key = shards[i]->m_min_key;
                 }
             } else {
