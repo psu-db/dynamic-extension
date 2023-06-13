@@ -93,4 +93,8 @@ if (bench)
     target_compile_options(alias_wss_bench PUBLIC -fopenmp)
 
 
+    add_executable(triespline_rq_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/triespline_rq_bench.cpp)
+    target_link_libraries(triespline_rq_bench PUBLIC gsl pthread gomp)
+    target_include_directories(triespline_rq_bench PRIVATE include external/PGM-index/include external/PLEX/include bench/include)
+    target_compile_options(triespline_rq_bench PUBLIC -fopenmp)
 endif()
