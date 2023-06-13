@@ -2,6 +2,10 @@
 #define H_BENCH
 #include "framework/DynamicExtension.h"
 #include "shard/WSS.h"
+#include "shard/MemISAM.h"
+#include "shard/PGM.h"
+#include "shard/TrieSpline.h"
+#include "shard/WIRS.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -22,7 +26,11 @@ typedef uint32_t value_type;
 typedef uint64_t weight_type;
 
 typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
+typedef de::Record<key_type, value_type> Rec;
+
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
+typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTS;
+typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGM;
 
 static gsl_rng *g_rng;
 static std::set<WRec> *g_to_delete;
@@ -74,12 +82,13 @@ static void delete_bench_env()
     delete g_to_delete;
 }
 
-static bool next_record(std::fstream *file, WRec *record)
+template <de::RecordInterface R>
+static bool next_record(std::fstream &file, R &record)
 {
     if (g_reccnt >= g_max_record_cnt) return false;
 
     std::string line;
-    if (std::getline(*file, line, '\n')) {
+    if (std::getline(file, line, '\n')) {
         std::stringstream line_stream(line);
         std::string key_field;
         std::string value_field;
@@ -89,13 +98,16 @@ static bool next_record(std::fstream *file, WRec *record)
         std::getline(line_stream, key_field, '\t');
         std::getline(line_stream, weight_field, '\t');
 
-        record->key = (g_osm_data) ? osm_to_key(key_field.c_str()) : atol(key_field.c_str());
-        record->value = atol(value_field.c_str());
-        record->weight = atof(weight_field.c_str());
+        record.key = (g_osm_data) ? osm_to_key(key_field.c_str()) : atol(key_field.c_str());
+        record.value = atol(value_field.c_str());
 
-        if (record->key < g_min_key) g_min_key = record->key;
+        if constexpr (de::WeightedRecordInterface<R>) {
+            record.weight = atof(weight_field.c_str());
+        }
 
-        if (record->key > g_max_key) g_max_key = record->key;
+        if (record.key < g_min_key) g_min_key = record.key;
+
+        if (record.key > g_max_key) g_max_key = record.key;
 
         g_reccnt++;
 
@@ -105,11 +117,13 @@ static bool next_record(std::fstream *file, WRec *record)
     return false;
 }
 
-static bool build_insert_vec(std::fstream *file, std::vector<WRec> &vec, size_t n) {
+template <de::RecordInterface R>
+static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n, 
+                             double delete_prop, std::vector<R> &to_delete) {
     vec.clear();
     for (size_t i=0; i<n; i++) {
-        WRec rec;
-        if (!next_record(file, &rec)) {
+        R rec;
+        if (!next_record(file, rec)) {
             if (i == 0) {
                 return false;
             }
@@ -118,8 +132,30 @@ static bool build_insert_vec(std::fstream *file, std::vector<WRec> &vec, size_t 
         }
 
         vec.emplace_back(rec);
+
+        if (gsl_rng_uniform(g_rng) < delete_prop + (delete_prop * .1)) {
+            to_delete.emplace_back(rec);
+        }
     }
 
+    return true;
+}
+
+template <de::RecordInterface R>
+static bool build_delete_vec(std::vector<R> &to_delete, std::vector<R> &vec, size_t n) {
+    vec.clear();
+
+    size_t cnt = 0;
+    while (cnt < n) {
+        if (to_delete.size() == 0) { 
+            return false;
+        }
+
+        auto i = gsl_rng_uniform_int(g_rng, to_delete.size());
+        vec.emplace_back(to_delete[i]);
+        to_delete.erase(to_delete.begin() + i);
+    }
+td:
     return true;
 }
 
@@ -139,55 +175,49 @@ static void progress_update(double percentage, std::string prompt) {
     if (percentage >= 1) fprintf(stderr, "\n");
 }
 
-static bool warmup(std::fstream *file, ExtendedWSS *extended_wss, size_t count, double delete_prop, bool progress=true)
-{
-    size_t del_buf_size = 10000;
-    size_t delete_idx = del_buf_size;
+template <typename DE, de::RecordInterface R>
+static bool warmup(std::fstream &file, DE &extended_index, size_t count, 
+                   double delete_prop, std::vector<R> to_delete, bool progress=true) {
+    size_t batch = std::min(.1 * count, 25000.0);
 
-    std::vector<WRec> delbuf;
-    std::set<WRec> deleted_keys;
-
-    de::wss_query_parms<WRec> parms;
-    parms.rng = g_rng;
-    parms.sample_size = del_buf_size;
+    std::vector<R> insert_vec;
+    std::vector<R> delete_vec;
+    insert_vec.reserve(batch);
+    delete_vec.reserve(batch*delete_prop);
 
     size_t inserted = 0;
+    size_t delete_idx = 0;
     
     double last_percent = 0;
-    for (size_t i=0; i<count; i++) {
-        WRec rec;
-        if (!next_record(file, &rec)) {
-            return false;
-        }
-
-        inserted++;
-        extended_wss->insert(rec);
-
-        if (delete_prop > 0 && i > extended_wss->get_buffer_capacity() && delete_idx >= delbuf.size()) {
-            delbuf = extended_wss->query(&parms);
+    while (inserted < count) {
+        // Build vector of records to insert and potentially delete
+        auto continue_warmup = build_insert_vec(file, insert_vec, batch, delete_prop, to_delete);
+        if (inserted > batch) {
+            build_delete_vec(to_delete, delete_vec, batch*delete_prop);
             delete_idx = 0;
-            deleted_keys.clear();
         }
 
-        if (delete_prop > 0 && i > extended_wss->get_buffer_capacity() && gsl_rng_uniform(g_rng) < delete_prop && delete_idx < delbuf.size()) {
-            auto rec = delbuf[delete_idx];
-            delete_idx++;
-
-            if (deleted_keys.find(rec) == deleted_keys.end()) {
-                extended_wss->erase(rec);
-                deleted_keys.insert(rec);
+        for (size_t i=0; i<insert_vec.size(); i++) {
+            // process a delete if necessary
+            if (delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
+                extended_index.erase(delete_vec[delete_idx++]);
             }
-        }
 
-        if (progress && ((double) i / (double) count) - last_percent > .01) {
-            progress_update((double) i / (double) count, "warming up:");
-            last_percent = (double) i / (double) count;
+            // insert the record;
+            extended_index.insert(insert_vec[i]);
+            inserted++;
+
+            if (progress) {
+                progress_update((double) inserted / (double) count, "warming up:");
+            }
         }
     }
 
+    /*
     if (progress) {
         progress_update(1, "warming up:");
     }
+    */
 
     return true;
 }
