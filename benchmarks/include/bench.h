@@ -1,3 +1,13 @@
+/*
+ * benchmarks/include/bench.h
+ *
+ * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ *
+ * All rights reserved. Published under the Modified BSD License.
+ *
+ */
+#pragma once
+
 #include "bench_utility.h"
 
 template <typename DE, de::RecordInterface R, bool PROGRESS=true, size_t BATCH=1000>
@@ -64,4 +74,37 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
     return continue_benchmark;
 }
 
+template <typename DE, de::RecordInterface R, typename QP, bool PROGRESS=true>
+static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t trial_cnt=100) {
+    char progbuf[25];
+    if constexpr (PROGRESS) {
+        sprintf(progbuf, "querying:");
+    }
 
+    size_t total_time = 0;
+    size_t total_results = 0;
+
+    for (size_t i=0; i<trial_cnt; i++) {
+        if constexpr (PROGRESS) {
+            progress_update((double) (i) / (double) trial_cnt, progbuf);
+        }
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (size_t j=0; j<queries.size(); j++) {
+            auto res = de_index.query(&queries[j]);
+            total_results += res.size();
+        }
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+    }
+
+    progress_update(1.0, progbuf);
+
+    size_t query_latency = total_time / (trial_cnt * queries.size());
+
+    fprintf(stdout, "%ld\t", query_latency);
+    fflush(stdout);
+
+    return true;
+}

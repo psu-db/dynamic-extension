@@ -1,5 +1,13 @@
-#ifndef H_BENCH
-#define H_BENCH
+/*
+ * benchmarks/include/bench_utility.h
+ *
+ * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ *
+ * All rights reserved. Published under the Modified BSD License.
+ *
+ */
+#pragma once
+
 #include "framework/DynamicExtension.h"
 #include "shard/WSS.h"
 #include "shard/MemISAM.h"
@@ -29,7 +37,7 @@ typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
 typedef de::Record<key_type, value_type> Rec;
 
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
-typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTS;
+typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
 typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGM;
 
 static gsl_rng *g_rng;
@@ -80,6 +88,31 @@ static void delete_bench_env()
 {
     gsl_rng_free(g_rng);
     delete g_to_delete;
+}
+
+/*
+ * NOTE: The QP type must have lower_bound and upper_bound attributes, which
+ * this function will initialize. Any other query parameter attributes must
+ * be manually initialized after the call.
+ */
+template <typename QP>
+static std::vector<QP> read_range_queries(std::string fname, double selectivity) {
+    std::vector<QP> queries;
+
+    FILE *qf = fopen(fname.c_str(), "r");
+    size_t start, stop;
+    double sel;
+    while (fscanf(qf, "%zu%zu%lf\n", &start, &stop, &sel) != EOF) {
+        if (start < stop && std::abs(sel - selectivity) < 0.1) {
+            QP q;
+            q.lower_bound = start;
+            q.upper_bound = stop;
+            queries.push_back(q);
+        }
+    }
+    fclose(qf);
+
+    return queries;
 }
 
 template <de::RecordInterface R>
@@ -213,12 +246,6 @@ static bool warmup(std::fstream &file, DE &extended_index, size_t count,
         }
     }
 
-    /*
-    if (progress) {
-        progress_update(1, "warming up:");
-    }
-    */
-
     return true;
 }
 
@@ -232,5 +259,3 @@ static void reset_de_perf_metrics() {
 
     RESET_IO_CNT(); 
 }
-
-#endif // H_BENCH

@@ -87,10 +87,10 @@ endif()
 if (bench)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
 
-    add_executable(sampling_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/sampling_tput.cpp)
-    target_link_libraries(sampling_tput PUBLIC gsl pthread gomp)
-    target_include_directories(sampling_tput PRIVATE include external/PGM-index/include external/PLEX/include bench/include)
-    target_compile_options(sampling_tput PUBLIC -fopenmp)
+    add_executable(alias_wss_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/alias_wss_bench.cpp)
+    target_link_libraries(alias_wss_bench PUBLIC gsl pthread gomp)
+    target_include_directories(alias_wss_bench PRIVATE include external/PGM-index/include external/PLEX/include bench/include)
+    target_compile_options(alias_wss_bench PUBLIC -fopenmp)
 
 
 endif()
