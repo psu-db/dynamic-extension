@@ -38,7 +38,7 @@ typedef de::Record<key_type, value_type> Rec;
 
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
-typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGM;
+typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
 
 static gsl_rng *g_rng;
 static std::set<WRec> *g_to_delete;
