@@ -45,7 +45,15 @@ int main(int argc, char **argv)
 
     insert_tput_bench<ExtendedTSRQ, Rec>(de, datafile, insert_cnt, delete_prop, to_delete);
     query_latency_bench<ExtendedTSRQ, Rec, de::ts_range_query_parms<Rec>>(de, queries);
+
+    auto ts = de.create_static_structure();
+
+    static_latency_bench<de::TrieSpline<Rec>, Rec, de::ts_range_query_parms<Rec>, de::TrieSplineRangeQuery<Rec>>(
+        ts, queries
+    );
     fprintf(stdout, "\n");
+
+    delete ts;
 
     delete_bench_env();
     fflush(stdout);

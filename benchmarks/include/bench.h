@@ -108,3 +108,44 @@ static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t tr
 
     return true;
 }
+
+
+template <typename Shard, de::RecordInterface R, typename QP, QueryInterface Q, bool PROGRESS=true>
+static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t trial_cnt=100) {
+    char progbuf[25];
+    if constexpr (PROGRESS) {
+        sprintf(progbuf, "querying:");
+    }
+
+    size_t total_time = 0;
+    size_t total_results = 0;
+
+    for (size_t i=0; i<trial_cnt; i++) {
+        if constexpr (PROGRESS) {
+            progress_update((double) (i) / (double) trial_cnt, progbuf);
+        }
+
+        std::vector<void *> states(1);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        for (size_t j=0; j<queries.size(); j++) {
+            states[0] = Q::get_query_state(shard, &queries[i]);
+            Q::process_query_states(shard, states, nullptr);
+            auto res = Q::query(shard, states[0], &queries[i]);
+            total_results += res.size();
+            Q::delete_query_state(states[0]);
+        }
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+    }
+
+    progress_update(1.0, progbuf);
+
+    size_t query_latency = total_time / (trial_cnt * queries.size());
+
+    fprintf(stdout, "%ld\t", query_latency);
+    fflush(stdout);
+
+    return true;
+}
