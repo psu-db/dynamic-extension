@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     init_bench_env(record_count, true, use_osm);
 
     auto de = ExtendedTSRQ(buffer_cap, scale_factor, max_delete_prop);
-    auto queries = read_range_queries<de::ts_range_query_parms<Rec>>(query_file, .001);
+    auto queries = read_range_queries<de::ts_range_query_parms<Rec>>(query_file, .0001);
 
     std::fstream datafile;
     datafile.open(filename, std::ios::in);
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     size_t insert_cnt = record_count - warmup_cnt;
 
     insert_tput_bench<ExtendedTSRQ, Rec>(de, datafile, insert_cnt, delete_prop, to_delete);
-    query_latency_bench<ExtendedTSRQ, Rec, de::ts_range_query_parms<Rec>>(de, queries);
+    query_latency_bench<ExtendedTSRQ, Rec, de::ts_range_query_parms<Rec>>(de, queries, 1);
     fprintf(stdout, "\n");
 
     delete_bench_env();
