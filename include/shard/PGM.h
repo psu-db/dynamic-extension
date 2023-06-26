@@ -223,7 +223,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return 0;
+        return m_pgm.size_in_bytes();
     }
 
 private:
@@ -257,7 +257,7 @@ private:
 
         }
 
-        return (m_data[idx].rec.key <= key) ? idx : m_reccnt;
+        return (m_data[idx].rec.key >= key) ? idx : m_reccnt;
     }
 
     Wrapped<R>* m_data;
