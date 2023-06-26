@@ -44,12 +44,14 @@ int main(int argc, char **argv)
     size_t insert_cnt = record_count - warmup_cnt;
 
     insert_tput_bench<ExtendedTSRQ, Rec>(de, datafile, insert_cnt, delete_prop, to_delete);
+    fprintf(stdout, "%ld\t", de.get_memory_usage());
     query_latency_bench<ExtendedTSRQ, Rec, de::ts_range_query_parms<Rec>>(de, queries, 1);
 
     auto ts = de.create_static_structure();
 
+    fprintf(stdout, "%ld\t", ts->get_memory_usage());
     static_latency_bench<de::TrieSpline<Rec>, Rec, de::ts_range_query_parms<Rec>, de::TrieSplineRangeQuery<Rec>>(
-        ts, queries
+        ts, queries, 1
     );
     fprintf(stdout, "\n");
 

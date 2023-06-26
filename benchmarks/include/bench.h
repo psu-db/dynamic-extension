@@ -68,7 +68,7 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
 
     size_t throughput = (((double) (applied_inserts + applied_deletes) / (double) total_time) * 1e9);
 
-    fprintf(stdout, "\n%ld\n", throughput);
+    fprintf(stdout, "%ld\t", throughput);
     reset_de_perf_metrics();
 
     return continue_benchmark;
