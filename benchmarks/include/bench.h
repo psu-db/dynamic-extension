@@ -130,9 +130,9 @@ static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t t
 
         auto start = std::chrono::high_resolution_clock::now();
         for (size_t j=0; j<queries.size(); j++) {
-            states[0] = Q::get_query_state(shard, &queries[i]);
+            states[0] = Q::get_query_state(shard, &queries[j]);
             Q::process_query_states(shard, states, nullptr);
-            auto res = Q::query(shard, states[0], &queries[i]);
+            auto res = Q::query(shard, states[0], &queries[j]);
             total_results += res.size();
             Q::delete_query_state(states[0]);
         }

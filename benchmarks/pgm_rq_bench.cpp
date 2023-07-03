@@ -47,6 +47,8 @@ int main(int argc, char **argv)
     fprintf(stdout, "%ld\t", de.get_memory_usage());
     query_latency_bench<ExtendedPGMRQ, Rec, de::pgm_range_query_parms<Rec>>(de, queries, 1);
 
+    fprintf(stdout, "\n");
+
     auto ts = de.create_static_structure();
 
     fprintf(stdout, "%ld\t", ts->get_memory_usage());
