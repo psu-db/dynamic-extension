@@ -195,8 +195,10 @@ START_TEST(t_range_query_merge)
     auto shard2 = Shard(buffer2);
 
     pgm_range_query_parms<Rec> parms;
-    parms.lower_bound = 300;
+    parms.lower_bound = 150;
     parms.upper_bound = 500;
+
+    size_t result_size = parms.upper_bound - parms.lower_bound + 1 - 200;
 
     auto state1 = PGMRangeQuery<Rec>::get_query_state(&shard1, &parms);
     auto state2 = PGMRangeQuery<Rec>::get_query_state(&shard2, &parms);
@@ -208,27 +210,65 @@ START_TEST(t_range_query_merge)
     PGMRangeQuery<Rec>::delete_query_state(state1);
     PGMRangeQuery<Rec>::delete_query_state(state2);
 
-    ck_assert_int_eq(results[0].size() + results[1].size(), 101);
+    ck_assert_int_eq(results[0].size() + results[1].size(), result_size);
 
     std::vector<std::vector<Rec>> proc_results;
 
-    auto key = 400;
     for (size_t j=0; j<results.size(); j++) {
         proc_results.emplace_back(std::vector<Rec>());
         for (size_t i=0; i<results[j].size(); i++) {
             proc_results[j].emplace_back(results[j][i].rec);
-            ck_assert_int_eq(results[j][i].rec.key, key); 
-            key++;
         }
     }
 
     auto result = PGMRangeQuery<Rec>::merge(proc_results);
     std::sort(result.begin(), result.end());
 
-    ck_assert_int_eq(result.size(), 101);
-    key = 400;
+    ck_assert_int_eq(result.size(), result_size);
+    auto key = parms.lower_bound;
     for (size_t i=0; i<result.size(); i++) {
         ck_assert_int_eq(key++, result[i].key);
+        if (key == 200) {
+            key = 400;
+        }
+    }
+
+    delete buffer1;
+    delete buffer2;
+}
+END_TEST
+
+START_TEST(t_lower_bound)
+{
+    auto buffer1 = create_sequential_mbuffer<Rec>(100, 200);
+    auto buffer2 = create_sequential_mbuffer<Rec>(400, 1000);
+
+    de::PGM<Rec> *shards[2];
+
+    auto shard1 = Shard(buffer1);
+    auto shard2 = Shard(buffer2);
+
+    shards[0] = &shard1;
+    shards[1] = &shard2;
+
+    auto merged = Shard(shards, 2);
+
+    for (size_t i=100; i<1000; i++) {
+        Rec r;
+        r.key = i;
+        r.value = i;
+
+        auto idx = merged.get_lower_bound(i);
+
+        assert(idx < merged.get_record_count());
+
+        auto res = merged.get_record_at(idx);
+
+        if (i >=200 && i <400) {
+            ck_assert_int_lt(res->rec.key, i);
+        } else {
+            ck_assert_int_eq(res->rec.key, i);
+        }
     }
 
     delete buffer1;
@@ -286,6 +326,7 @@ Suite *unit_testing()
     TCase *lookup = tcase_create("de:PGM:point_lookup Testing");
     tcase_add_test(lookup, t_point_lookup);
     tcase_add_test(lookup, t_point_lookup_miss);
+    tcase_add_test(lookup, t_lower_bound);
     suite_add_tcase(unit, lookup);
 
     TCase *range_query = tcase_create("de:PGM::range_query Testing");

@@ -130,7 +130,7 @@ public:
         // Execute the query for each shard
         for (size_t i=0; i<shards.size(); i++) {
             auto shard_results = Q::query(shards[i].second, states[i], parms);
-            query_results[i] = filter_deletes(shard_results, shards[i].first, buffer);
+            query_results[i+1] = filter_deletes(shard_results, shards[i].first, buffer);
         }
         
         // Merge the results together

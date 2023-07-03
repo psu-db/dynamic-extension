@@ -226,7 +226,6 @@ public:
         return m_pgm.size_in_bytes();
     }
 
-private:
     size_t get_lower_bound(const K& key) const {
         auto bound = m_pgm.search(key);
         size_t idx = bound.lo;
@@ -257,9 +256,14 @@ private:
 
         }
 
+        if (m_data[idx].rec.key > key && idx > 0 && m_data[idx-1].rec.key <= key) {
+            return idx-1;
+        }
+
         return (m_data[idx].rec.key >= key) ? idx : m_reccnt;
     }
 
+private:
     Wrapped<R>* m_data;
     size_t m_reccnt;
     size_t m_tombstone_cnt;
@@ -307,10 +311,16 @@ public:
         }
 
         auto ptr = ts->get_record_at(s->start_idx);
-        size_t i = 0;
-        while (ptr[i].rec.key <= p->upper_bound && i < s->stop_idx - s->start_idx) {
-            records.emplace_back(ptr[i]);
-            i++;
+        
+        // roll the pointer forward to the first record that is
+        // greater than or equal to the lower bound.
+        while(ptr->rec.key < p->lower_bound) {
+            ptr++;
+        }
+
+        while (ptr->rec.key <= p->upper_bound && ptr < ptr + s->stop_idx) {
+            records.emplace_back(*ptr);
+            ptr++;
         }
 
         return records;
@@ -326,9 +336,7 @@ public:
             if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
                 records.emplace_back(*rec);
             }
-
         }
-
 
         return records;
     }
