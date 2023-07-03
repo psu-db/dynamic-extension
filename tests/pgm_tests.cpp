@@ -187,8 +187,52 @@ END_TEST
 
 
 START_TEST(t_range_query_merge)
-{
+{    
+    auto buffer1 = create_sequential_mbuffer<Rec>(100, 200);
+    auto buffer2 = create_sequential_mbuffer<Rec>(400, 1000);
 
+    auto shard1 = Shard(buffer1);
+    auto shard2 = Shard(buffer2);
+
+    pgm_range_query_parms<Rec> parms;
+    parms.lower_bound = 300;
+    parms.upper_bound = 500;
+
+    auto state1 = PGMRangeQuery<Rec>::get_query_state(&shard1, &parms);
+    auto state2 = PGMRangeQuery<Rec>::get_query_state(&shard2, &parms);
+
+    std::vector<std::vector<de::Wrapped<Rec>>> results(2);
+    results[0] = PGMRangeQuery<Rec>::query(&shard1, state1, &parms);
+    results[1] = PGMRangeQuery<Rec>::query(&shard2, state2, &parms);
+
+    PGMRangeQuery<Rec>::delete_query_state(state1);
+    PGMRangeQuery<Rec>::delete_query_state(state2);
+
+    ck_assert_int_eq(results[0].size() + results[1].size(), 101);
+
+    std::vector<std::vector<Rec>> proc_results;
+
+    auto key = 400;
+    for (size_t j=0; j<results.size(); j++) {
+        proc_results.emplace_back(std::vector<Rec>());
+        for (size_t i=0; i<results[j].size(); i++) {
+            proc_results[j].emplace_back(results[j][i].rec);
+            ck_assert_int_eq(results[j][i].rec.key, key); 
+            key++;
+        }
+    }
+
+    auto result = PGMRangeQuery<Rec>::merge(proc_results);
+    std::sort(result.begin(), result.end());
+
+    ck_assert_int_eq(result.size(), 101);
+    key = 400;
+    for (size_t i=0; i<result.size(); i++) {
+        ck_assert_int_eq(key++, result[i].key);
+    }
+
+    delete buffer1;
+    delete buffer2;
 }
 END_TEST
 
