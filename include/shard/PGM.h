@@ -318,7 +318,7 @@ public:
             ptr++;
         }
 
-        while (ptr->rec.key <= p->upper_bound && ptr < ptr + s->stop_idx) {
+        while (ptr->rec.key <= p->upper_bound && ptr < ts->m_data + s->stop_idx) {
             records.emplace_back(*ptr);
             ptr++;
         }

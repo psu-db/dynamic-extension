@@ -104,6 +104,7 @@ static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t tr
     size_t query_latency = total_time / (trial_cnt * queries.size());
 
     fprintf(stdout, "%ld\t", query_latency);
+    fprintf(stderr, "%ld\n", total_results);
     fflush(stdout);
 
     return true;
@@ -145,6 +146,7 @@ static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t t
     size_t query_latency = total_time / (trial_cnt * queries.size());
 
     fprintf(stdout, "%ld\t", query_latency);
+    fprintf(stderr, "%ld\n", total_results);
     fflush(stdout);
 
     return true;
