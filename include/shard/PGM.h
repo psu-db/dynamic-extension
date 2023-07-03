@@ -342,12 +342,20 @@ public:
     }
 
     static std::vector<R> merge(std::vector<std::vector<R>> &results) {
+        size_t total = 0;
+        for (size_t i=0; i<results.size(); i++) {
+            total += results[i].size();
+        }
+
+        if (total == 0) {
+            return std::vector<R>();
+        }
+
         std::vector<R> output;
+        output.reserve(total);
 
         for (size_t i=0; i<results.size(); i++) {
-            for (size_t j=0; j<results[i].size(); j++) {
-                output.emplace_back(results[i][j]);
-            }
+            std::move(results[i].begin(), results[i].end(), std::back_inserter(output));
         }
 
         return output;
