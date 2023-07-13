@@ -11,6 +11,7 @@
 
 #include <cstring>
 #include <concepts>
+#include <cmath>
 
 #include "util/base.h"
 
@@ -18,11 +19,24 @@ namespace de {
 
 template<typename R>
 concept RecordInterface = requires(R r, R s) {
-    r.key;
-    r.value;
-
     { r < s } ->std::convertible_to<bool>;
     { r == s } ->std::convertible_to<bool>;
+};
+
+template<typename R>
+concept WeightedRecordInterface = requires(R r) {
+    {r.weight} -> std::convertible_to<double>;
+};
+
+template<typename R>
+concept NDRecordInterface = RecordInterface<R> && requires(R r, R s) {
+    {r.calc_distance(s)} -> std::convertible_to<double>;
+};
+
+template <typename R>
+concept KVPInterface = RecordInterface<R> && requires(R r) {
+    r.key;
+    r.value;
 };
 
 template<RecordInterface R>
@@ -51,15 +65,8 @@ struct Wrapped {
     }
 
     inline bool operator<(const Wrapped& other) const {
-        return (rec.key < other.rec.key) || (rec.key == other.rec.key && rec.value < other.rec.value)
-            || (rec.key == other.rec.key && rec.value == other.rec.value && header < other.header);
+        return rec < other.rec || (rec == other.rec && header < other.header);
     }
-};
-
-
-template <typename R>
-concept WeightedRecordInterface = RecordInterface<R> && requires(R r) {
-    {r.weight} -> std::convertible_to<double>;
 };
 
 template <typename K, typename V>
@@ -92,4 +99,22 @@ struct WeightedRecord {
     }
 };
 
+template <typename V>
+struct Point{
+    V x;
+    V y;
+
+    inline bool operator==(const Point& other) const {
+        return x == other.x && y == other.y;
+    }
+
+    // lexicographic order
+    inline bool operator<(const Point& other) const {
+        return x < other.x || (x == other.x && y < other.y);
+    }
+
+    inline double calc_distance(const Point& other) const {
+        return sqrt(pow(x - other.x, 2) + pow(y - other.y, 2));
+    }
+};
 }

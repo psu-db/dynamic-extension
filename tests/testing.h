@@ -23,6 +23,7 @@
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
+typedef de::Point<int64_t> PRec;
 
 template <de::RecordInterface R> 
 std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {
@@ -75,7 +76,26 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
     return ((double) std::abs(n1 - n2) / (double) mag) < epsilon;
 }
 
-template <de::RecordInterface R>
+static de::MutableBuffer<PRec> *create_2d_mbuffer(size_t cnt) {
+    auto buffer = new de::MutableBuffer<PRec>(cnt, cnt);
+
+    for (int64_t i=0; i<cnt; i++) {
+        buffer->append({rand(), rand()});
+    }
+
+    return buffer;
+}
+
+static de::MutableBuffer<PRec> *create_2d_sequential_mbuffer(size_t cnt) {
+    auto buffer = new de::MutableBuffer<PRec>(cnt, cnt);
+    for (int64_t i=0; i<cnt; i++) {
+        buffer->append({i, i});
+    }
+
+    return buffer;
+}
+
+template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
     auto buffer = new de::MutableBuffer<R>(cnt, cnt);
@@ -95,7 +115,7 @@ static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
     return buffer;
 }
 
-template <de::RecordInterface R>
+template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, decltype(R::key) stop)
 {
     size_t cnt = stop - start;
@@ -116,7 +136,7 @@ static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, d
     return buffer;
 }
 
-template <de::RecordInterface R>
+template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
     auto buffer = new de::MutableBuffer<R>(cnt, ts_cnt);
@@ -147,7 +167,8 @@ static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t t
     return buffer;
 }
 
-template <de::WeightedRecordInterface R>
+template <typename R>
+requires de::WeightedRecordInterface<R> && de::KVPInterface<R>
 static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 {
     auto buffer = new de::MutableBuffer<R>(cnt, cnt);
@@ -170,7 +191,7 @@ static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
     return buffer;
 }
 
-template <de::RecordInterface R>
+template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
 {
     auto buffer = new de::MutableBuffer<R>(cnt, cnt);

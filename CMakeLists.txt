@@ -45,6 +45,10 @@ if (tests)
     target_link_libraries(mutable_buffer_tests PUBLIC gsl check subunit pthread)
     target_include_directories(mutable_buffer_tests PRIVATE include)
 
+    add_executable(vptree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/vptree_tests.cpp)
+    target_link_libraries(vptree_tests PUBLIC gsl check subunit pthread)
+    target_include_directories(vptree_tests PRIVATE include)
+
     #add_executable(dynamic_extension_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/dynamic_extension_tests.cpp)
     #target_link_libraries(dynamic_extension_tests PUBLIC gsl check subunit pthread)
     #target_include_directories(dynamic_extension_tests PRIVATE include)
