@@ -194,9 +194,14 @@ private:
     }
 
     void build_map() {
-
         for (size_t i=0; i<m_reccnt; i++) {
-            m_lookup_map.insert({m_data[i].rec, i});
+          // FIXME: Will need to account for tombstones here too. Under
+          // tombstones, it is technically possible for two otherwise identical
+          // instances of the same record to exist within the same shard, so
+          // long as one of them is a tombstone. Because the table is currently
+          // using the unwrapped records for the key, it isn't possible for it
+          // to handle this case right now.
+          m_lookup_map.insert({m_data[i].rec, i});
         }
     }
 
