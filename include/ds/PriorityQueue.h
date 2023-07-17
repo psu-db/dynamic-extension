@@ -21,6 +21,22 @@ struct queue_record {
 };
 
 template <typename R>
+class standard_minheap {
+public:
+    inline bool operator()(const R* a, const R* b) {
+        return *a < *b;
+    }
+};
+
+template <typename R>
+class standard_maxheap {
+public:
+    inline bool operator()(const R* a, const R* b) {
+        return *a > *b;
+    }
+};
+
+template <typename R, typename CMP=standard_minheap<R>>
 class PriorityQueue {
 public:
     PriorityQueue(size_t size) : data(size), tail(0) {}
@@ -79,6 +95,7 @@ public:
 
 private:
     std::vector<queue_record<R>> data;
+    CMP cmp;
     size_t tail;
 
     /*
@@ -122,11 +139,20 @@ private:
 
     inline bool heap_cmp(size_t a, size_t b) {
         if (data[a].data != data[b].data) {
-            return *(data[a].data) < *(data[b].data);
-        } else if (data[a].version != data[b].version)
+            return cmp(data[a].data, data[b].data);
+        } else if (data[a].version != data[b].version) {
             return data[a].version < data[b].version;
-        else return data[a].data->is_tombstone() && data[b].data->is_tombstone();
-    }
+        }
 
+        constexpr bool has_tombstone = requires(const R &r) {
+            r.is_tombstone();
+        };
+
+        if constexpr (has_tombstone) {
+            return data[a].data->is_tombstone() && data[b].data->is_tombstone();
+        } else {
+            return false;
+        }
+    }
 };
 }

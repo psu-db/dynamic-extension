@@ -40,6 +40,17 @@ concept KVPInterface = RecordInterface<R> && requires(R r) {
     r.value;
 };
 
+template<typename R>
+concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
+    {r.header} -> std::convertible_to<uint32_t>;
+     r.rec;
+    {r.set_delete()};
+    {r.is_deleted()} -> std::convertible_to<bool>;
+    {r.set_tombstone(b)};
+    {r.is_tombstone()} -> std::convertible_to<bool>;
+    {r < s} -> std::convertible_to<bool>;
+};
+
 template<RecordInterface R>
 struct Wrapped {
     uint32_t header;
