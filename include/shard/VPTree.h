@@ -13,6 +13,7 @@
 #include <queue>
 #include <memory>
 #include <concepts>
+#include <map>
 
 #include "ds/PriorityQueue.h"
 #include "util/Cursor.h"
@@ -104,6 +105,7 @@ public:
 
         if (m_reccnt > 0) {
             m_root = build_vptree();
+            build_map();
         }
     }
 
@@ -136,6 +138,7 @@ public:
 
         if (m_reccnt > 0) {
             m_root = build_vptree();
+            build_map();
         }
    }
 
@@ -145,17 +148,13 @@ public:
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
-        auto node = m_root;
+        auto idx = m_lookup_map.find(rec);
 
-        while (node && m_data[node->idx].rec != rec) {
-            if (rec.calc_distance(m_data[node->idx].rec) >= node->radius) {
-                node = node->outside;
-            } else {
-                node = node->inside;
-            }
+        if (idx == m_lookup_map.end()) {
+            return nullptr;
         }
 
-        return (node) ? m_data + node->idx : nullptr;
+        return m_data + idx->second;
     }
 
     Wrapped<R>* get_data() const {
@@ -192,6 +191,13 @@ private:
         auto n = build_subtree(lower, upper, rng);
         gsl_rng_free(rng);
         return n;
+    }
+
+    void build_map() {
+
+        for (size_t i=0; i<m_reccnt; i++) {
+            m_lookup_map.insert({m_data[i].rec, i});
+        }
     }
 
     vpnode *build_subtree(size_t start, size_t stop, gsl_rng *rng) {
@@ -268,6 +274,7 @@ private:
     }
 
     Wrapped<R>* m_data;
+    std::unordered_map<R, size_t, RecordHash<R>> m_lookup_map;
     size_t m_reccnt;
     size_t m_tombstone_cnt;
     size_t m_node_cnt;

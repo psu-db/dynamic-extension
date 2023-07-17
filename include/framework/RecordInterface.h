@@ -14,6 +14,7 @@
 #include <cmath>
 
 #include "util/base.h"
+#include "util/hash.h"
 
 namespace de {
 
@@ -117,4 +118,12 @@ struct Point{
         return sqrt(pow(x - other.x, 2) + pow(y - other.y, 2));
     }
 };
+
+template<RecordInterface R>
+struct RecordHash {
+    size_t operator()(R const &rec) const {
+        return hash_bytes((char *) &rec, sizeof(R));
+    }
+};
+
 }
