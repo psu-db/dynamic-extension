@@ -134,7 +134,7 @@ public:
         }
         
         // Merge the results together
-        auto result = Q::merge(query_results);
+        auto result = Q::merge(query_results, parms);
 
         for (size_t i=0; i<states.size(); i++) {
             Q::delete_query_state(states[i]);

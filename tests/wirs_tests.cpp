@@ -244,7 +244,7 @@ START_TEST(t_wirs_query_merge)
         WIRSQuery<WRec>::delete_query_state(state2);
     }
 
-    auto merged = WIRSQuery<WRec>::merge(results);
+    auto merged = WIRSQuery<WRec>::merge(results, nullptr);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {

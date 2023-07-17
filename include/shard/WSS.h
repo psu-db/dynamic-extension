@@ -414,7 +414,7 @@ public:
         return result;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results) {
+    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
         std::vector<R> output;
 
         for (size_t i=0; i<results.size(); i++) {

@@ -240,7 +240,7 @@ START_TEST(t_wss_query_merge)
         WSSQuery<WRec>::delete_query_state(state2);
     }
 
-    auto merged = WSSQuery<WRec>::merge(results);
+    auto merged = WSSQuery<WRec>::merge(results, nullptr);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {

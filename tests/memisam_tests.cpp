@@ -238,7 +238,7 @@ START_TEST(t_irs_query_merge)
         IRSQuery<Rec>::delete_query_state(state2);
     }
 
-    auto merged = IRSQuery<Rec>::merge(results);
+    auto merged = IRSQuery<Rec>::merge(results, nullptr);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {
