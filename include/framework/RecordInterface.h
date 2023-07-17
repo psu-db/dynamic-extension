@@ -100,22 +100,40 @@ struct WeightedRecord {
     }
 };
 
-template <typename V>
+template <typename V, size_t D=2>
 struct Point{
-    V x;
-    V y;
+    V data[D];
 
     inline bool operator==(const Point& other) const {
-        return x == other.x && y == other.y;
+        for (size_t i=0; i<D; i++) {
+            if (data[i] != other.data[i]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // lexicographic order
     inline bool operator<(const Point& other) const {
-        return x < other.x || (x == other.x && y < other.y);
+        for (size_t i=0; i<D; i++) {
+            if (data[i] < other.data[i]) {
+                return true;
+            } else if (data[i] > other.data[i]) {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     inline double calc_distance(const Point& other) const {
-        return sqrt(pow(x - other.x, 2) + pow(y - other.y, 2));
+        double dist = 0;
+        for (size_t i=0; i<D; i++) {
+            dist += pow(data[i] - other.data[i], 2);
+        }
+        
+        return sqrt(dist);
     }
 };
 

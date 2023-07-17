@@ -74,13 +74,13 @@ START_TEST(t_point_lookup)
     for (size_t i=0; i<n; i++) {
         PRec r;
         auto rec = (buffer->get_data() + i);
-        r.x = rec->rec.x;
-        r.y = rec->rec.y;
+        r.data[0] = rec->rec.data[0];
+        r.data[1] = rec->rec.data[1];
 
         auto result = wss.point_lookup(r);
         ck_assert_ptr_nonnull(result);
-        ck_assert_int_eq(result->rec.x, r.x);
-        ck_assert_int_eq(result->rec.y, r.y);
+        ck_assert_int_eq(result->rec.data[0], r.data[0]);
+        ck_assert_int_eq(result->rec.data[1], r.data[1]);
     }
 
     delete buffer;
@@ -97,8 +97,8 @@ START_TEST(t_point_lookup_miss)
 
     for (size_t i=n + 100; i<2*n; i++) {
         PRec r;
-        r.x = i;
-        r.y = i;
+        r.data[0] = i;
+        r.data[1] = i;
 
         auto result = wss.point_lookup(r);
         ck_assert_ptr_null(result);
