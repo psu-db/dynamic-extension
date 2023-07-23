@@ -14,6 +14,7 @@
 #include "shard/PGM.h"
 #include "shard/TrieSpline.h"
 #include "shard/WIRS.h"
+#include "ds/BTree.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -41,6 +42,28 @@ typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<
 typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
 typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::IRSQuery<Rec>> ExtendedISAM_IRS;
 typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::ISAMRangeQuery<Rec>> ExtendedISAM_RQ;
+
+struct btree_record {
+    key_type key;
+    value_type value;
+
+   inline bool operator<(const btree_record& other) const {
+        return key < other.key || (key == other.key && value < other.value);
+    }
+
+    inline bool operator==(const btree_record& other) const {
+        return key == other.key && value == other.value;
+    }
+};
+
+struct btree_key_extract {
+    static const key_type &get(const btree_record &v) {
+        return v.key;
+    }
+};
+
+typedef tlx::BTree<key_type, btree_record, btree_key_extract> TreeMap;
+
 
 static gsl_rng *g_rng;
 static std::set<WRec> *g_to_delete;
@@ -246,7 +269,7 @@ static bool warmup(std::fstream &file, DE &extended_index, size_t count,
 
     size_t inserted = 0;
     size_t delete_idx = 0;
-    
+
     double last_percent = 0;
     while (inserted < count) {
         // Build vector of records to insert and potentially delete
@@ -259,7 +282,11 @@ static bool warmup(std::fstream &file, DE &extended_index, size_t count,
         for (size_t i=0; i<insert_vec.size(); i++) {
             // process a delete if necessary
             if (delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
-                extended_index.erase(delete_vec[delete_idx++]);
+                if constexpr (std::is_same_v<TreeMap, DE>) {
+                    extended_index.erase_one(delete_vec[delete_idx++].key);
+                } else {
+                    extended_index.erase(delete_vec[delete_idx++]);
+                }
             }
 
             // insert the record;

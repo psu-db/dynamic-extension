@@ -49,7 +49,11 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
         for (size_t i=0; i<insert_vec.size(); i++) {
             // process a delete if necessary
             if (applied_deletes < delete_cnt && delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
-                de_index.erase(delete_vec[delete_idx++]);
+                if constexpr (std::is_same_v<TreeMap, DE>) {
+                    de_index.erase_one(delete_vec[delete_idx++].key);
+                } else {
+                    de_index.erase(delete_vec[delete_idx++]);
+                }
                 applied_deletes++;
             }
 
