@@ -15,6 +15,7 @@
 #include "shard/TrieSpline.h"
 #include "shard/WIRS.h"
 #include "ds/BTree.h"
+#include "shard/VPTree.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -37,11 +38,14 @@ typedef uint64_t weight_type;
 typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
 typedef de::Record<key_type, value_type> Rec;
 
+typedef de::Point<double, 300> Word2VecRec;
+
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
 typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
 typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::IRSQuery<Rec>> ExtendedISAM_IRS;
 typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::ISAMRangeQuery<Rec>> ExtendedISAM_RQ;
+typedef de::DynamicExtension<Word2VecRec, de::VPTree<Word2VecRec>, de::KNNQuery<Word2VecRec>> ExtendedVPTree_KNN;
 
 struct btree_record {
     key_type key;
@@ -140,6 +144,55 @@ static std::vector<QP> read_range_queries(std::string fname, double selectivity)
     return queries;
 }
 
+template <typename QP>
+static std::vector<QP> read_knn_queries(std::string fname, size_t k) {
+    std::vector<QP> queries;
+
+    FILE *qf = fopen(fname.c_str(), "r");
+    char *line = NULL;
+    size_t len = 0;
+
+    while (getline(&line, &len, qf) > 0) {
+        char *token;
+        QP query;
+        size_t idx = 0;
+
+        token = strtok(line, " ");
+        do {
+            query.point.data[idx++] = atof(token);
+        } while ((token = strtok(NULL, " ")));
+
+        query.k = k;
+        queries.emplace_back(query);
+    }
+
+    free(line);
+    fclose(qf);
+
+    return queries;
+}
+
+static bool next_vector_record(std::fstream &file, Word2VecRec &record, bool binary=false) {
+    std::string line;
+    if (std::getline(file, line, '\n')) {
+        std::stringstream line_stream(line);
+        for (size_t i=0; i<300; i++) {
+            std::string dimension;
+
+            std::getline(line_stream, dimension, ' ');
+            record.data[i] = atof(dimension.c_str());
+        }
+
+        g_reccnt++;
+
+        return true;
+    }
+
+    return false;
+
+}
+
+
 template <de::KVPInterface R>
 static bool next_record(std::fstream &file, R &record, bool binary=false)
 {
@@ -205,12 +258,22 @@ static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n,
     vec.clear();
     for (size_t i=0; i<n; i++) {
         R rec;
-        if (!next_record(file, rec, binary)) {
-            if (i == 0) {
-                return false;
-            }
+        if constexpr (std::is_same_v<R, Word2VecRec>) {
+            if (!next_vector_record(file, rec)) {
+                if (i == 0) {
+                    return false;
+                }
 
-            break;
+                break;
+            }
+        } else {
+            if (!next_record(file, rec, binary)) {
+                if (i == 0) {
+                    return false;
+                }
+
+                break;
+            }
         }
 
         vec.emplace_back(rec);
