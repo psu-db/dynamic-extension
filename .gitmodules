@@ -7,3 +7,6 @@
 [submodule "external/vptree"]
 	path = external/vptree
 	url = https://github.com/pderkowski/vptree.git
+[submodule "external/m-tree"]
+	path = external/m-tree
+	url = https://github.com/erdavila/M-Tree.git
