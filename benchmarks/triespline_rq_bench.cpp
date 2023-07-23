@@ -32,18 +32,18 @@ int main(int argc, char **argv)
     auto queries = read_range_queries<de::ts_range_query_parms<Rec>>(query_file, .0001);
 
     std::fstream datafile;
-    datafile.open(filename, std::ios::in);
+    datafile.open(filename, std::ios::in | std::ios::binary);
 
     std::vector<Rec> to_delete;
 
     // warm up the tree with initial_insertions number of initially inserted
     // records
     size_t warmup_cnt = insert_batch * record_count;
-    warmup<ExtendedTSRQ, Rec>(datafile, de, warmup_cnt, delete_prop, to_delete);
+    warmup<ExtendedTSRQ, Rec>(datafile, de, warmup_cnt, delete_prop, to_delete, true, true);
 
     size_t insert_cnt = record_count - warmup_cnt;
 
-    insert_tput_bench<ExtendedTSRQ, Rec>(de, datafile, insert_cnt, delete_prop, to_delete);
+    insert_tput_bench<ExtendedTSRQ, Rec>(de, datafile, insert_cnt, delete_prop, to_delete, true);
     fprintf(stdout, "%ld\t", de.get_memory_usage());
     query_latency_bench<ExtendedTSRQ, Rec, de::ts_range_query_parms<Rec>>(de, queries, 1);
 
