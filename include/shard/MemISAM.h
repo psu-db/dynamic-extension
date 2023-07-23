@@ -40,6 +40,7 @@ struct IRSState {
     size_t lower_bound;
     size_t upper_bound;
     size_t sample_size;
+    size_t total_weight;
 };
 
 template <RecordInterface R>
@@ -49,12 +50,32 @@ struct IRSBufferState {
     size_t sample_size;
 };
 
+template <RecordInterface R>
+struct ISAMRangeQueryParms {
+    decltype(R::key) lower_bound;
+    decltype(R::key) upper_bound;
+};
+
+template <RecordInterface R>
+class ISAMRangeQuery;
+
+template <RecordInterface R>
+struct ISAMRangeQueryState {
+    size_t start_idx;
+    size_t stop_idx;
+};
+
+template <RecordInterface R>
+struct RangeQueryBufferState {
+    size_t cutoff;
+};
 
 template <RecordInterface R>
 class MemISAM {
 private:
     friend class IRSQuery<R, true>;
     friend class IRSQuery<R, false>;
+    friend class ISAMRangeQuery<R>;
 
 typedef decltype(R::key) K;
 typedef decltype(R::value) V;
@@ -233,7 +254,7 @@ public:
     }
 
     size_t get_memory_usage() {
-        return m_reccnt * sizeof(R) + m_internal_node_cnt * inmem_isam_node_size;
+        return m_internal_node_cnt * inmem_isam_node_size;
     }
 
 private:
@@ -404,7 +425,7 @@ public:
             weights.push_back(bs->records.size());
         }
 
-        decltype(R::weight) total_weight = 0;
+        size_t total_weight = 0;
         for (auto &s : shard_states) {
             auto state = (IRSState<R> *) s;
             total_weight += state->upper_bound - state->lower_bound;
@@ -508,5 +529,106 @@ public:
         delete s;
     }
 };
+
+
+template <RecordInterface R>
+class ISAMRangeQuery {
+public:
+    static void *get_query_state(MemISAM<R> *ts, void *parms) {
+        auto res = new ISAMRangeQueryState<R>();
+        auto p = (ISAMRangeQueryParms<R> *) parms;
+
+        res->start_idx = ts->get_lower_bound(p->lower_bound);
+        res->stop_idx = ts->get_record_count();
+
+        return res;
+    }
+
+    static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
+        auto res = new RangeQueryBufferState<R>();
+        res->cutoff = buffer->get_record_count();
+
+        return res;
+    }
+
+    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+        return;
+    }
+
+    static std::vector<Wrapped<R>> query(MemISAM<R> *ts, void *q_state, void *parms) {
+        std::vector<Wrapped<R>> records;
+        auto p = (ISAMRangeQueryParms<R> *) parms;
+        auto s = (ISAMRangeQueryState<R> *) q_state;
+
+        // if the returned index is one past the end of the
+        // records for the PGM, then there are not records
+        // in the index falling into the specified range.
+        if (s->start_idx == ts->get_record_count()) {
+            return records;
+        }
+
+        auto ptr = ts->get_record_at(s->start_idx);
+        
+        // roll the pointer forward to the first record that is
+        // greater than or equal to the lower bound.
+        while(ptr->rec.key < p->lower_bound) {
+            ptr++;
+        }
+
+        while (ptr->rec.key <= p->upper_bound && ptr < ts->m_data + s->stop_idx) {
+            records.emplace_back(*ptr);
+            ptr++;
+        }
+
+        return records;
+    }
+
+    static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
+        auto p = (ISAMRangeQueryParms<R> *) parms;
+        auto s = (RangeQueryBufferState<R> *) state;
+
+        std::vector<Wrapped<R>> records;
+        for (size_t i=0; i<s->cutoff; i++) {
+            auto rec = buffer->get_data() + i;
+            if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
+                records.emplace_back(*rec);
+            }
+        }
+
+        return records;
+    }
+
+    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
+        size_t total = 0;
+        for (size_t i=0; i<results.size(); i++) {
+            total += results[i].size();
+        }
+
+        if (total == 0) {
+            return std::vector<R>();
+        }
+
+        std::vector<R> output;
+        output.reserve(total);
+
+        for (size_t i=0; i<results.size(); i++) {
+            std::move(results[i].begin(), results[i].end(), std::back_inserter(output));
+        }
+
+        return output;
+    }
+
+    static void delete_query_state(void *state) {
+        auto s = (ISAMRangeQueryState<R> *) state;
+        delete s;
+    }
+
+    static void delete_buffer_query_state(void *state) {
+        auto s = (RangeQueryBufferState<R> *) state;
+        delete s;
+    }
+};
+
+
 
 }

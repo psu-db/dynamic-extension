@@ -12,7 +12,7 @@
 
 template <typename DE, de::RecordInterface R, bool PROGRESS=true, size_t BATCH=1000>
 static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cnt, 
-                              double delete_prop, std::vector<R> &to_delete) {
+                              double delete_prop, std::vector<R> &to_delete, bool binary=false) {
 
     size_t delete_cnt = insert_cnt * delete_prop;
 
@@ -31,7 +31,7 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
     size_t total_time = 0;
 
     while (applied_inserts < insert_cnt && continue_benchmark) { 
-        continue_benchmark = build_insert_vec(file, insert_vec, BATCH, delete_prop, to_delete);
+        continue_benchmark = build_insert_vec(file, insert_vec, BATCH, delete_prop, to_delete, binary);
         if (applied_deletes < delete_cnt) {
             build_delete_vec(to_delete, delete_vec, BATCH*delete_prop);
             delete_idx = 0;
@@ -104,7 +104,6 @@ static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t tr
     size_t query_latency = total_time / (trial_cnt * queries.size());
 
     fprintf(stdout, "%ld\t", query_latency);
-    fprintf(stderr, "%ld\n", total_results);
     fflush(stdout);
 
     return true;
@@ -146,7 +145,6 @@ static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t t
     size_t query_latency = total_time / (trial_cnt * queries.size());
 
     fprintf(stdout, "%ld\t", query_latency);
-    fprintf(stderr, "%ld\n", total_results);
     fflush(stdout);
 
     return true;

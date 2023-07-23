@@ -30,7 +30,7 @@
 #include <random>
 
 typedef uint64_t key_type;
-typedef uint32_t value_type;
+typedef uint64_t value_type;
 typedef uint64_t weight_type;
 
 typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
@@ -39,6 +39,8 @@ typedef de::Record<key_type, value_type> Rec;
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
 typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
+typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::IRSQuery<Rec>> ExtendedISAM_IRS;
+typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::ISAMRangeQuery<Rec>> ExtendedISAM_RQ;
 
 static gsl_rng *g_rng;
 static std::set<WRec> *g_to_delete;
@@ -115,10 +117,35 @@ static std::vector<QP> read_range_queries(std::string fname, double selectivity)
     return queries;
 }
 
-template <de::RecordInterface R>
-static bool next_record(std::fstream &file, R &record)
+template <de::KVPInterface R>
+static bool next_record(std::fstream &file, R &record, bool binary=false)
 {
+    static value_type value = 1;
     if (g_reccnt >= g_max_record_cnt) return false;
+
+    if (binary) {
+        if (file.good()) {
+            decltype(R::key) key; 
+
+            file.read((char*) &key, sizeof(key));
+            record.key = key;
+            record.value = value;
+            value++;
+
+            if constexpr (de::WeightedRecordInterface<R>) {
+                decltype(R::weight) weight;
+                file.read((char*) &weight, sizeof(weight));
+                record.weight = weight;
+            }
+
+            if (record.key < g_min_key) g_min_key = record.key;
+            if (record.key > g_max_key) g_max_key = record.key;
+
+            return true;
+        }
+
+        return false;
+    }
 
     std::string line;
     if (std::getline(file, line, '\n')) {
@@ -139,7 +166,6 @@ static bool next_record(std::fstream &file, R &record)
         }
 
         if (record.key < g_min_key) g_min_key = record.key;
-
         if (record.key > g_max_key) g_max_key = record.key;
 
         g_reccnt++;
@@ -152,11 +178,11 @@ static bool next_record(std::fstream &file, R &record)
 
 template <de::RecordInterface R>
 static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n, 
-                             double delete_prop, std::vector<R> &to_delete) {
+                             double delete_prop, std::vector<R> &to_delete, bool binary=false) {
     vec.clear();
     for (size_t i=0; i<n; i++) {
         R rec;
-        if (!next_record(file, rec)) {
+        if (!next_record(file, rec, binary)) {
             if (i == 0) {
                 return false;
             }
@@ -210,7 +236,7 @@ static void progress_update(double percentage, std::string prompt) {
 
 template <typename DE, de::RecordInterface R>
 static bool warmup(std::fstream &file, DE &extended_index, size_t count, 
-                   double delete_prop, std::vector<R> to_delete, bool progress=true) {
+                   double delete_prop, std::vector<R> to_delete, bool progress=true, bool binary=false) {
     size_t batch = std::min(.1 * count, 25000.0);
 
     std::vector<R> insert_vec;
@@ -224,7 +250,7 @@ static bool warmup(std::fstream &file, DE &extended_index, size_t count,
     double last_percent = 0;
     while (inserted < count) {
         // Build vector of records to insert and potentially delete
-        auto continue_warmup = build_insert_vec(file, insert_vec, batch, delete_prop, to_delete);
+        auto continue_warmup = build_insert_vec(file, insert_vec, batch, delete_prop, to_delete, binary);
         if (inserted > batch) {
             build_delete_vec(to_delete, delete_vec, batch*delete_prop);
             delete_idx = 0;
