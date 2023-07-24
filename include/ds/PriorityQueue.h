@@ -23,6 +23,7 @@ struct queue_record {
 template <typename R>
 class standard_minheap {
 public:
+    standard_minheap(R *baseline) {}
     inline bool operator()(const R* a, const R* b) {
         return *a < *b;
     }
@@ -31,6 +32,7 @@ public:
 template <typename R>
 class standard_maxheap {
 public:
+    standard_maxheap(R *baseline) {}
     inline bool operator()(const R* a, const R* b) {
         return *a > *b;
     }
@@ -39,7 +41,8 @@ public:
 template <typename R, typename CMP=standard_minheap<R>>
 class PriorityQueue {
 public:
-    PriorityQueue(size_t size) : data(size), tail(0) {}
+    PriorityQueue(size_t size, R* cmp_baseline=nullptr) : data(size), tail(0), cmp(cmp_baseline) {}
+
     ~PriorityQueue() = default;
 
     size_t size() const {
@@ -97,6 +100,7 @@ private:
     std::vector<queue_record<R>> data;
     CMP cmp;
     size_t tail;
+    R *baseline;
 
     /*
      * Swap the elements at position a and position

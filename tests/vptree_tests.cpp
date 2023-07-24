@@ -11,6 +11,7 @@
 
 #include "shard/VPTree.h"
 #include "testing.h"
+#include "vptree.hpp"
 
 #include <check.h>
 
@@ -108,6 +109,65 @@ START_TEST(t_point_lookup_miss)
 }
 
 
+START_TEST(t_buffer_query) 
+{
+    size_t n = 10000;
+    auto buffer = create_2d_sequential_mbuffer(n);
+
+    PRec target;
+    target.data[0] = 120;
+    target.data[1] = 120;
+
+    KNNQueryParms<PRec> p;
+    p.k = 10;
+    p.point = target;
+
+    auto state = KNNQuery<PRec>::get_buffer_query_state(buffer, &p);
+    auto result = KNNQuery<PRec>::buffer_query(buffer, state, &p);
+    KNNQuery<PRec>::delete_buffer_query_state(state);
+
+    std::sort(result.begin(), result.end());
+    size_t start = 120 - 5;
+    for (size_t i=0; i<result.size(); i++) {
+        ck_assert_int_eq(result[i].rec.data[0], start++);
+    }
+
+    delete buffer;
+}
+
+START_TEST(t_knn_query) 
+{
+    size_t n = 100;
+    auto buffer = create_2d_sequential_mbuffer(n);
+
+    PRec target;
+    target.data[0] = 50;
+    target.data[1] = 50;
+
+    KNNQueryParms<PRec> p;
+    p.k = 10;
+    p.point = target;
+
+    auto state = KNNQuery<PRec>::get_buffer_query_state(buffer, &p);
+    auto result = KNNQuery<PRec>::buffer_query(buffer, state, &p);
+
+    KNNQuery<PRec>::delete_buffer_query_state(state);
+
+    auto vptree = VPTree<PRec>(buffer);
+    auto state_2 = KNNQuery<PRec>::get_query_state(&vptree, &p);
+    auto result_2 = KNNQuery<PRec>::query(&vptree, state_2, &p);
+    KNNQuery<PRec>::delete_query_state(state_2);
+
+    std::sort(result_2.begin(), result_2.end());
+    size_t start = 46;
+    for (size_t i=0; i<result_2.size(); i++) {
+        ck_assert_int_eq(result_2[i].rec.data[0], start++);
+    }
+
+    delete buffer;
+}
+
+
 Suite *unit_testing()
 {
     Suite *unit = suite_create("VPTree Shard Unit Testing");
@@ -121,18 +181,14 @@ Suite *unit_testing()
 
     TCase *lookup = tcase_create("de:VPTree:point_lookup Testing");
     tcase_add_test(lookup, t_point_lookup);
-    //tcase_add_test(lookup, t_point_lookup_miss);
+    tcase_add_test(lookup, t_point_lookup_miss);
     suite_add_tcase(unit, lookup);
 
 
-    /*
-    TCase *sampling = tcase_create("de:VPTree::VPTreeQuery Testing");
-    tcase_add_test(sampling, t_wss_query);
-    tcase_add_test(sampling, t_wss_query_merge);
-    tcase_add_test(sampling, t_wss_buffer_query_rejection);
-    tcase_add_test(sampling, t_wss_buffer_query_scan);
-    suite_add_tcase(unit, sampling);
-    */
+    TCase *query = tcase_create("de:VPTree::VPTreeQuery Testing");
+    tcase_add_test(query, t_buffer_query);
+    tcase_add_test(query, t_knn_query);
+    suite_add_tcase(unit, query);
 
     return unit;
 }

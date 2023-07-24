@@ -49,6 +49,7 @@ concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
     {r.set_tombstone(b)};
     {r.is_tombstone()} -> std::convertible_to<bool>;
     {r < s} -> std::convertible_to<bool>;
+    {r == s} ->std::convertible_to<bool>;
 };
 
 template<RecordInterface R>
@@ -79,6 +80,11 @@ struct Wrapped {
     inline bool operator<(const Wrapped& other) const {
         return rec < other.rec || (rec == other.rec && header < other.header);
     }
+
+    inline bool operator==(const Wrapped& other) const {
+        return rec == other.rec;
+    }
+
 };
 
 template <typename K, typename V>
@@ -185,10 +191,10 @@ struct EuclidPoint{
     inline double calc_distance(const EuclidPoint& other) const {
         double dist = 0;
         for (size_t i=0; i<D; i++) {
-            dist += pow(data[i] - other.data[i], 2);
+            dist += (data[i] - other.data[i]) * (data[i] - other.data[i]);
         }
         
-        return sqrt(dist);
+        return std::sqrt(dist);
     }
 };
 
