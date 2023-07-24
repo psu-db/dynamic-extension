@@ -384,8 +384,14 @@ public:
 
         res->lower_bound = isam->get_lower_bound(lower_key);
         res->upper_bound = isam->get_upper_bound(upper_key);
-        res->sample_size = 0;
 
+        if (res->lower_bound == isam->get_record_count()) {
+            res->total_weight = 0;
+        } else {
+            res->total_weight = res->upper_bound - res->lower_bound;
+        }
+
+        res->sample_size = 0;
         return res;
     }
 
@@ -413,23 +419,34 @@ public:
 
     static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
         auto p = (irs_query_parms<R> *) query_parms;
-        auto bs = (IRSBufferState<R> *) buff_state;
+        auto bs = (buff_state) ? (IRSBufferState<R> *) buff_state : nullptr;
 
         std::vector<size_t> shard_sample_sizes(shard_states.size()+1, 0);
         size_t buffer_sz = 0;
 
         std::vector<size_t> weights;
-        if (Rejection) {
-            weights.push_back(bs->cutoff);
+        if constexpr (Rejection) {
+            weights.push_back((bs) ? bs->cutoff : 0);
         } else {
-            weights.push_back(bs->records.size());
+            weights.push_back((bs) ? bs->records.size() : 0);
         }
 
         size_t total_weight = 0;
         for (auto &s : shard_states) {
             auto state = (IRSState<R> *) s;
-            total_weight += state->upper_bound - state->lower_bound;
+            total_weight += state->total_weight;
             weights.push_back(state->total_weight);
+        }
+
+        // if no valid records fall within the query range, just
+        // set all of the sample sizes to 0 and bail out.
+        if (total_weight == 0) {
+            for (size_t i=0; i<shard_states.size(); i++) {
+                auto state = (IRSState<R> *) shard_states[i];
+                state->sample_size = 0;
+            }
+
+            return;
         }
 
         std::vector<double> normalized_weights;
@@ -447,7 +464,9 @@ public:
             }
         }
 
-        bs->sample_size = buffer_sz;
+        if (bs) {
+            bs->sample_size = buffer_sz;
+        }
         for (size_t i=0; i<shard_states.size(); i++) {
             auto state = (IRSState<R> *) shard_states[i];
             state->sample_size = shard_sample_sizes[i+1];
@@ -464,7 +483,7 @@ public:
 
         std::vector<Wrapped<R>> result_set;
 
-        if (sample_sz == 0) {
+        if (sample_sz == 0 || state->lower_bound == isam->get_record_count()) {
             return result_set;
         }
 
@@ -472,7 +491,7 @@ public:
         size_t range_length = state->upper_bound - state->lower_bound;
         do {
             attempts++;
-            size_t idx = gsl_rng_uniform_int(rng, range_length);
+            size_t idx = (range_length > 0) ? gsl_rng_uniform_int(rng, range_length) : 0;
             result_set.emplace_back(*isam->get_record_at(state->lower_bound + idx));
         } while (attempts < sample_sz);
 
