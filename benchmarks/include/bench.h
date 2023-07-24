@@ -51,6 +51,8 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
             if (applied_deletes < delete_cnt && delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
                 if constexpr (std::is_same_v<TreeMap, DE>) {
                     de_index.erase_one(delete_vec[delete_idx++].key);
+                } else if constexpr (std::is_same_v<MTree, DE>) {
+                    de_index.remove(delete_vec[delete_idx++]);
                 } else {
                     de_index.erase(delete_vec[delete_idx++]);
                 }
@@ -58,7 +60,11 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
             }
 
             // insert the record;
-            de_index.insert(insert_vec[i]);
+            if constexpr (std::is_same_v<MTree, DE>) {
+                de_index.add(insert_vec[i]);
+            } else {
+                de_index.insert(insert_vec[i]);
+            }
             applied_inserts++;
         }
         auto insert_stop = std::chrono::high_resolution_clock::now();

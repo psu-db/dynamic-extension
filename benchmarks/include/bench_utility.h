@@ -16,6 +16,7 @@
 #include "shard/WIRS.h"
 #include "ds/BTree.h"
 #include "shard/VPTree.h"
+#include "mtree.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -38,7 +39,8 @@ typedef uint64_t weight_type;
 typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
 typedef de::Record<key_type, value_type> Rec;
 
-typedef de::CosinePoint<double, 300> Word2VecRec;
+const size_t W2V_SIZE = 300;
+typedef de::CosinePoint<double, W2V_SIZE> Word2VecRec;
 
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
@@ -66,8 +68,25 @@ struct btree_key_extract {
     }
 };
 
-typedef tlx::BTree<key_type, btree_record, btree_key_extract> TreeMap;
 
+struct cosine_similarity {
+    double operator()(const Word2VecRec &first, const Word2VecRec &second) const {
+        double prod = 0;
+        double asquared = 0;
+        double bsquared = 0;
+
+        for (size_t i=0; i<W2V_SIZE; i++) {
+            prod += first.data[i] * second.data[i];
+            asquared += first.data[i]*first.data[i];
+            bsquared += second.data[i]*second.data[i];
+        }
+
+        return prod / std::sqrt(asquared * bsquared);
+    }
+};
+
+typedef tlx::BTree<key_type, btree_record, btree_key_extract> TreeMap;
+typedef mt::mtree<Word2VecRec, cosine_similarity> MTree;
 
 static gsl_rng *g_rng;
 static std::set<WRec> *g_to_delete;
@@ -347,13 +366,20 @@ static bool warmup(std::fstream &file, DE &extended_index, size_t count,
             if (delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
                 if constexpr (std::is_same_v<TreeMap, DE>) {
                     extended_index.erase_one(delete_vec[delete_idx++].key);
+                }
+                else if constexpr (std::is_same_v<MTree, DE>) {
+                    extended_index.remove(delete_vec[delete_idx++]);
                 } else {
                     extended_index.erase(delete_vec[delete_idx++]);
                 }
             }
 
             // insert the record;
-            extended_index.insert(insert_vec[i]);
+            if constexpr (std::is_same_v<MTree, DE>) {
+                extended_index.add(insert_vec[i]);
+            } else {
+                extended_index.insert(insert_vec[i]);
+            }
             inserted++;
 
             if (progress) {

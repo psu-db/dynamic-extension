@@ -1,9 +1,10 @@
 #include "include/bench.h"
+#include "mtree.h"
 
 int main(int argc, char **argv)
 {
     if (argc < 5) {
-        fprintf(stderr, "Usage: vptree_knn_bench <filename> <record_count> <delete_proportion> <query_file>\n");
+        fprintf(stderr, "Usage: mtree_knn_bench <filename> <record_count> <delete_proportion> <query_file>\n");
         exit(EXIT_FAILURE);
     }
 
@@ -21,7 +22,7 @@ int main(int argc, char **argv)
     init_bench_env(record_count, true);
     auto queries = read_knn_queries<de::KNNQueryParms<Word2VecRec>>(qfilename, 50);
 
-    auto de_vp_knn = ExtendedVPTree_KNN(buffer_cap, scale_factor, max_delete_prop);
+    auto mtree = MTree();
 
     std::fstream datafile;
     datafile.open(filename, std::ios::in | std::ios::binary);
@@ -31,25 +32,15 @@ int main(int argc, char **argv)
     // warm up the tree with initial_insertions number of initially inserted
     // records
     size_t warmup_cnt = insert_batch * record_count;
-    warmup<ExtendedVPTree_KNN, Word2VecRec>(datafile, de_vp_knn, warmup_cnt, delete_prop, to_delete, true, true);
+    warmup<MTree, Word2VecRec>(datafile, mtree, warmup_cnt, delete_prop, to_delete, true, true);
 
     size_t insert_cnt = record_count - warmup_cnt;
 
-    insert_tput_bench<ExtendedVPTree_KNN, Word2VecRec>(de_vp_knn, datafile, insert_cnt, delete_prop, to_delete, true);
-    fprintf(stdout, "%ld\t", de_vp_knn.get_memory_usage());
+    insert_tput_bench<MTree, Word2VecRec>(mtree, datafile, insert_cnt, delete_prop, to_delete, true);
+    //fprintf(stdout, "%ld\t", mtree.get_memory_usage());
 
-    query_latency_bench<ExtendedVPTree_KNN, Word2VecRec, de::KNNQueryParms<Word2VecRec>>(de_vp_knn, queries);
-    fprintf(stdout, "\n");
-
-    auto ts = de_vp_knn.create_static_structure();
-
-    fprintf(stdout, "%ld\t", ts->get_memory_usage());
-    static_latency_bench<de::VPTree<Word2VecRec>, Word2VecRec, de::KNNQueryParms<Word2VecRec>, de::KNNQuery<Word2VecRec>>(
-        ts, queries, 1
-    );
-    fprintf(stdout, "\n");
-
-    delete ts;
+//    query_latency_bench<MTree, Word2VecRec, de::KNNQueryParms<Word2VecRec>>(mtree, queries);
+ //   fprintf(stdout, "\n");
 
     delete_bench_env();
     fflush(stdout);
