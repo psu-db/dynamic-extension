@@ -492,7 +492,7 @@ public:
 
         std::vector<R> output;
         while (pq.size() > 0) {
-            output.emplace(*pq.peek().data);
+            output.emplace_back(*pq.peek().data);
             pq.pop();
         }
 
