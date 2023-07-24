@@ -137,31 +137,38 @@ START_TEST(t_buffer_query)
 
 START_TEST(t_knn_query) 
 {
-    size_t n = 100;
+    size_t n = 1000;
     auto buffer = create_2d_sequential_mbuffer(n);
 
-    PRec target;
-    target.data[0] = 50;
-    target.data[1] = 50;
+    auto vptree = VPTree<PRec>(buffer);
 
     KNNQueryParms<PRec> p;
-    p.k = 10;
-    p.point = target;
+    for (size_t i=0; i<100; i++) {
+        p.k = rand() % 150;
+        p.point.data[0] = rand() % (n-p.k);
+        p.point.data[1] = p.point.data[0];
 
-    auto state = KNNQuery<PRec>::get_buffer_query_state(buffer, &p);
-    auto result = KNNQuery<PRec>::buffer_query(buffer, state, &p);
+        auto state = KNNQuery<PRec>::get_query_state(&vptree, &p);
+        auto results = KNNQuery<PRec>::query(&vptree, state, &p);
+        KNNQuery<PRec>::delete_query_state(state);
 
-    KNNQuery<PRec>::delete_buffer_query_state(state);
+        ck_assert_int_eq(results.size(), p.k);
 
-    auto vptree = VPTree<PRec>(buffer);
-    auto state_2 = KNNQuery<PRec>::get_query_state(&vptree, &p);
-    auto result_2 = KNNQuery<PRec>::query(&vptree, state_2, &p);
-    KNNQuery<PRec>::delete_query_state(state_2);
+        std::sort(results.begin(), results.end());
 
-    std::sort(result_2.begin(), result_2.end());
-    size_t start = 46;
-    for (size_t i=0; i<result_2.size(); i++) {
-        ck_assert_int_eq(result_2[i].rec.data[0], start++);
+        if ((int64_t) (p.point.data[0] - p.k/2 - 1) < 0) {
+            ck_assert_int_eq(results[0].rec.data[0], 0);
+        } else {
+            ck_assert(results[0].rec.data[0] == (p.point.data[0] - p.k/2 - 1) ||
+                      results[0].rec.data[0] == (p.point.data[0] - p.k/2) ||
+                      results[0].rec.data[0] == (p.point.data[0] - p.k/2 + 1));
+        }
+
+
+        size_t start = results[0].rec.data[0];
+        for (size_t i=0; i<results.size(); i++) {
+            ck_assert_int_eq(results[i].rec.data[0], start++);
+        }
     }
 
     delete buffer;

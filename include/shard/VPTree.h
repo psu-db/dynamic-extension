@@ -86,16 +86,19 @@ private:
 
 
 
-template <NDRecordInterface R>
+template <NDRecordInterface R, size_t LEAFSZ=100>
 class VPTree {
 private:
     struct vpnode {
-        size_t idx;
+        size_t start;
+        size_t stop;
+        bool leaf;
+
         double radius;
         vpnode *inside;
         vpnode *outside;
 
-        vpnode(size_t idx) : idx(idx), radius(0), inside(nullptr), outside(nullptr) {}
+        vpnode() : start(0), stop(0), leaf(false), radius(0.0), inside(nullptr), outside(nullptr) {}
 
         ~vpnode() {
             delete inside;
@@ -112,6 +115,7 @@ public:
         size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
         m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_ptrs = new Wrapped<R>*[buffer->get_record_count()];
 
         size_t offset = 0;
         m_reccnt = 0;
@@ -128,7 +132,9 @@ public:
             }
 
             rec->header &= 3;
-            m_data[m_reccnt++] = *rec;
+            m_data[m_reccnt] = *rec;
+            m_ptrs[m_reccnt] = &m_data[m_reccnt];
+            m_reccnt++;
         }
 
         if (m_reccnt > 0) {
@@ -149,6 +155,7 @@ public:
         size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(alloc_size % CACHELINE_SIZE == 0);
         m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_ptrs = new Wrapped<R>*[attemp_reccnt];
 
         // FIXME: will eventually need to figure out tombstones
         //        this one will likely require the multi-pass
@@ -160,7 +167,9 @@ public:
                     continue;
                 }
 
-                m_data[m_reccnt++] = *shards[i]->get_record_at(j);
+                m_data[m_reccnt] = *shards[i]->get_record_at(j);
+                m_ptrs[m_reccnt] = &m_data[m_reccnt];
+                m_reccnt++;
             }
         }
 
@@ -173,6 +182,7 @@ public:
     ~VPTree() {
         if (m_data) free(m_data);
         if (m_root) delete m_root;
+        if (m_ptrs) delete[] m_ptrs;
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
@@ -243,12 +253,13 @@ private:
         }
 
         // base-case: create a leaf node
-        if (start == stop) {
-            vpnode *node = new vpnode(start);
-            node->idx = start;
+        if (stop - start <= LEAFSZ) {
+            vpnode *node = new vpnode();
+            node->start = start;
+            node->stop = stop;
+            node->leaf = true;
 
             m_node_cnt++;
-
             return node;
         }
 
@@ -262,13 +273,14 @@ private:
         // distance going into the left sub-array and those above 
         // the median in the right. This is easily done using QuickSelect.
         auto mid = (start + 1 + stop) / 2;
-        quickselect(start + 1, stop, mid, m_data[start], rng);
+        quickselect(start + 1, stop, mid, m_ptrs[start], rng);
 
         // Create a new node based on this partitioning
-        vpnode *node = new vpnode(start);
+        vpnode *node = new vpnode();
+        node->start = start;
 
         // store the radius of the circle used for partitioning the node.
-        node->radius = m_data[start].rec.calc_distance(m_data[mid].rec);
+        node->radius = m_ptrs[start]->rec.calc_distance(m_ptrs[mid]->rec);
 
         // recursively construct the left and right subtrees
         node->inside = build_subtree(start + 1, mid-1, rng); 
@@ -280,7 +292,7 @@ private:
     }
 
 
-    void quickselect(size_t start, size_t stop, size_t k, Wrapped<R> p, gsl_rng *rng) {
+    void quickselect(size_t start, size_t stop, size_t k, Wrapped<R> *p, gsl_rng *rng) {
         if (start == stop) return;
 
         auto pivot = partition(start, stop, p, rng);
@@ -293,15 +305,15 @@ private:
     }
 
 
-    size_t partition(size_t start, size_t stop, Wrapped<R> p, gsl_rng *rng) {
+    size_t partition(size_t start, size_t stop, Wrapped<R> *p, gsl_rng *rng) {
         auto pivot = start + gsl_rng_uniform_int(rng, stop - start);
-        double pivot_dist = p.rec.calc_distance(m_data[pivot].rec);
+        double pivot_dist = p->rec.calc_distance(m_ptrs[pivot]->rec);
 
         swap(pivot, stop);
 
         size_t j = start;
         for (size_t i=start; i<stop; i++) {
-            if (p.rec.calc_distance(m_data[i].rec) < pivot_dist) {
+            if (p->rec.calc_distance(m_ptrs[i]->rec) < pivot_dist) {
                 swap(j, i);
                 j++;
             }
@@ -313,29 +325,45 @@ private:
 
 
     void swap(size_t idx1, size_t idx2) {
-        Wrapped<R> tmp = m_data[idx1];
-        m_data[idx1] = m_data[idx2];
-        m_data[idx2] = tmp;
+        auto tmp = m_ptrs[idx1];
+        m_ptrs[idx1] = m_ptrs[idx2];
+        m_ptrs[idx2] = tmp;
     }
 
 
     void search(vpnode *node, const R &point, size_t k, PriorityQueue<Wrapped<R>, KNNDistCmpMax<Wrapped<R>>> &pq, double *farthest) {
         if (node == nullptr) return;
 
-        double d = point.calc_distance(m_data[node->idx].rec);
+        if (node->leaf) {
+            for (size_t i=node->start; i<=node->stop; i++) {
+                double d = point.calc_distance(m_ptrs[i]->rec);
+                if (d < *farthest) {
+                    if (pq.size() == k) {
+                        pq.pop();
+                    }
+
+                    pq.push(m_ptrs[i]);
+                    if (pq.size() == k) {
+                        *farthest = point.calc_distance(pq.peek().data->rec);
+                    }
+                }
+            }
+
+            return;
+        }
+
+        double d = point.calc_distance(m_ptrs[node->start]->rec);
 
         if (d < *farthest) {
             if (pq.size() == k) {
                 auto t = pq.peek().data->rec;
                 pq.pop();
             }
-            pq.push(&m_data[node->idx]);
+            pq.push(m_ptrs[node->start]);
             if (pq.size() == k) {
                 *farthest = point.calc_distance(pq.peek().data->rec);
             }
         }
-
-        if (!node->inside && !node->outside) return;
 
         if (d < node->radius) {
             if (d - (*farthest) <= node->radius) {
@@ -357,6 +385,7 @@ private:
     }
 
     Wrapped<R>* m_data;
+    Wrapped<R>** m_ptrs;
     std::unordered_map<R, size_t, RecordHash<R>> m_lookup_map;
     size_t m_reccnt;
     size_t m_tombstone_cnt;
