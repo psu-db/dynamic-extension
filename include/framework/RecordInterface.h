@@ -112,10 +112,10 @@ struct WeightedRecord {
 };
 
 template <typename V, size_t D=2>
-struct Point{
+struct CosinePoint{
     V data[D];
 
-    inline bool operator==(const Point& other) const {
+    inline bool operator==(const CosinePoint& other) const {
         for (size_t i=0; i<D; i++) {
             if (data[i] != other.data[i]) {
                 return false;
@@ -126,7 +126,7 @@ struct Point{
     }
 
     // lexicographic order
-    inline bool operator<(const Point& other) const {
+    inline bool operator<(const CosinePoint& other) const {
         for (size_t i=0; i<D; i++) {
             if (data[i] < other.data[i]) {
                 return true;
@@ -138,7 +138,51 @@ struct Point{
         return false;
     }
 
-    inline double calc_distance(const Point& other) const {
+    inline double calc_distance(const CosinePoint& other) const {
+
+        double prod = 0;
+        double asquared = 0;
+        double bsquared = 0;
+
+        for (size_t i=0; i<D; i++) {
+            prod += data[i] * other.data[i];
+            asquared += data[i]*data[i];
+            bsquared += other.data[i]*other.data[i];
+        }
+
+        return prod / std::sqrt(asquared * bsquared);
+    }
+};
+
+
+template <typename V, size_t D=2>
+struct EuclidPoint{
+    V data[D];
+
+    inline bool operator==(const EuclidPoint& other) const {
+        for (size_t i=0; i<D; i++) {
+            if (data[i] != other.data[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // lexicographic order
+    inline bool operator<(const EuclidPoint& other) const {
+        for (size_t i=0; i<D; i++) {
+            if (data[i] < other.data[i]) {
+                return true;
+            } else if (data[i] > other.data[i]) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    inline double calc_distance(const EuclidPoint& other) const {
         double dist = 0;
         for (size_t i=0; i<D; i++) {
             dist += pow(data[i] - other.data[i], 2);

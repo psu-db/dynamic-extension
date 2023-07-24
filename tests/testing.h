@@ -23,7 +23,7 @@
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
-typedef de::Point<int64_t> PRec;
+typedef de::EuclidPoint<int64_t> PRec;
 
 template <de::RecordInterface R> 
 std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {

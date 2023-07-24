@@ -38,7 +38,7 @@ typedef uint64_t weight_type;
 typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
 typedef de::Record<key_type, value_type> Rec;
 
-typedef de::Point<double, 300> Word2VecRec;
+typedef de::CosinePoint<double, 300> Word2VecRec;
 
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
