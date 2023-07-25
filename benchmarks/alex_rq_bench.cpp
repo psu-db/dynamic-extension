@@ -126,6 +126,8 @@ static void alex_rq_insert(Alex &alex, std::fstream &file, size_t insert_cnt, do
         total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(insert_stop - insert_start).count();
     } 
 
+    progress_update(1.0, "inserting:");
+
     size_t throughput = (((double) (applied_inserts + applied_deletes) / (double) total_time) * 1e9);
 
     fprintf(stdout, "%ld\t", throughput);
