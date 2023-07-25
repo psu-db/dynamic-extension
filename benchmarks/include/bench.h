@@ -85,7 +85,7 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
 }
 
 template <typename DE, de::RecordInterface R, typename QP, bool PROGRESS=true>
-static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t trial_cnt=100) {
+static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t trial_cnt=1) {
     char progbuf[25];
     if constexpr (PROGRESS) {
         sprintf(progbuf, "querying:");
@@ -102,6 +102,7 @@ static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t tr
         auto start = std::chrono::high_resolution_clock::now();
         for (size_t j=0; j<queries.size(); j++) {
             auto res = de_index.query(&queries[j]);
+
             total_results += res.size();
         }
         auto stop = std::chrono::high_resolution_clock::now();

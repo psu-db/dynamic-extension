@@ -40,7 +40,7 @@ typedef de::WeightedRecord<key_type, value_type, weight_type> WRec;
 typedef de::Record<key_type, value_type> Rec;
 
 const size_t W2V_SIZE = 300;
-typedef de::CosinePoint<double, W2V_SIZE> Word2VecRec;
+typedef de::EuclidPoint<double, W2V_SIZE> Word2VecRec;
 
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
@@ -68,6 +68,17 @@ struct btree_key_extract {
     }
 };
 
+struct euclidean_distance {
+    double operator()(const Word2VecRec &first, const Word2VecRec &second) const {
+        double dist = 0;
+        for (size_t i=0; i<W2V_SIZE; i++) {
+            dist += (first.data[i] - second.data[i]) * (first.data[i] - second.data[i]);
+        }
+        
+        return std::sqrt(dist);
+    }
+};
+
 
 struct cosine_similarity {
     double operator()(const Word2VecRec &first, const Word2VecRec &second) const {
@@ -86,7 +97,7 @@ struct cosine_similarity {
 };
 
 typedef tlx::BTree<key_type, btree_record, btree_key_extract> TreeMap;
-typedef mt::mtree<Word2VecRec, cosine_similarity> MTree;
+typedef mt::mtree<Word2VecRec, euclidean_distance> MTree;
 
 static gsl_rng *g_rng;
 static std::set<WRec> *g_to_delete;

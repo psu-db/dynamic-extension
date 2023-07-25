@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     double insert_batch = 0.1; 
 
     init_bench_env(record_count, true);
-    auto queries = read_knn_queries<de::KNNQueryParms<Word2VecRec>>(qfilename, 50);
+    auto queries = read_knn_queries<de::KNNQueryParms<Word2VecRec>>(qfilename, 10);
 
     auto de_vp_knn = ExtendedVPTree_KNN(buffer_cap, scale_factor, max_delete_prop);
 
