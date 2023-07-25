@@ -86,7 +86,7 @@ private:
 
 
 
-template <NDRecordInterface R, size_t LEAFSZ=100>
+template <NDRecordInterface R, size_t LEAFSZ=100, bool HMAP=false>
 class VPTree {
 private:
     struct vpnode {
@@ -186,13 +186,33 @@ public:
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
-        auto idx = m_lookup_map.find(rec);
+        if constexpr (HMAP) {
+            auto idx = m_lookup_map.find(rec);
 
-        if (idx == m_lookup_map.end()) {
+            if (idx == m_lookup_map.end()) {
+                return nullptr;
+            }
+
+            return m_data + idx->second;
+        } else {
+            vpnode *node = m_root;
+
+            while (!node->leaf && m_ptrs[node->start]->rec != rec) {
+                if (rec.calc_distance((m_ptrs[node->start]->rec)) >= node->radius) {
+                    node = node->outside;
+                } else {
+                    node = node->inside;
+                }
+            }
+
+            for (size_t i=node->start; i<=node->stop; i++) {
+                if (m_ptrs[i]->rec == rec) {
+                    return m_ptrs[i];
+                }
+            }
+
             return nullptr;
         }
-
-        return m_data + idx->second;
     }
 
     Wrapped<R>* get_data() const {
@@ -234,6 +254,12 @@ private:
     }
 
     void build_map() {
+        // Skip constructing the hashmap if disabled in the
+        // template parameters.
+        if constexpr (!HMAP) {
+            return;
+        }
+
         for (size_t i=0; i<m_reccnt; i++) {
           // FIXME: Will need to account for tombstones here too. Under
           // tombstones, it is technically possible for two otherwise identical
@@ -475,7 +501,7 @@ public:
 
         PriorityQueue<R, KNNDistCmpMax<R>> pq(k, &rec);
         for (size_t i=0; i<results.size(); i++) {
-            for (size_t j=0; j<results.size(); j++) {
+            for (size_t j=0; j<results[i].size(); j++) {
                 if (pq.size() < k) {
                     pq.push(&results[i][j]);
                 } else {
