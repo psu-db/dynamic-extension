@@ -10,3 +10,6 @@
 [submodule "external/m-tree"]
 	path = external/m-tree
 	url = git@github.com:dbrumbaugh/M-Tree
+[submodule "external/alex"]
+	path = external/alex
+	url = https://github.com/microsoft/ALEX

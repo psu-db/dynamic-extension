@@ -126,6 +126,11 @@ if (bench)
     target_include_directories(btree_rq_bench PRIVATE include external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
     target_compile_options(btree_rq_bench PUBLIC -fopenmp)
 
+    add_executable(alex_rq_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/alex_rq_bench.cpp)
+    target_link_libraries(alex_rq_bench PUBLIC gsl pthread gomp)
+    target_include_directories(alex_rq_bench PRIVATE include external/alex/src/core external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
+    target_compile_options(alex_rq_bench PUBLIC -fopenmp -march=native)
+    set_property(TARGET alex_rq_bench PROPERTY CXX_STANDARD 14)
 
     add_executable(vptree_knn_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vptree_knn_bench.cpp)
     target_link_libraries(vptree_knn_bench PUBLIC gsl pthread gomp)
