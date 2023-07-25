@@ -70,6 +70,7 @@ static bool warmup(std::fstream &file, Alex &alex, size_t count,
 
             alex.insert(insert_vec[i].key, insert_vec[i].value);
             inserted++;
+            progress_update((double) inserted / (double) count, "warming up:");
         }
     }
 
@@ -98,6 +99,7 @@ static void alex_rq_insert(Alex &alex, std::fstream &file, size_t insert_cnt, do
 
     while (applied_inserts < insert_cnt && continue_benchmark) { 
         continue_benchmark = build_insert_vec(file, insert_vec, BATCH, delete_prop, to_delete, binary);
+        progress_update((double) applied_inserts / (double) insert_cnt, "inserting:");
         if (applied_deletes < delete_cnt) {
             build_delete_vec(to_delete, delete_vec, BATCH*delete_prop);
             delete_idx = 0;
