@@ -232,9 +232,8 @@ public:
         return m_data + idx;
     }
 
-
     size_t get_memory_usage() {
-        return m_node_cnt * sizeof(vpnode);
+        return m_node_cnt * sizeof(vpnode) + m_reccnt * sizeof(R*);
     }
 
 private:
