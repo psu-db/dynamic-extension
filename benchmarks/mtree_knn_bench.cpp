@@ -42,7 +42,7 @@ static void mtree_knn_bench(MTree &tree, std::vector<de::KNNQueryParms<Word2VecR
 int main(int argc, char **argv)
 {
     if (argc < 5) {
-        fprintf(stderr, "Usage: mtree_knn_bench <filename> <record_count> <delete_proportion> <query_file>\n");
+        fprintf(stderr, "Usage: mtree_knn_bench <filename> <record_count> <delete_proportion> <query_file> [k]\n");
         exit(EXIT_FAILURE);
     }
 
@@ -50,15 +50,10 @@ int main(int argc, char **argv)
     size_t record_count = atol(argv[2]);
     double delete_prop = atof(argv[3]);
     std::string qfilename = std::string(argv[4]);
-
-    size_t buffer_cap = 12000;
-    size_t scale_factor = 6;
-    double max_delete_prop = delete_prop;
-
-    double insert_batch = 0.1; 
+    size_t k = (argc == 6) ? atol(argv[5]) : 10;
 
     init_bench_env(record_count, true);
-    auto queries = read_knn_queries<de::KNNQueryParms<Word2VecRec>>(qfilename, 10);
+    auto queries = read_knn_queries<de::KNNQueryParms<Word2VecRec>>(qfilename, k);
 
     auto mtree = MTree();
 
@@ -69,7 +64,7 @@ int main(int argc, char **argv)
 
     // warm up the tree with initial_insertions number of initially inserted
     // records
-    size_t warmup_cnt = insert_batch * record_count;
+    size_t warmup_cnt = 0.1 * record_count;
     warmup<MTree, Word2VecRec>(datafile, mtree, warmup_cnt, delete_prop, to_delete, true, true);
 
     size_t insert_cnt = record_count - warmup_cnt;
