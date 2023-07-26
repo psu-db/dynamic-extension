@@ -41,6 +41,12 @@ concept KVPInterface = RecordInterface<R> && requires(R r) {
 };
 
 template<typename R>
+concept AlexInterface = KVPInterface<R> && requires(R r) {
+    {r.key} -> std::convertible_to<size_t>;
+    {r.value} -> std::convertible_to<size_t>;
+};
+
+template<typename R>
 concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
     {r.header} -> std::convertible_to<uint32_t>;
      r.rec;
@@ -116,6 +122,7 @@ struct WeightedRecord {
         return key < other.key || (key == other.key && value < other.value);
     }
 };
+
 
 template <typename V, size_t D=2>
 struct CosinePoint{
