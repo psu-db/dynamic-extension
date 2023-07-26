@@ -99,9 +99,9 @@ public:
 
         m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
         TIMER_INIT();
 
@@ -175,9 +175,9 @@ public:
 
         m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
-        size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
         size_t offset = 0;
         
@@ -254,7 +254,7 @@ public:
     }
 
     size_t get_memory_usage() {
-        return m_internal_node_cnt * inmem_isam_node_size;
+        return m_internal_node_cnt * inmem_isam_node_size + m_alloc_size;
     }
 
 private:
@@ -307,10 +307,10 @@ private:
             node_cnt += level_node_cnt;
         } while (level_node_cnt > 1);
 
-        size_t alloc_size = (node_cnt * inmem_isam_node_size) + (CACHELINE_SIZE - (node_cnt * inmem_isam_node_size) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
+        m_alloc_size = (node_cnt * inmem_isam_node_size) + (CACHELINE_SIZE - (node_cnt * inmem_isam_node_size) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
 
-        m_isam_nodes = (InMemISAMNode*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_isam_nodes = (InMemISAMNode*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
         m_internal_node_cnt = node_cnt;
         memset(m_isam_nodes, 0, node_cnt * inmem_isam_node_size);
 
@@ -371,6 +371,7 @@ private:
     size_t m_tombstone_cnt;
     size_t m_internal_node_cnt;
     size_t m_deleted_cnt;
+    size_t m_alloc_size;
 };
 
 template <RecordInterface R, bool Rejection=true>

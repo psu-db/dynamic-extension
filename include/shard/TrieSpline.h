@@ -67,9 +67,9 @@ public:
     TrieSpline(MutableBuffer<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0) {
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
         m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
@@ -164,9 +164,9 @@ public:
         m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
         auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
 
-        size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
         while (pq.size()) {
             auto now = pq.peek();
@@ -244,7 +244,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return 0;
+        return m_ts.GetSize() + m_alloc_size;
     }
 
 private:
@@ -289,6 +289,7 @@ private:
     Wrapped<R>* m_data;
     size_t m_reccnt;
     size_t m_tombstone_cnt;
+    size_t m_alloc_size;
     K m_max_key;
     K m_min_key;
     ts::TrieSpline<K> m_ts;

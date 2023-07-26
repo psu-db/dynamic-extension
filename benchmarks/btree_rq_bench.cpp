@@ -76,6 +76,7 @@ int main(int argc, char **argv)
 
     insert_tput_bench<TreeMap, btree_record>(btree, datafile, insert_cnt, delete_prop, to_delete, true);
     size_t memory_usage = btree.get_stats().inner_nodes * tlx::btree_default_traits<key_type, btree_record>::inner_slots * (sizeof(key_type) + sizeof(void*));
+    memory_usage += btree.get_stats().leaves * tlx::btree_default_traits<key_type, btree_record>::leaf_slots * sizeof(btree_record);
     fprintf(stdout, "%ld\t", memory_usage);
 
     btree_rq_bench(btree, queries);

@@ -112,9 +112,9 @@ public:
     VPTree(MutableBuffer<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0), m_root(nullptr), m_node_cnt(0) {
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
         m_ptrs = new Wrapped<R>*[buffer->get_record_count()];
 
         size_t offset = 0;
@@ -152,9 +152,9 @@ public:
             attemp_reccnt += shards[i]->get_record_count();
         }
         
-        size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
         m_ptrs = new Wrapped<R>*[attemp_reccnt];
 
         // FIXME: will eventually need to figure out tombstones
@@ -233,7 +233,7 @@ public:
     }
 
     size_t get_memory_usage() {
-        return m_node_cnt * sizeof(vpnode) + m_reccnt * sizeof(R*);
+        return m_node_cnt * sizeof(vpnode) + m_reccnt * sizeof(R*) + m_alloc_size;
     }
 
 private:
@@ -415,6 +415,7 @@ private:
     size_t m_reccnt;
     size_t m_tombstone_cnt;
     size_t m_node_cnt;
+    size_t m_alloc_size;
 
     vpnode *m_root;
 };

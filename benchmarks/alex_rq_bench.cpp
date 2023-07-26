@@ -203,7 +203,7 @@ int main(int argc, char **argv)
     size_t insert_cnt = record_count - warmup_cnt;
 
     alex_rq_insert(alex, datafile, insert_cnt, delete_prop, to_delete, true);
-    size_t memory_usage = alex.model_size();
+    size_t memory_usage = alex.model_size() + alex.data_size();
     fprintf(stdout, "%ld\t", memory_usage);
 
     alex_rq_bench(alex, queries);

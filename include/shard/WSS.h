@@ -79,9 +79,9 @@ public:
     WSS(MutableBuffer<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_alias(nullptr), m_bf(nullptr) {
 
-        size_t alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
         m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
@@ -152,9 +152,9 @@ public:
 
         m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
-        size_t alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, alloc_size);
+        m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
+        assert(m_alloc_size % CACHELINE_SIZE == 0);
+        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
         std::vector<W> weights;
         
@@ -236,7 +236,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return 0;
+        return m_alloc_size;
     }
 
 private:
@@ -278,6 +278,7 @@ private:
     size_t m_reccnt;
     size_t m_tombstone_cnt;
     size_t m_group_size;
+    size_t m_alloc_size;
     BloomFilter<R> *m_bf;
 };
 
