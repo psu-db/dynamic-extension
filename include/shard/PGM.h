@@ -53,11 +53,12 @@ struct PGMBufferState {
 
 };
 
-template <RecordInterface R>
+template <RecordInterface R, size_t epsilon=128>
 class PGM {
 private:
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
+
 
 public:
 
@@ -112,7 +113,7 @@ public:
         }
 
         if (m_reccnt > 0) {
-            m_pgm = pgm::PGMIndex<K>(keys);
+            m_pgm = pgm::PGMIndex<K, epsilon>(keys);
         }
     }
 
@@ -175,7 +176,7 @@ public:
         }
 
         if (m_reccnt > 0) {
-            m_pgm = pgm::PGMIndex<K>(keys);
+            m_pgm = pgm::PGMIndex<K, epsilon>(keys);
         }
    }
 
@@ -270,7 +271,7 @@ private:
     size_t m_alloc_size;
     K m_max_key;
     K m_min_key;
-    pgm::PGMIndex<K> m_pgm;
+    pgm::PGMIndex<K, epsilon> m_pgm;
     BloomFilter<R> *m_bf;
 };
 
