@@ -106,6 +106,12 @@ if (bench)
     target_include_directories(pgm_rq_bench PRIVATE include external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
     target_compile_options(pgm_rq_bench PUBLIC -fopenmp)
 
+    add_executable(upgm_rq_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/upgm_rq_bench.cpp)
+    target_link_libraries(upgm_rq_bench PUBLIC gsl pthread gomp)
+    target_include_directories(upgm_rq_bench PRIVATE include external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
+    target_compile_options(upgm_rq_bench PUBLIC -fopenmp)
+    set_property(TARGET upgm_rq_bench PROPERTY CXX_STANDARD 17)
+
     add_executable(isam_irs_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/isam_irs_bench.cpp)
     target_link_libraries(isam_irs_bench PUBLIC gsl pthread gomp)
     target_include_directories(isam_irs_bench PRIVATE include external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
