@@ -4,7 +4,7 @@
 typedef uint64_t key_type;
 typedef uint64_t value_type;
 
-typedef pgm::DynamicPGMIndex<key_type, value_type> PGM;
+typedef pgm::DynamicPGMIndex<key_type, value_type, pgm::PGMIndex<key_type, 64>> PGM;
 
 struct record {
     key_type key;
