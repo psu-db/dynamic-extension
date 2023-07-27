@@ -53,7 +53,7 @@ struct PGMBufferState {
 
 };
 
-template <RecordInterface R, size_t epsilon=128>
+template <RecordInterface R, size_t epsilon=64>
 class PGM {
 private:
     typedef decltype(R::key) K;
@@ -349,14 +349,19 @@ public:
 
         PriorityQueue<Wrapped<R>> pq(results.size());
         size_t total = 0;
+		size_t tmp_n = results.size();
         
 
-        for (size_t i = 0; i < results.size(); ++i) {
-            auto base = results[i].data();
-            cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
-            total += results[i].size();
-            pq.push(cursors[i].ptr, results.size() - i - 1);
-        }
+        for (size_t i = 0; i < tmp_n; ++i)
+			if (results[i].size() > 0){
+	            auto base = results[i].data();
+		        cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
+				assert(i == cursors.size() - 1);
+			    total += results[i].size();
+				pq.push(cursors[i].ptr, tmp_n - i - 1);
+			} else {
+				cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
+			}
 
         if (total == 0) {
             return std::vector<R>();
@@ -372,13 +377,13 @@ public:
                 now.data->rec == next.data->rec && next.data->is_tombstone()) {
                 
                 pq.pop(); pq.pop();
-                auto& cursor1 = cursors[now.version];
-                auto& cursor2 = cursors[next.version];
+                auto& cursor1 = cursors[tmp_n - now.version - 1];
+                auto& cursor2 = cursors[tmp_n - next.version - 1];
                 if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
                 if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
             } else {
-                auto& cursor = cursors[now.version];
-                output.push_back(cursor.ptr->rec);
+                auto& cursor = cursors[tmp_n - now.version - 1];
+                if (!now.data->is_tombstone()) output.push_back(cursor.ptr->rec);
                 pq.pop();
                 
                 if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);

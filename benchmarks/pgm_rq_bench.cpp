@@ -17,8 +17,8 @@ int main(int argc, char **argv)
 
     std::string filename = std::string(argv[1]);
     size_t record_count = atol(argv[2]);
-    size_t buffer_cap = 12000;
-    size_t scale_factor = 6;
+    size_t buffer_cap = 500;
+    size_t scale_factor = 8;
     double delete_prop = atof(argv[3]);
     double max_delete_prop = (delete_prop > 0) ? delete_prop : 1;
     std::string query_file = std::string(argv[4]);

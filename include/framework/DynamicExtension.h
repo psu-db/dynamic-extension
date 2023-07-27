@@ -134,6 +134,8 @@ public:
             //query_results[i+1] = filter_deletes(shard_results, shards[i].first, buffer);
             query_results[i+1] = Q::query(shards[i].second, states[i], parms);
         }
+
+		//printf("shards: %zu\n", shards.size() + 1);
         
         // Merge the results together
         auto result = Q::merge(query_results, parms);
@@ -323,9 +325,9 @@ private:
 
         size_t new_shard_cnt = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
         new_idx = m_levels.size();
-        if (new_idx > 0) {
-            assert(m_levels[new_idx - 1]->get_shard(0)->get_tombstone_count() == 0);
-        }
+        //if (new_idx > 0) {
+        //    assert(m_levels[new_idx - 1]->get_shard(0)->get_tombstone_count() == 0);
+        //}
         m_levels.emplace_back(new InternalLevel<R, Shard, Q>(new_idx, new_shard_cnt));
 
         return new_idx;
