@@ -194,12 +194,12 @@ public:
             return nullptr;
         }
 
-        size_t idx = get_lower_bound(rec.key);
-        if (idx >= m_reccnt) {
+        auto idx = get_lower_bound(rec.key);
+        if (idx == m_alex.end()) {
             return nullptr;
         }
 
-        while (idx < m_reccnt && m_data[idx].rec < rec) ++idx;
+        while (idx != m_alex.end() && idx.key() < rec.key) ++idx;
 
         if (m_data[idx].rec == rec) {
             return m_data + idx;
