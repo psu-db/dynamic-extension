@@ -84,6 +84,26 @@ static void delete_bench_env()
     gsl_rng_free(g_rng);
 }
 
+
+template <typename QP>
+static std::vector<QP> read_lookup_queries(std::string fname, double selectivity) {
+    std::vector<QP> queries;
+
+    FILE *qf = fopen(fname.c_str(), "r");
+    size_t start, stop;
+    double sel;
+    while (fscanf(qf, "%zu%zu%lf\n", &start, &stop, &sel) != EOF) {
+        if (start < stop && std::abs(sel - selectivity) < 0.1) {
+            QP q;
+            q.target_key = start;
+            queries.push_back(q);
+        }
+    }
+    fclose(qf);
+
+    return queries;
+}
+
 template <typename QP>
 static std::vector<QP> read_range_queries(std::string fname, double selectivity) {
     std::vector<QP> queries;
