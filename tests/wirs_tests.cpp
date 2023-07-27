@@ -229,16 +229,16 @@ START_TEST(t_wirs_query_merge)
     wirs_query_parms<WRec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
-    std::vector<std::vector<WRec>> results(2);
+    std::vector<std::vector<Wrapped<WRec>>> results(2);
 
     for (size_t i=0; i<1000; i++) {
         auto state1 = WIRSQuery<WRec>::get_query_state(shard, &parms);
         ((WIRSState<WRec> *) state1)->sample_size = k;
-        results[0] = strip_wrapping(WIRSQuery<WRec>::query(shard, state1, &parms));
+        results[0] = WIRSQuery<WRec>::query(shard, state1, &parms);
 
         auto state2 = WIRSQuery<WRec>::get_query_state(shard, &parms);
         ((WIRSState<WRec> *) state2)->sample_size = k;
-        results[1] = strip_wrapping(WIRSQuery<WRec>::query(shard, state2, &parms));
+        results[1] = WIRSQuery<WRec>::query(shard, state2, &parms);
 
         WIRSQuery<WRec>::delete_query_state(state1);
         WIRSQuery<WRec>::delete_query_state(state2);

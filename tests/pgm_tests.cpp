@@ -212,12 +212,12 @@ START_TEST(t_range_query_merge)
 
     ck_assert_int_eq(results[0].size() + results[1].size(), result_size);
 
-    std::vector<std::vector<Rec>> proc_results;
+    std::vector<std::vector<Wrapped<Rec>>> proc_results;
 
     for (size_t j=0; j<results.size(); j++) {
-        proc_results.emplace_back(std::vector<Rec>());
+        proc_results.emplace_back(std::vector<Wrapped<Rec>>());
         for (size_t i=0; i<results[j].size(); i++) {
-            proc_results[j].emplace_back(results[j][i].rec);
+            proc_results[j].emplace_back(results[j][i]);
         }
     }
 

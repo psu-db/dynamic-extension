@@ -378,6 +378,9 @@ template <RecordInterface R, bool Rejection=true>
 class IRSQuery {
 public:
 
+    constexpr static bool EARLY_ABORT=false;
+    constexpr static bool SKIP_DELETE_FILTER=false;
+
     static void *get_query_state(MemISAM<R> *isam, void *parms) {
         auto res = new IRSState<R>();
         decltype(R::key) lower_key = ((irs_query_parms<R> *) parms)->lower_bound;
@@ -418,7 +421,7 @@ public:
         return res;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
         auto p = (irs_query_parms<R> *) query_parms;
         auto bs = (buff_state) ? (IRSBufferState<R> *) buff_state : nullptr;
 
@@ -527,12 +530,12 @@ public:
         return result;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
         std::vector<R> output;
 
         for (size_t i=0; i<results.size(); i++) {
             for (size_t j=0; j<results[i].size(); j++) {
-                output.emplace_back(results[i][j]);
+                output.emplace_back(results[i][j].rec);
             }
         }
 
@@ -554,6 +557,10 @@ public:
 template <RecordInterface R>
 class ISAMRangeQuery {
 public:
+
+    constexpr static bool EARLY_ABORT=false;
+    constexpr static bool SKIP_DELETE_FILTER=true;
+
     static void *get_query_state(MemISAM<R> *ts, void *parms) {
         auto res = new ISAMRangeQueryState<R>();
         auto p = (ISAMRangeQueryParms<R> *) parms;
@@ -571,7 +578,7 @@ public:
         return res;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
         return;
     }
 
@@ -618,11 +625,25 @@ public:
         return records;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
+        std::vector<Cursor<Wrapped<R>>> cursors;
+        cursors.reserve(results.size());
+
+        PriorityQueue<Wrapped<R>> pq(results.size());
         size_t total = 0;
-        for (size_t i=0; i<results.size(); i++) {
-            total += results[i].size();
-        }
+		size_t tmp_n = results.size();
+        
+
+        for (size_t i = 0; i < tmp_n; ++i)
+			if (results[i].size() > 0){
+	            auto base = results[i].data();
+		        cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
+				assert(i == cursors.size() - 1);
+			    total += results[i].size();
+				pq.push(cursors[i].ptr, tmp_n - i - 1);
+			} else {
+				cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
+			}
 
         if (total == 0) {
             return std::vector<R>();
@@ -631,8 +652,24 @@ public:
         std::vector<R> output;
         output.reserve(total);
 
-        for (size_t i=0; i<results.size(); i++) {
-            std::move(results[i].begin(), results[i].end(), std::back_inserter(output));
+        while (pq.size()) {
+            auto now = pq.peek();
+            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
+            if (!now.data->is_tombstone() && next.data != nullptr &&
+                now.data->rec == next.data->rec && next.data->is_tombstone()) {
+                
+                pq.pop(); pq.pop();
+                auto& cursor1 = cursors[tmp_n - now.version - 1];
+                auto& cursor2 = cursors[tmp_n - next.version - 1];
+                if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
+                if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
+            } else {
+                auto& cursor = cursors[tmp_n - now.version - 1];
+                if (!now.data->is_tombstone()) output.push_back(cursor.ptr->rec);
+                pq.pop();
+                
+                if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);
+            }
         }
 
         return output;

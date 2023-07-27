@@ -424,6 +424,9 @@ private:
 template <NDRecordInterface R>
 class KNNQuery {
 public:
+    constexpr static bool EARLY_ABORT=false;
+    constexpr static bool SKIP_DELETE_FILTER=true;
+
     static void *get_query_state(VPTree<R> *wss, void *parms) {
         return nullptr;
     }
@@ -432,7 +435,7 @@ public:
         return nullptr;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
         return;
     }
 
@@ -494,7 +497,7 @@ public:
         return results;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
         KNNQueryParms<R> *p = (KNNQueryParms<R> *) parms;
         R rec = p->point;
         size_t k = p->k;
@@ -503,14 +506,14 @@ public:
         for (size_t i=0; i<results.size(); i++) {
             for (size_t j=0; j<results[i].size(); j++) {
                 if (pq.size() < k) {
-                    pq.push(&results[i][j]);
+                    pq.push(&results[i][j].rec);
                 } else {
                     double head_dist = pq.peek().data->calc_distance(rec);
-                    double cur_dist = results[i][j].calc_distance(rec);
+                    double cur_dist = results[i][j].rec.calc_distance(rec);
 
                     if (cur_dist < head_dist) {
                         pq.pop();
-                        pq.push(&results[i][j]);
+                        pq.push(&results[i][j].rec);
                     }
                 }
             }

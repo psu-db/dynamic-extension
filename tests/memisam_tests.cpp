@@ -223,16 +223,16 @@ START_TEST(t_irs_query_merge)
     irs_query_parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
-    std::vector<std::vector<Rec>> results(2);
+    std::vector<std::vector<de::Wrapped<Rec>>> results(2);
 
     for (size_t i=0; i<1000; i++) {
         auto state1 = IRSQuery<Rec>::get_query_state(&shard, &parms);
         ((IRSState<WRec> *) state1)->sample_size = k;
-        results[0] = strip_wrapping(IRSQuery<Rec>::query(&shard, state1, &parms));
+        results[0] = IRSQuery<Rec>::query(&shard, state1, &parms);
 
         auto state2 = IRSQuery<Rec>::get_query_state(&shard, &parms);
         ((IRSState<WRec> *) state2)->sample_size = k;
-        results[1] = strip_wrapping(IRSQuery<Rec>::query(&shard, state2, &parms));
+        results[1] = IRSQuery<Rec>::query(&shard, state2, &parms);
 
         IRSQuery<Rec>::delete_query_state(state1);
         IRSQuery<Rec>::delete_query_state(state2);

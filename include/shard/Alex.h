@@ -271,7 +271,7 @@ public:
         return res;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
         return;
     }
 

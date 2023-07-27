@@ -286,6 +286,10 @@ private:
 template <WeightedRecordInterface R, bool Rejection=true>
 class WSSQuery {
 public:
+
+    constexpr static bool EARLY_ABORT=false;
+    constexpr static bool SKIP_DELETE_FILTER=false;
+
     static void *get_query_state(WSS<R> *wss, void *parms) {
         auto res = new WSSState<R>();
         res->total_weight = wss->m_total_weight;
@@ -325,7 +329,7 @@ public:
         return state;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
         auto p = (wss_query_parms<R> *) query_parms;
         auto bs = (WSSBufferState<R> *) buff_state;
 
@@ -415,12 +419,12 @@ public:
         return result;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
         std::vector<R> output;
 
         for (size_t i=0; i<results.size(); i++) {
             for (size_t j=0; j<results[i].size(); j++) {
-                output.emplace_back(results[i][j]);
+                output.emplace_back(results[i][j].rec);
             }
         }
 
