@@ -16,6 +16,7 @@
 #include "shard/WIRS.h"
 #include "ds/BTree.h"
 #include "shard/VPTree.h"
+#include "shard/Alex.h"
 #include "mtree.h"
 #include "standalone_utility.h"
 
@@ -45,10 +46,11 @@ typedef de::EuclidPoint<double, W2V_SIZE> Word2VecRec;
 
 typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
 typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
-typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
+typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>, de::LayoutPolicy::TEIRING, de::DeletePolicy::TOMBSTONE> ExtendedPGMRQ;
 typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::IRSQuery<Rec>> ExtendedISAM_IRS;
 typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::ISAMRangeQuery<Rec>> ExtendedISAM_RQ;
 typedef de::DynamicExtension<Word2VecRec, de::VPTree<Word2VecRec>, de::KNNQuery<Word2VecRec>> ExtendedVPTree_KNN;
+//typedef de::DynamicExtension<Rec, de::Alex<Rec>, de::AlexRangeQuery<Rec>> ExtendedAlexRQ;
 
 struct euclidean_distance {
     double operator()(const Word2VecRec &first, const Word2VecRec &second) const {

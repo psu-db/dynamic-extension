@@ -343,10 +343,19 @@ public:
         return records;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
+        std::vector<Cursor<Wrapped<R>>> cursors;
+        cursors.reserve(results.size());
+
+        PriorityQueue<Wrapped<R>> pq(results.size());
         size_t total = 0;
-        for (size_t i=0; i<results.size(); i++) {
+        
+
+        for (size_t i = 0; i < results.size(); ++i) {
+            auto base = results[i].data();
+            cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
             total += results[i].size();
+            pq.push(cursors[i].ptr, results.size() - i - 1);
         }
 
         if (total == 0) {
@@ -356,8 +365,24 @@ public:
         std::vector<R> output;
         output.reserve(total);
 
-        for (size_t i=0; i<results.size(); i++) {
-            std::move(results[i].begin(), results[i].end(), std::back_inserter(output));
+        while (pq.size()) {
+            auto now = pq.peek();
+            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
+            if (!now.data->is_tombstone() && next.data != nullptr &&
+                now.data->rec == next.data->rec && next.data->is_tombstone()) {
+                
+                pq.pop(); pq.pop();
+                auto& cursor1 = cursors[now.version];
+                auto& cursor2 = cursors[next.version];
+                if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
+                if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
+            } else {
+                auto& cursor = cursors[now.version];
+                output.push_back(cursor.ptr->rec);
+                pq.pop();
+                
+                if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);
+            }
         }
 
         return output;
