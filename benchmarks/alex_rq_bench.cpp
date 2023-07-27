@@ -169,7 +169,7 @@ int main(int argc, char **argv)
     double max_delete_prop = delete_prop;
     bool use_osm = false;
 
-    double insert_batch = 0.8; 
+    double insert_batch = 0.1; 
 
     init_bench_env(record_count, true, use_osm);
     auto queries = read_range_queries<query>(qfilename, .0001);

@@ -1,5 +1,5 @@
 /*
- * benchmarks/triespline_rq_bench.cpp
+ * benchmarks/ealex_rq_bench.cpp
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *
@@ -11,7 +11,7 @@
 int main(int argc, char **argv)
 {
     if (argc < 5) {
-        fprintf(stderr, "Usage: pgm_rq_bench <filename> <record_count> <delete_proportion> <query_file> [osm_data]\n");
+        fprintf(stderr, "Usage: ealex_rq_bench <filename> <record_count> <delete_proportion> <query_file> [osm_data]\n");
         exit(EXIT_FAILURE);
     }
 
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     init_bench_env(record_count, true, use_osm);
 
     auto de = ExtendedAlex(buffer_cap, scale_factor, max_delete_prop);
-    auto queries = read_range_queries<de::alex_range_query_parms<Rec>>(query_file, .0001);
+    auto queries = read_range_queries<de::AlexRangeQueryParms<Rec>>(query_file, .0001);
 
     std::fstream datafile;
     datafile.open(filename, std::ios::in | std::ios::binary);
@@ -45,19 +45,21 @@ int main(int argc, char **argv)
 
     insert_tput_bench<ExtendedAlex, Rec>(de, datafile, insert_cnt, delete_prop, to_delete, true);
     fprintf(stdout, "%ld\t", de.get_memory_usage());
-    query_latency_bench<ExtendedAlex, Rec, de::alex_range_query_parms<Rec>>(de, queries, 1);
+    query_latency_bench<ExtendedAlex, Rec, de::AlexRangeQueryParms<Rec>>(de, queries, 1);
 
     fprintf(stdout, "\n");
 
+    /*
     auto ts = de.create_static_structure();
 
     fprintf(stdout, "%ld\t", ts->get_memory_usage());
-    static_latency_bench<de::Alex<Rec>, Rec, de::alex_range_query_parms<Rec>, de::AlexRangeQuery<Rec>>(
+    static_latency_bench<de::Alex<Rec>, Rec, de::AlexRangeQueryParms<Rec>, de::AlexRangeQuery<Rec>>(
         ts, queries, 1
     );
     fprintf(stdout, "\n");
 
     delete ts;
+    */
 
     delete_bench_env();
     fflush(stdout);

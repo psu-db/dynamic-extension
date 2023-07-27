@@ -28,7 +28,7 @@
 namespace de {
 
 template <typename R>
-struct alex_range_query_parms {
+struct AlexRangeQueryParms {
     decltype(R::key) lower_bound;
     decltype(R::key) upper_bound;
 };
@@ -45,11 +45,6 @@ struct AlexState {
 template <typename R>
 struct AlexBufferState {
     size_t cutoff;
-    Alias* alias;
-
-    ~AlexBufferState() {
-        delete alias;
-    }
 };
 
 
@@ -70,7 +65,7 @@ public:
         m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(m_alloc_size % CACHELINE_SIZE == 0);
         m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
-        std::vector<std::pair<K, V>> temp_records;
+        std::vector<std::pair<K, size_t>> temp_records;
 
         m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
@@ -100,8 +95,9 @@ public:
             // ensures that tagged records from the buffer are able to be
             // dropped, eventually. It should only need to be &= 1
             base->header &= 3;
-            m_data[m_reccnt++] = *base;
-            temp_records.push_back({base->rec.key, base->rec.value});
+            m_data[m_reccnt] = *base;
+            temp_records.push_back({base->rec.key, m_reccnt});
+            m_reccnt++;
 
             if (m_bf && base->is_tombstone()) {
                 m_tombstone_cnt++;
@@ -112,7 +108,7 @@ public:
         }
 
         if (m_reccnt > 0) {
-            m_alex = alex::Alex<K, V>();
+            m_alex = alex::Alex<K, size_t>();
             m_alex.set_expected_insert_frac(0);
             m_alex.bulk_load(temp_records.data(), temp_records.size());
         }
@@ -147,7 +143,7 @@ public:
         assert(m_alloc_size % CACHELINE_SIZE == 0);
         m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
 
-        std::vector<std::pair<K, V>> temp_records;
+        std::vector<std::pair<K, size_t>> temp_records;
 
         while (pq.size()) {
             auto now = pq.peek();
@@ -163,8 +159,10 @@ public:
             } else {
                 auto& cursor = cursors[now.version];
                 if (!cursor.ptr->is_deleted()) {
-                    m_data[m_reccnt++] = *cursor.ptr;
-                    temp_records.push_back({cursor.ptr->rec.key, cursor.ptr->rec.value});
+                    m_data[m_reccnt] = *cursor.ptr;
+                    temp_records.push_back({cursor.ptr->rec.key, m_reccnt});
+                    m_reccnt++;
+
                     if (m_bf && cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
                         if (m_bf) m_bf->insert(cursor.ptr->rec);
@@ -177,7 +175,7 @@ public:
         }
 
         if (m_reccnt > 0) {
-            m_alex = alex::Alex<K, V>();
+            m_alex = alex::Alex<K, size_t>();
             m_alex.set_expected_insert_frac(0);
             m_alex.bulk_load(temp_records.data(), temp_records.size());
         }
@@ -194,12 +192,12 @@ public:
             return nullptr;
         }
 
-        auto idx = get_lower_bound(rec.key);
-        if (idx == m_alex.end()) {
+        size_t idx = get_lower_bound(rec.key);
+        if (idx >= m_reccnt) {
             return nullptr;
         }
 
-        while (idx != m_alex.end() && idx.key() < rec.key) ++idx;
+        while (idx < m_reccnt && m_data[idx].rec < rec) ++idx;
 
         if (m_data[idx].rec == rec) {
             return m_data + idx;
@@ -208,10 +206,15 @@ public:
         return nullptr;
     }
 
-    Wrapped<R>* get_data() const {
+    const Wrapped<R>* get_record_at(size_t idx) const {
+        if (idx >= m_reccnt) return nullptr;
+        return m_data + idx;
+    }
+
+    Wrapped<R> *get_data() const {
         return m_data;
     }
-    
+
     size_t get_record_count() const {
         return m_reccnt;
     }
@@ -220,23 +223,13 @@ public:
         return m_tombstone_cnt;
     }
 
-    const Wrapped<R>* get_record_at(size_t idx) const {
-        if (idx >= m_reccnt) return nullptr;
-        return m_data + idx;
-    }
-
-
     size_t get_memory_usage() {
         return m_alex.model_size() + m_alex.data_size();
     }
 
-    typename alex::Alex<K, V>::Iterator get_lower_bound(const K& key) const {
-        auto bound = m_alex.find(key);
-        while (bound != m_alex.end() && bound.key() < key) {
-            bound++;
-        }
-
-        return bound;
+    size_t get_lower_bound(const K& key) const {
+        auto bound = m_alex.lower_bound(key);
+        return bound.payload();
     }
 
 private:
@@ -246,7 +239,7 @@ private:
     size_t m_alloc_size;
     K m_max_key;
     K m_min_key;
-    alex::Alex<K, V> m_alex;
+    alex::Alex<K, size_t> m_alex;
     BloomFilter<R> *m_bf;
 };
 
@@ -256,7 +249,7 @@ class AlexRangeQuery {
 public:
     static void *get_query_state(Alex<R> *ts, void *parms) {
         auto res = new AlexState<R>();
-        auto p = (alex_range_query_parms<R> *) parms;
+        auto p = (AlexRangeQueryParms<R> *) parms;
 
         res->start_idx = ts->get_lower_bound(p->lower_bound);
         res->stop_idx = ts->get_record_count();
@@ -277,7 +270,7 @@ public:
 
     static std::vector<Wrapped<R>> query(Alex<R> *ts, void *q_state, void *parms) {
         std::vector<Wrapped<R>> records;
-        auto p = (alex_range_query_parms<R> *) parms;
+        auto p = (AlexRangeQueryParms<R> *) parms;
         auto s = (AlexState<R> *) q_state;
 
         // if the returned index is one past the end of the
@@ -304,7 +297,7 @@ public:
     }
 
     static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
-        auto p = (alex_range_query_parms<R> *) parms;
+        auto p = (AlexRangeQueryParms<R> *) parms;
         auto s = (AlexBufferState<R> *) state;
 
         std::vector<Wrapped<R>> records;
