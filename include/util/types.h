@@ -22,7 +22,7 @@
 
 namespace de {
 
-using std::byte;
+//using std::byte;
 
 // Represents a page offset within a specific file (physical or virtual)
 typedef uint32_t PageNum;

@@ -22,27 +22,27 @@
 #include "util/bf_config.h"
 #include "framework/MutableBuffer.h"
 #include "framework/RecordInterface.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
+//#include "framework/ShardInterface.h"
+//#include "framework/QueryInterface.h"
 
 namespace de {
 
-template <RecordInterface R>
+template <typename R>
 struct alex_range_query_parms {
     decltype(R::key) lower_bound;
     decltype(R::key) upper_bound;
 };
 
-template <RecordInterface R>
+template <typename R>
 class AlexRangeQuery;
 
-template <RecordInterface R>
+template <typename R>
 struct AlexState {
     size_t start_idx;
     size_t stop_idx;
 };
 
-template <RecordInterface R>
+template <typename R>
 struct AlexBufferState {
     size_t cutoff;
     Alias* alias;
@@ -53,7 +53,7 @@ struct AlexBufferState {
 };
 
 
-template <RecordInterface R, size_t epsilon=128>
+template <typename R, size_t epsilon=128>
 class Alex {
 private:
     typedef decltype(R::key) K;
@@ -114,7 +114,7 @@ public:
         if (m_reccnt > 0) {
             m_alex = alex::Alex<K, V>();
             m_alex.set_expected_insert_frac(0);
-            m_alex.bulkload(temp_records.data(), temp_records.size());
+            m_alex.bulk_load(temp_records.data(), temp_records.size());
         }
     }
 
@@ -131,7 +131,7 @@ public:
         for (size_t i = 0; i < len; ++i) {
             if (shards[i]) {
                 auto base = shards[i]->get_data();
-                cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
+                cursors.emplace_back(Cursor<Wrapped<R>>{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
                 attemp_reccnt += shards[i]->get_record_count();
                 tombstone_count += shards[i]->get_tombstone_count();
                 pq.push(cursors[i].ptr, i);
@@ -158,13 +158,13 @@ public:
                 pq.pop(); pq.pop();
                 auto& cursor1 = cursors[now.version];
                 auto& cursor2 = cursors[next.version];
-                if (advance_cur5sor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
+                if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
                 if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
             } else {
                 auto& cursor = cursors[now.version];
                 if (!cursor.ptr->is_deleted()) {
                     m_data[m_reccnt++] = *cursor.ptr;
-                    temp_records.pushback({cursor.ptr->rec.key, cursor.ptr->rec.value});
+                    temp_records.push_back({cursor.ptr->rec.key, cursor.ptr->rec.value});
                     if (m_bf && cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
                         if (m_bf) m_bf->insert(cursor.ptr->rec);
@@ -179,7 +179,7 @@ public:
         if (m_reccnt > 0) {
             m_alex = alex::Alex<K, V>();
             m_alex.set_expected_insert_frac(0);
-            m_alex.bulkload(temp_records.data(), temp_records.size());
+            m_alex.bulk_load(temp_records.data(), temp_records.size());
         }
    }
 
@@ -227,10 +227,10 @@ public:
 
 
     size_t get_memory_usage() {
-        return m_alex.size_in_bytes() + m_alloc_size;
+        return m_alex.model_size() + m_alex.data_size();
     }
 
-    alex::Alex<K, V>::Iterator get_lower_bound(const K& key) const {
+    typename alex::Alex<K, V>::Iterator get_lower_bound(const K& key) const {
         auto bound = m_alex.find(key);
         while (bound != m_alex.end() && bound.key() < key) {
             bound++;
@@ -251,7 +251,7 @@ private:
 };
 
 
-template <RecordInterface R>
+template <typename R>
 class AlexRangeQuery {
 public:
     static void *get_query_state(Alex<R> *ts, void *parms) {

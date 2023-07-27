@@ -13,14 +13,14 @@
 #include <memory>
 
 #include "util/types.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
+//#include "framework/ShardInterface.h"
+//#include "framework/QueryInterface.h"
 #include "framework/RecordInterface.h"
 #include "framework/MutableBuffer.h"
 
 namespace de {
 
-template <RecordInterface R, ShardInterface S, QueryInterface Q>
+template <typename R, typename S, typename Q>
 class InternalLevel {
     typedef S Shard;
     typedef MutableBuffer<R> Buffer;

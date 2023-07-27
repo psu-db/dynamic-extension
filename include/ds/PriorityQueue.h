@@ -109,7 +109,7 @@ private:
     inline void swap(size_t a, size_t b) {
         if (a == b) return;
 
-        queue_record temp = this->data[a];
+        auto temp = this->data[a];
         this->data[a] = this->data[b];
         this->data[b] = temp;
     }
@@ -148,15 +148,15 @@ private:
             return data[a].version < data[b].version;
         }
 
-        constexpr bool has_tombstone = requires(const R &r) {
+        /*constexpr bool has_tombstone = requires(const R &r) {
             r.is_tombstone();
-        };
+        };*/
 
-        if constexpr (has_tombstone) {
+        //if {
             return data[a].data->is_tombstone() && data[b].data->is_tombstone();
-        } else {
-            return false;
-        }
+        //} else {
+        //    return false;
+        //}
     }
 };
 }

@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
 set(debug false)
-set(tests True)
+set(tests false)
 set(bench True)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
@@ -91,6 +91,7 @@ endif()
 if (bench)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
 
+    #[[
     add_executable(alias_wss_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/alias_wss_bench.cpp)
     target_link_libraries(alias_wss_bench PUBLIC gsl pthread gomp)
     target_include_directories(alias_wss_bench PRIVATE include external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
@@ -146,6 +147,11 @@ if (bench)
     add_executable(mtree_knn_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/mtree_knn_bench.cpp)
     target_link_libraries(mtree_knn_bench PUBLIC gsl pthread gomp)
     target_include_directories(mtree_knn_bench PRIVATE include external/m-tree/cpp external/vptree external/PGM-index/include external/PLEX/include bench/include)
-    target_compile_options(mtree_knn_bench PUBLIC -fopenmp -fpermissive)
+    target_compile_options(mtree_knn_bench PUBLIC -fopenmp -fpermissive)]]#
+
+    add_executable(ealex_rq_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/ealex_rq_bench.cpp)
+    target_link_libraries(ealex_rq_bench PUBLIC gsl pthread gomp)
+    target_include_directories(ealex_rq_bench PRIVATE include external/alex/src/core external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
+    target_compile_options(ealex_rq_bench PUBLIC -fopenmp -march=native)
 
 endif()

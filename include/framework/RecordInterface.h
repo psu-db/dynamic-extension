@@ -17,7 +17,7 @@
 #include "util/hash.h"
 
 namespace de {
-
+/*
 template<typename R>
 concept RecordInterface = requires(R r, R s) {
     { r < s } ->std::convertible_to<bool>;
@@ -57,8 +57,9 @@ concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
     {r < s} -> std::convertible_to<bool>;
     {r == s} ->std::convertible_to<bool>;
 };
+*/
 
-template<RecordInterface R>
+template<typename R>
 struct Wrapped {
     uint32_t header;
     R rec;
@@ -205,7 +206,7 @@ struct EuclidPoint{
     }
 };
 
-template<RecordInterface R>
+template<typename R>
 struct RecordHash {
     size_t operator()(R const &rec) const {
         return hash_bytes((char *) &rec, sizeof(R));

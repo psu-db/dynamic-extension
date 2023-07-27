@@ -21,7 +21,7 @@ public:
     BitArray(size_t bits): m_bits(bits), m_data(nullptr) {
         if (m_bits > 0) {
             size_t n_bytes = (m_bits >> 3) << 3;
-            m_data = (char*) std::aligned_alloc(CACHELINE_SIZE, CACHELINEALIGN(n_bytes));
+            m_data = (char*) aligned_alloc(CACHELINE_SIZE, CACHELINEALIGN(n_bytes));
             memset(m_data, 0, n_bytes);
         }
     }

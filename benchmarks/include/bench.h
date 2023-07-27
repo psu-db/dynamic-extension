@@ -10,7 +10,7 @@
 
 #include "bench_utility.h"
 
-template <typename DE, de::RecordInterface R, bool PROGRESS=true, size_t BATCH=1000>
+template <typename DE, typename R, bool PROGRESS=true, size_t BATCH=1000>
 static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cnt, 
                               double delete_prop, std::vector<R> &to_delete, bool binary=false) {
 
@@ -84,7 +84,7 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
     return continue_benchmark;
 }
 
-template <typename DE, de::RecordInterface R, typename QP, bool PROGRESS=true>
+template <typename DE, typename R, typename QP, bool PROGRESS=true>
 static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t trial_cnt=1) {
     char progbuf[25];
     if constexpr (PROGRESS) {
@@ -121,7 +121,7 @@ static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t tr
 }
 
 
-template <typename Shard, de::RecordInterface R, typename QP, QueryInterface Q, bool PROGRESS=true>
+template <typename Shard, typename R, typename QP, typename Q, bool PROGRESS=true>
 static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t trial_cnt=100) {
     char progbuf[25];
     if constexpr (PROGRESS) {

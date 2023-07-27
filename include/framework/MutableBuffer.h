@@ -26,7 +26,7 @@
 namespace de {
 
 
-template <RecordInterface R>
+template <typename R>
 class MutableBuffer {
 public:
     MutableBuffer(size_t capacity, size_t max_tombstone_cap)
@@ -34,7 +34,7 @@ public:
     , m_tombstonecnt(0), m_weight(0), m_max_weight(0) {
         auto len = capacity * sizeof(Wrapped<R>);
         size_t aligned_buffersize = len + (CACHELINE_SIZE - (len % CACHELINE_SIZE));
-        m_data = (Wrapped<R>*) std::aligned_alloc(CACHELINE_SIZE, aligned_buffersize);
+        m_data = (Wrapped<R>*) aligned_alloc(CACHELINE_SIZE, aligned_buffersize);
         m_tombstone_filter = nullptr;
         if (max_tombstone_cap > 0) {
             m_tombstone_filter = new BloomFilter<R>(BF_FPR, max_tombstone_cap, BF_HASH_FUNCS);
@@ -66,16 +66,7 @@ public:
             if (m_tombstone_filter) m_tombstone_filter->insert(rec);
         }
 
-        if constexpr (WeightedRecordInterface<R_>) {
-            m_weight.fetch_add(rec.weight);
-            double old = m_max_weight.load();
-            while (old < rec.weight) {
-                m_max_weight.compare_exchange_strong(old, rec.weight);
-                old = m_max_weight.load();
-            }
-        } else {
-            m_weight.fetch_add(1);
-        }
+        m_weight.store(m_weight.load() + 1);
 
         return 1;     
     }

@@ -9,13 +9,14 @@
 #pragma once
 
 #include "framework/DynamicExtension.h"
-#include "shard/WSS.h"
-#include "shard/MemISAM.h"
-#include "shard/PGM.h"
-#include "shard/TrieSpline.h"
-#include "shard/WIRS.h"
+//#include "shard/WSS.h"
+//#include "shard/MemISAM.h"
+//#include "shard/PGM.h"
+//#include "shard/TrieSpline.h"
+//#include "shard/WIRS.h"
 #include "ds/BTree.h"
-#include "shard/VPTree.h"
+//#include "shard/VPTree.h"
+#include "shard/Alex.h"
 #include "mtree.h"
 #include "standalone_utility.h"
 
@@ -43,12 +44,13 @@ typedef de::Record<key_type, value_type> Rec;
 const size_t W2V_SIZE = 300;
 typedef de::EuclidPoint<double, W2V_SIZE> Word2VecRec;
 
-typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
-typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
-typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
-typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::IRSQuery<Rec>> ExtendedISAM_IRS;
-typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::ISAMRangeQuery<Rec>> ExtendedISAM_RQ;
-typedef de::DynamicExtension<Word2VecRec, de::VPTree<Word2VecRec>, de::KNNQuery<Word2VecRec>> ExtendedVPTree_KNN;
+//typedef de::DynamicExtension<WRec, de::WSS<WRec>, de::WSSQuery<WRec>> ExtendedWSS;
+//typedef de::DynamicExtension<Rec, de::TrieSpline<Rec>, de::TrieSplineRangeQuery<Rec>> ExtendedTSRQ;
+//typedef de::DynamicExtension<Rec, de::PGM<Rec>, de::PGMRangeQuery<Rec>> ExtendedPGMRQ;
+//typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::IRSQuery<Rec>> ExtendedISAM_IRS;
+//typedef de::DynamicExtension<Rec, de::MemISAM<Rec>, de::ISAMRangeQuery<Rec>> ExtendedISAM_RQ;
+//typedef de::DynamicExtension<Word2VecRec, de::VPTree<Word2VecRec>, de::KNNQuery<Word2VecRec>> ExtendedVPTree_KNN;
+typedef de::DynamicExtension<Rec, de::Alex<Rec>, de::AlexRangeQuery<Rec>> ExtendedAlex;
 
 struct euclidean_distance {
     double operator()(const Word2VecRec &first, const Word2VecRec &second) const {
@@ -81,7 +83,7 @@ struct cosine_similarity {
 typedef tlx::BTree<key_type, btree_record, btree_key_extract> TreeMap;
 typedef mt::mtree<Word2VecRec, euclidean_distance> MTree;
 
-template <de::RecordInterface R>
+template <typename R>
 static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n, 
                              double delete_prop, std::vector<R> &to_delete, bool binary=false) {
     vec.clear();
@@ -116,7 +118,7 @@ static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n,
 }
 
 
-template <typename DE, de::RecordInterface R>
+template <typename DE, typename R>
 static bool warmup(std::fstream &file, DE &extended_index, size_t count, 
                    double delete_prop, std::vector<R> to_delete, bool progress=true, bool binary=false) {
     size_t batch = std::min(.1 * count, 25000.0);

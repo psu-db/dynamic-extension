@@ -16,11 +16,11 @@
 
 #include "framework/MutableBuffer.h"
 #include "framework/InternalLevel.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
-#include "framework/RecordInterface.h"
+//#include "framework/ShardInterface.h"
+//#include "framework/QueryInterface.h"
+//#include "framework/RecordInterface.h"
 
-#include "shard/WIRS.h"
+//#include "shard/WIRS.h"
 #include "ds/Alias.h"
 #include "util/timer.h"
 
@@ -58,7 +58,7 @@ enum class DeletePolicy {
 
 typedef ssize_t level_index;
 
-template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING, DeletePolicy D=DeletePolicy::TAGGING>
+template <typename R, typename S, typename Q, LayoutPolicy L=LayoutPolicy::TEIRING, DeletePolicy D=DeletePolicy::TAGGING>
 class DynamicExtension {
     //typedef typename S<R> Shard;
     typedef S Shard;
@@ -293,7 +293,7 @@ private:
                 continue;
             }
 
-            if (shid != INVALID_SHID) {
+            if (shid.level_idx != -1 || shid.shard_idx != -1) {
                 for (size_t lvl=0; lvl<=shid.level_idx; lvl++) {
                     if (m_levels[lvl]->check_tombstone(0, rec.rec)) {
                         continue;
