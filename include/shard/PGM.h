@@ -403,7 +403,7 @@ public:
             ptr++;
         }
 
-		return {Wrapped<R>{0, {tot, 0}}};
+		return {Wrapped<R>{{tot, 0}}};
         //return records;
     }
 
@@ -422,7 +422,7 @@ public:
             }
         }
 
-		return {Wrapped<R>{0, {tot, 0}}};
+		return {Wrapped<R>{{tot, 0}}};
         //return records;
     }
 
