@@ -108,7 +108,7 @@ public:
             // bypass doesn't seem to be working on this code-path, so this
             // ensures that tagged records from the buffer are able to be
             // dropped, eventually. It should only need to be &= 1
-            base->header &= 3;
+            //base->header &= 3;
             m_data[m_reccnt++] = *base;
             bldr.AddKey(base->rec.key);
 

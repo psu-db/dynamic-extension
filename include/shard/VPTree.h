@@ -131,7 +131,7 @@ public:
                 continue;
             }
 
-            rec->header &= 3;
+            //rec->header &= 3;
             m_data[m_reccnt] = *rec;
             m_ptrs[m_reccnt] = &m_data[m_reccnt];
             m_reccnt++;
@@ -444,7 +444,7 @@ public:
         KNNQueryParms<R> *p = (KNNQueryParms<R> *) parms;
         Wrapped<R> wrec;
         wrec.rec = p->point;
-        wrec.header = 0;
+        //wrec.header = 0;
 
         PriorityQueue<Wrapped<R>, KNNDistCmpMax<Wrapped<R>>> pq(p->k, &wrec);
 
@@ -464,7 +464,7 @@ public:
         KNNQueryParms<R> *p = (KNNQueryParms<R> *) parms;
         Wrapped<R> wrec;
         wrec.rec = p->point;
-        wrec.header = 0;
+        //wrec.header = 0;
 
         size_t k = p->k;
 

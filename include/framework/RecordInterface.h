@@ -60,31 +60,34 @@ concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
 
 template<RecordInterface R>
 struct Wrapped {
-    uint32_t header;
+    //uint32_t header;
     R rec;
 
     inline void set_delete() {
-        header |= 2;
+     //   header |= 2;
     }
 
     inline bool is_deleted() const {
-        return header & 2;
+        return false;
+      //  return header & 2;
     }
 
     inline void set_tombstone(bool val=true) {
+        /*
         if (val) {
             header |= val;
         } else {
             header &= 0;
-        }
+        } */
     }
 
     inline bool is_tombstone() const {
-        return header & 1;
+        return false;
+        //return header & 1;
     }
 
     inline bool operator<(const Wrapped& other) const {
-        return rec < other.rec || (rec == other.rec && header < other.header);
+        return rec < other.rec; //|| (rec == other.rec && header < other.header);
     }
 
     inline bool operator==(const Wrapped& other) const {
@@ -97,7 +100,7 @@ template <typename K, typename V>
 struct Record {
     K key;
     V value;
-    uint32_t header = 0;
+    //uint32_t header = 0;
 
        inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);

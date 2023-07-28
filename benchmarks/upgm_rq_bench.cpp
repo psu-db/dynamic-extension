@@ -1,6 +1,8 @@
 #include "pgm/pgm_index_dynamic.hpp"
 #include "include/standalone_utility.h"
 
+#include <iostream>
+
 typedef uint64_t key_type;
 typedef uint64_t value_type;
 
@@ -199,6 +201,9 @@ int main(int argc, char **argv)
     size_t insert_cnt = record_count - warmup_cnt;
 
     pgm_rq_insert(pgm, datafile, insert_cnt, delete_prop, to_delete, true);
+
+    std::cout << "upgm: " << pgm.index_size_in_bytes() << ' '
+        << pgm.size_in_bytes() - pgm.index_size_in_bytes() << std::endl;
     size_t memory_usage = pgm.size_in_bytes();
     fprintf(stdout, "%ld\t", memory_usage);
 

@@ -14,6 +14,7 @@
 #include <queue>
 #include <memory>
 #include <concepts>
+#include <iostream>
 
 #include "pgm/pgm_index.hpp"
 #include "ds/PriorityQueue.h"
@@ -55,7 +56,7 @@ struct PGMBufferState {
     size_t cutoff;
 };
 
-template <RecordInterface R, size_t epsilon=128>
+template <RecordInterface R, size_t epsilon=64>
 class PGM {
 private:
     typedef decltype(R::key) K;
@@ -103,7 +104,7 @@ public:
             // bypass doesn't seem to be working on this code-path, so this
             // ensures that tagged records from the buffer are able to be
             // dropped, eventually. It should only need to be &= 1
-            base->header &= 3;
+            //base->header &= 3;
             m_data[m_reccnt++] = *base;
             keys.emplace_back(base->rec.key);
 
@@ -227,6 +228,7 @@ public:
 
 
     size_t get_memory_usage() {
+        std::cout << "pgm: " << m_pgm.size_in_bytes() << ' ' << m_alloc_size << std::endl;
         return m_pgm.size_in_bytes() + m_alloc_size;
     }
 

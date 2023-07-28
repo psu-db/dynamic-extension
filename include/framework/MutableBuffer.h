@@ -55,11 +55,11 @@ public:
 
         Wrapped<R> wrec;
         wrec.rec = rec;
-        wrec.header = 0;
+        //wrec.header = 0;
         if (tombstone) wrec.set_tombstone();
 
         m_data[pos] = wrec;
-        m_data[pos].header |= (pos << 2);
+        //m_data[pos].header |= (pos << 2);
 
         if (tombstone) {
             m_tombstonecnt.fetch_add(1);
