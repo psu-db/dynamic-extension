@@ -41,26 +41,40 @@ static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n,
 }
 
 
-static Alex *warmup(std::fstream &file, size_t count, 
+static bool warmup(std::fstream &file, Alex &alex, size_t count, 
                    double delete_prop, std::vector<record> to_delete, bool progress=true, bool binary=false) {
     size_t batch = std::min(.1 * count, 25000.0);
 
-    std::pair<key_type, value_type> *insert_vec = new std::pair<key_type, value_type>[count];
-    Alex *alex = new Alex();
+    std::vector<record> insert_vec;
+    std::vector<record> delete_vec;
+    insert_vec.reserve(batch);
+    delete_vec.reserve(batch*delete_prop);
 
-    size_t cnt = 0;
-    record rec;
-    while (cnt < count && next_record(file, rec)) {
-        insert_vec[cnt] = {rec.key, rec.value};
-        cnt++;
+    size_t inserted = 0;
+    size_t delete_idx = 0;
+
+    double last_percent = 0;
+    while (inserted < count) {
+        // Build vector of records to insert and potentially delete
+        auto continue_warmup = build_insert_vec<record>(file, insert_vec, batch, delete_prop, to_delete, binary);
+        if (inserted > batch) {
+            build_delete_vec(to_delete, delete_vec, batch*delete_prop);
+            delete_idx = 0;
+        }
+
+        for (size_t i=0; i<insert_vec.size(); i++) {
+            // process a delete if necessary
+            if (delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
+                alex.erase_one(delete_vec[delete_idx++].key);
+            }
+
+            alex.insert(insert_vec[i].key, insert_vec[i].value);
+            inserted++;
+            progress_update((double) inserted / (double) count, "warming up:");
+        }
     }
 
-    std::sort(insert_vec, insert_vec + count);
-
-    alex->bulk_load(insert_vec, count); 
-    delete[] insert_vec;
-
-    return alex;
+    return true;
 }
 
 
@@ -174,6 +188,8 @@ int main(int argc, char **argv)
     init_bench_env(record_count, true, use_osm);
     auto queries = read_range_queries<query>(qfilename, .0001);
 
+    Alex alex;
+
     std::fstream datafile;
     datafile.open(filename, std::ios::in | std::ios::binary);
 
@@ -182,22 +198,18 @@ int main(int argc, char **argv)
     // warm up the tree with initial_insertions number of initially inserted
     // records
     size_t warmup_cnt = insert_batch * record_count;
-    auto alex = warmup(datafile, warmup_cnt, delete_prop, to_delete, true, true);
+    warmup(datafile, alex, warmup_cnt, delete_prop, to_delete, true, true);
 
-    fprintf(stderr, "Size: %ld\n", alex->size());
     size_t insert_cnt = record_count - warmup_cnt;
 
-    alex_rq_insert(*alex, datafile, insert_cnt, delete_prop, to_delete, true);
-    size_t memory_usage = alex->model_size() + alex->data_size();
-
-    fprintf(stderr, "Size: %ld\n", alex->size());
+    alex_rq_insert(alex, datafile, insert_cnt, delete_prop, to_delete, true);
+    size_t memory_usage = alex.model_size() + alex.data_size();
     fprintf(stdout, "%ld\t", memory_usage);
 
-    alex_rq_bench(*alex, queries);
+    alex_rq_bench(alex, queries);
     fprintf(stdout, "\n");
 
     delete_bench_env();
-    delete alex;
     fflush(stdout);
     fflush(stderr);
 
