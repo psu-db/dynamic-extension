@@ -269,7 +269,8 @@ public:
     }
 
     static std::vector<Wrapped<R>> query(Alex<R> *ts, void *q_state, void *parms) {
-        std::vector<Wrapped<R>> records;
+        //std::vector<Wrapped<R>> records;
+        size_t tot = 0;
         auto p = (AlexRangeQueryParms<R> *) parms;
         auto s = (AlexState<R> *) q_state;
 
@@ -277,7 +278,7 @@ public:
         // records for the Alex, then there are not records
         // in the index falling into the specified range.
         if (s->start_idx == ts->get_record_count()) {
-            return records;
+            return {};
         }
 
         auto ptr = ts->get_record_at(s->start_idx);
@@ -289,31 +290,40 @@ public:
         }
 
         while (ptr->rec.key <= p->upper_bound && ptr < ts->m_data + s->stop_idx) {
-            records.emplace_back(*ptr);
+            //records.emplace_back(*ptr);
+            if (ptr->is_tombstone()) --tot;
+            else if (!ptr->is_deleted()) ++tot;
+            
             ptr++;
         }
 
-        return records;
+        return {Wrapped<R>{0, {tot, 0}}};
+        //return records;
     }
 
     static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
         auto p = (AlexRangeQueryParms<R> *) parms;
         auto s = (AlexBufferState<R> *) state;
 
-        std::vector<Wrapped<R>> records;
+        //std::vector<Wrapped<R>> records;
+        size_t tot = 0;
         for (size_t i=0; i<s->cutoff; i++) {
             auto rec = buffer->get_data() + i;
             if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
-                records.emplace_back(*rec);
+                //records.emplace_back(*rec);
+                if (rec->is_tombstone()) --tot;
+                else if (!rec->is_deleted()) ++tot;
             }
         }
+        return {Wrapped<R>{0, {tot, 0}}};
 
-        return records;
+        //return records;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<R>> &results, void *parms) {
-        size_t total = 0;
-        for (size_t i=0; i<results.size(); i++) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
+        size_t tot = 0;
+        
+        /*for (size_t i=0; i<results.size(); i++) {
             total += results[i].size();
         }
 
@@ -326,9 +336,13 @@ public:
 
         for (size_t i=0; i<results.size(); i++) {
             std::move(results[i].begin(), results[i].end(), std::back_inserter(output));
+        }*/
+
+        for (auto& result: results) {
+            if (result.size() > 0) tot += result[0].rec.key;
         }
 
-        return output;
+        return {{tot, 0}};
     }
 
     static void delete_query_state(void *state) {

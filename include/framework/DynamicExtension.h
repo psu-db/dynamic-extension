@@ -121,16 +121,19 @@ public:
 
         Q::process_query_states(parms, states, buffer_state);
 
-        std::vector<std::vector<R>> query_results(shards.size() + 1);
+        std::vector<std::vector<Wrapped<R>>> query_results;
+        query_results.reserve(shards.size() + 1);
 
         // Execute the query for the buffer
-        auto buffer_results = Q::buffer_query(buffer, buffer_state, parms);
-        query_results[0] = filter_deletes(buffer_results, {-1, -1}, buffer);
+        //auto buffer_results = Q::buffer_query(buffer, buffer_state, parms);
+        //query_results[0] = filter_deletes(buffer_results, {-1, -1}, buffer);
+        query_results.emplace_back(Q::buffer_query(buffer, buffer_state, parms));
 
         // Execute the query for each shard
         for (size_t i=0; i<shards.size(); i++) {
-            auto shard_results = Q::query(shards[i].second, states[i], parms);
-            query_results[i+1] = filter_deletes(shard_results, shards[i].first, buffer);
+            //auto shard_results = Q::query(shards[i].second, states[i], parms);
+            //query_results[i+1] = filter_deletes(shard_results, shards[i].first, buffer);
+            query_results.emplace_back(Q::query(shards[i].second, states[i], parms));
         }
         
         // Merge the results together

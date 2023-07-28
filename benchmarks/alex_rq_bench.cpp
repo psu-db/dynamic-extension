@@ -146,17 +146,22 @@ static void alex_rq_bench(Alex &alex, std::vector<query> queries, size_t trial_c
 
     std::vector<record> result_set;
 
+    size_t tot = 0;
+    size_t cnt = 0;
     for (int i=0; i<trial_cnt; i++) {
         auto start = std::chrono::high_resolution_clock::now();
         for (size_t j=0; j<queries.size(); j++) {
             auto ptr = alex.find(queries[j].lower_bound);
+            cnt = 0;
             while (ptr != alex.end() && ptr.key() <= queries[j].upper_bound) {
-                result_set.push_back({ptr.key(), ptr.payload()});
+                //result_set.push_back({ptr.key(), ptr.payload()});
                 ptr++;
+                ++cnt;
             }
             result_set.clear();
         }
         auto stop = std::chrono::high_resolution_clock::now();
+        tot += cnt;
 
         total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
     }
