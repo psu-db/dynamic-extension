@@ -18,13 +18,13 @@ int main(int argc, char **argv)
     std::string filename = std::string(argv[1]);
     size_t record_count = atol(argv[2]);
     size_t buffer_cap = 12000;
-    size_t scale_factor = 6;
+    size_t scale_factor = 8;
     double delete_prop = atof(argv[3]);
     double max_delete_prop = (delete_prop > 0) ? delete_prop : 1;
     std::string query_file = std::string(argv[4]);
     bool use_osm = (argc == 6) ? atoi(argv[5]) : 0;
 
-    double insert_batch = 0.1; 
+    double insert_batch = 0.5; 
 
     init_bench_env(record_count, true, use_osm);
 
@@ -46,6 +46,7 @@ int main(int argc, char **argv)
     insert_tput_bench<ExtendedTSRQ, Rec>(de, datafile, insert_cnt, delete_prop, to_delete, true);
     fprintf(stdout, "%ld\t", de.get_memory_usage());
     query_latency_bench<ExtendedTSRQ, Rec, de::ts_range_query_parms<Rec>>(de, queries, 1);
+    fprintf(stdout, "\n");
 
     auto ts = de.create_static_structure();
 

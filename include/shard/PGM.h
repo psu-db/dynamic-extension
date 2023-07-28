@@ -77,7 +77,7 @@ public:
         m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
         std::vector<K> keys;
 
-        m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
+        //m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
 
         size_t offset = 0;
         m_reccnt = 0;
@@ -107,11 +107,12 @@ public:
             //base->header &= 3;
             m_data[m_reccnt++] = *base;
             keys.emplace_back(base->rec.key);
-
+			
+			/*
             if (m_bf && base->is_tombstone()) {
                 m_tombstone_cnt++;
                 m_bf->insert(base->rec);
-            }
+            }*/
             
             base++;
         }
@@ -144,7 +145,7 @@ public:
             }
         }
 
-        m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
+        //m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
 
         m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
         assert(m_alloc_size % CACHELINE_SIZE == 0);
@@ -168,10 +169,10 @@ public:
                 if (!cursor.ptr->is_deleted()) {
                     m_data[m_reccnt++] = *cursor.ptr;
                     keys.emplace_back(cursor.ptr->rec.key);
-                    if (m_bf && cursor.ptr->is_tombstone()) {
+                    /*if (m_bf && cursor.ptr->is_tombstone()) {
                         ++m_tombstone_cnt;
                         if (m_bf) m_bf->insert(cursor.ptr->rec);
-                    }
+                    }*/
                 }
                 pq.pop();
                 
@@ -186,14 +187,14 @@ public:
 
     ~PGM() {
         if (m_data) free(m_data);
-        if (m_bf) delete m_bf;
+        //if (m_bf) delete m_bf;
 
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
-        if (filter && !m_bf->lookup(rec)) {
-            return nullptr;
-        }
+        //if (filter && !m_bf->lookup(rec)) {
+        //    return nullptr;
+        //}
 
         size_t idx = get_lower_bound(rec.key);
         if (idx >= m_reccnt) {
@@ -277,7 +278,7 @@ private:
     K m_max_key;
     K m_min_key;
     pgm::PGMIndex<K, epsilon> m_pgm;
-    BloomFilter<R> *m_bf;
+    //BloomFilter<R> *m_bf;
 };
 template <RecordInterface R>
 class PGMPointLookup {
@@ -351,7 +352,7 @@ template <RecordInterface R>
 class PGMRangeQuery {
 public:
     constexpr static bool EARLY_ABORT=false;
-    constexpr static bool SKIP_DELETE_FILTER=false;
+	constexpr static bool SKIP_DELETE_FILTER=false;
 
     static void *get_query_state(PGM<R> *ts, void *parms) {
         auto res = new PGMState<R>();
@@ -375,7 +376,8 @@ public:
     }
 
     static std::vector<Wrapped<R>> query(PGM<R> *ts, void *q_state, void *parms) {
-        std::vector<Wrapped<R>> records;
+		size_t tot = 0;
+        //std::vector<Wrapped<R>> records;
         auto p = (pgm_range_query_parms<R> *) parms;
         auto s = (PGMState<R> *) q_state;
 
@@ -383,7 +385,7 @@ public:
         // records for the PGM, then there are not records
         // in the index falling into the specified range.
         if (s->start_idx == ts->get_record_count()) {
-            return records;
+            return {};
         }
 
         auto ptr = ts->get_record_at(s->start_idx);
@@ -395,30 +397,37 @@ public:
         }
 
         while (ptr->rec.key <= p->upper_bound && ptr < ts->m_data + s->stop_idx) {
-            records.emplace_back(*ptr);
+            if (ptr->is_tombstone()) --tot;
+			else if (!ptr->is_deleted()) ++tot;
+			//records.emplace_back(*ptr);
             ptr++;
         }
 
-        return records;
+		return {Wrapped<R>{0, {tot, 0}}};
+        //return records;
     }
 
     static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
+		size_t tot = 0;
         auto p = (pgm_range_query_parms<R> *) parms;
         auto s = (PGMBufferState<R> *) state;
 
-        std::vector<Wrapped<R>> records;
+        //std::vector<Wrapped<R>> records;
         for (size_t i=0; i<s->cutoff; i++) {
             auto rec = buffer->get_data() + i;
             if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
-                records.emplace_back(*rec);
+				if (rec->is_tombstone()) --tot;
+				else if (!rec->is_deleted()) ++tot;
+                //records.emplace_back(*rec);
             }
         }
 
-        return records;
+		return {Wrapped<R>{0, {tot, 0}}};
+        //return records;
     }
 
     static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
-        std::vector<Cursor<Wrapped<R>>> cursors;
+		/*std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(results.size());
 
         PriorityQueue<Wrapped<R>> pq(results.size());
@@ -462,9 +471,13 @@ public:
                 
                 if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);
             }
-        }
+        }*/
 
-        return output;
+		size_t tot = 0;
+		for (auto& result: results)
+			if (result.size() > 0) tot += result[0].rec.key;
+
+        return {{tot, 0}};
     }
 
     static void delete_query_state(void *state) {
