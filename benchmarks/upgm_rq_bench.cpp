@@ -144,17 +144,21 @@ static void pgm_rq_bench(PGM &pgm, std::vector<query> queries, size_t trial_cnt=
     size_t batches = trial_cnt / batch_size;
     size_t total_time = 0;
 
-    std::vector<record> result_set;
+    //std::vector<record> result_set;
+	size_t tot = 0;
 
     for (int i=0; i<trial_cnt; i++) {
         auto start = std::chrono::high_resolution_clock::now();
         for (size_t j=0; j<queries.size(); j++) {
-            auto ptr = pgm.find(queries[j].lower_bound);
+            auto ptr = pgm.find(queries[j].lower_bound);\
+			tot = 0;
             while (ptr != pgm.end() && ptr->first <= queries[j].upper_bound) {
-                result_set.push_back({ptr->first, ptr->second});
+				++tot;
+                //result_set.push_back({ptr->first, ptr->second});
                 ++ptr;
             }
-            result_set.clear();
+			assert(tot > 0);
+            //result_set.clear();
         }
         auto stop = std::chrono::high_resolution_clock::now();
 
@@ -178,7 +182,7 @@ int main(int argc, char **argv)
     double delete_prop = atof(argv[3]);
     std::string qfilename = std::string(argv[4]);
 
-    double insert_batch = 0.1; 
+    double insert_batch = 0.5; 
 
     init_bench_env(record_count, true);
     auto queries = read_range_queries<query>(qfilename, .0001);
