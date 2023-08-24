@@ -13,3 +13,6 @@
 [submodule "external/alex"]
 	path = external/alex
 	url = https://github.com/microsoft/ALEX
+[submodule "external/psudb-common"]
+	path = external/psudb-common
+	url = git@github.com:PSU-Database-Systems-Group/psudb-common
