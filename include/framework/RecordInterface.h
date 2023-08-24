@@ -13,8 +13,7 @@
 #include <concepts>
 #include <cmath>
 
-#include "util/base.h"
-#include "util/hash.h"
+#include "psu-util/hash.h"
 
 namespace de {
 
@@ -208,7 +207,7 @@ struct EuclidPoint{
 template<RecordInterface R>
 struct RecordHash {
     size_t operator()(R const &rec) const {
-        return hash_bytes((char *) &rec, sizeof(R));
+        return psudb::hash_bytes((char *) &rec, sizeof(R));
     }
 };
 

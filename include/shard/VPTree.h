@@ -15,14 +15,20 @@
 #include <concepts>
 #include <map>
 
-#include "ds/PriorityQueue.h"
+#include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"
-#include "ds/BloomFilter.h"
+#include "psu-ds/BloomFilter.h"
 #include "util/bf_config.h"
 #include "framework/MutableBuffer.h"
 #include "framework/RecordInterface.h"
 #include "framework/ShardInterface.h"
 #include "framework/QueryInterface.h"
+
+using psudb::CACHELINE_SIZE;
+using psudb::BloomFilter;
+using psudb::PriorityQueue;
+using psudb::queue_record;
+using psudb::Alias;
 
 namespace de {
 

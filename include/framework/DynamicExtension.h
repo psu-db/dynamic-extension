@@ -21,8 +21,8 @@
 #include "framework/RecordInterface.h"
 
 #include "shard/WIRS.h"
-#include "ds/Alias.h"
-#include "util/timer.h"
+#include "psu-util/timer.h"
+#include "psu-ds/Alias.h"
 
 namespace de {
 

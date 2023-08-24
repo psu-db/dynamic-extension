@@ -9,9 +9,11 @@
  */
 #pragma once
 
-#include "util/base.h"
 #include "framework/RecordInterface.h"
-#include "io/PagedFile.h"
+
+#include "psu-ds/BloomFilter.h"
+#include "psu-ds/PriorityQueue.h"
+#include "psu-util/alignment.h"
 
 namespace de {
 template<typename R>
@@ -37,19 +39,13 @@ struct Cursor {
  * not be closed.
  */
 template<typename R>
-inline static bool advance_cursor(Cursor<R> &cur, PagedFileIterator *iter = nullptr) {
+inline static bool advance_cursor(Cursor<R> &cur) {
     cur.ptr++;
     cur.cur_rec_idx++;
 
     if (cur.cur_rec_idx >= cur.rec_cnt) return false;
 
     if (cur.ptr >= cur.end) {
-        if (iter && iter->next()) {
-            cur.ptr = (R*)iter->get_item();
-            cur.end = cur.ptr + (PAGE_SIZE / sizeof(R));
-            return true;
-        }
-
         return false;
     }
     return true;

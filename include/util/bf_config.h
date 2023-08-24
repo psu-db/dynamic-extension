@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#include "util/base.h"
+#include "psu-util/alignment.h"
 
 namespace de {
 

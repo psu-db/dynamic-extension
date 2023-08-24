@@ -17,7 +17,7 @@
 #include <fcntl.h>
 
 #include "util/types.h"
-#include "util/base.h"
+#include "psu-util/alignment.h"
 #include "framework/MutableBuffer.h"
 #include "framework/RecordInterface.h"
 
@@ -46,14 +46,14 @@ static bool initialize_test_file(std::string fname, size_t page_cnt)
         goto error;
     }
 
-    page = (char *) aligned_alloc(de::SECTOR_SIZE, de::PAGE_SIZE);
+    page = (char *) aligned_alloc(psudb::SECTOR_SIZE, psudb::PAGE_SIZE);
     if (!page) {
         goto error_opened;
     }
 
     for (size_t i=0; i<=page_cnt; i++) {
         *((int *) page) = i;
-        if (write(fd, page, de::PAGE_SIZE) == -1) {
+        if (write(fd, page, psudb::PAGE_SIZE) == -1) {
             goto error_alloced;
         }
     }

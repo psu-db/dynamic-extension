@@ -16,9 +16,15 @@
 
 #include "framework/MutableBuffer.h"
 #include "util/bf_config.h"
-#include "ds/PriorityQueue.h"
+#include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"
-#include "util/timer.h"
+#include "psu-util/timer.h"
+
+using psudb::CACHELINE_SIZE;
+using psudb::BloomFilter;
+using psudb::PriorityQueue;
+using psudb::queue_record;
+using psudb::Alias;
 
 namespace de {
 
@@ -364,7 +370,7 @@ private:
 
     // Members: sorted data, internal ISAM levels, reccnt;
     Wrapped<R>* m_data;
-    BloomFilter<R> *m_bf;
+    psudb::BloomFilter<R> *m_bf;
     InMemISAMNode* m_isam_nodes;
     InMemISAMNode* m_root;
     size_t m_reccnt;

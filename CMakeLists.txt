@@ -8,7 +8,7 @@ project("Practical Dynamic Extension" VERSION 0.1.0)
 
 set(debug false)
 set(tests True)
-set(bench True)
+set(bench false)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
@@ -31,19 +31,19 @@ if (tests)
 
     add_executable(wirs_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/wirs_tests.cpp)
     target_link_libraries(wirs_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(wirs_tests PRIVATE include)
+    target_include_directories(wirs_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(internal_level_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/internal_level_tests.cpp)
     target_link_libraries(internal_level_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(internal_level_tests PRIVATE include)
+    target_include_directories(internal_level_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(mutable_buffer_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/mutable_buffer_tests.cpp)
     target_link_libraries(mutable_buffer_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(mutable_buffer_tests PRIVATE include)
+    target_include_directories(mutable_buffer_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(vptree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/vptree_tests.cpp)
     target_link_libraries(vptree_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(vptree_tests PRIVATE include external/vptree)
+    target_include_directories(vptree_tests PRIVATE include external/vptree external/psudb-common/cpp/include)
 
     #add_executable(dynamic_extension_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/dynamic_extension_tests.cpp)
     #target_link_libraries(dynamic_extension_tests PUBLIC gsl check subunit pthread)
@@ -51,35 +51,35 @@ if (tests)
 
     add_executable(de_tier_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tag.cpp)
     target_link_libraries(de_tier_tag PUBLIC gsl check subunit pthread)
-    target_include_directories(de_tier_tag PRIVATE include)
+    target_include_directories(de_tier_tag PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(de_tier_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tomb.cpp)
     target_link_libraries(de_tier_tomb PUBLIC gsl check subunit pthread)
-    target_include_directories(de_tier_tomb PRIVATE include)
+    target_include_directories(de_tier_tomb PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(de_level_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tag.cpp)
     target_link_libraries(de_level_tag PUBLIC gsl check subunit pthread)
-    target_include_directories(de_level_tag PRIVATE include)
+    target_include_directories(de_level_tag PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(de_level_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tomb.cpp)
     target_link_libraries(de_level_tomb PUBLIC gsl check subunit pthread)
-    target_include_directories(de_level_tomb PRIVATE include)
+    target_include_directories(de_level_tomb PRIVATE include external/psudb-common/cpp/include)
     
     add_executable(memisam_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/memisam_tests.cpp)
     target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(memisam_tests PRIVATE include)
+    target_include_directories(memisam_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(wss_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/wss_tests.cpp)
     target_link_libraries(wss_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(wss_tests PRIVATE include)
+    target_include_directories(wss_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(triespline_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_tests.cpp)
     target_link_libraries(triespline_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(triespline_tests PRIVATE include external/PLEX/include)
+    target_include_directories(triespline_tests PRIVATE include external/PLEX/include external/psudb-common/cpp/include)
 
     add_executable(pgm_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pgm_tests.cpp)
     target_link_libraries(pgm_tests PUBLIC gsl check subunit pthread gomp)
-    target_include_directories(pgm_tests PRIVATE include external/PGM-index/include)
+    target_include_directories(pgm_tests PRIVATE include external/PGM-index/include external/psudb-common/cpp/include)
     target_compile_options(pgm_tests PUBLIC -fopenmp)
 endif()
 

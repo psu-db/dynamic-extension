@@ -16,15 +16,16 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "util/base.h"
+#include "psu-util/alignment.h"
 #include "util/bf_config.h"
-#include "ds/BloomFilter.h"
-#include "ds/Alias.h"
-#include "util/timer.h"
+#include "psu-ds/BloomFilter.h"
+#include "psu-ds/Alias.h"
+#include "psu-util/timer.h"
 #include "framework/RecordInterface.h"
 
-namespace de {
+using psudb::CACHELINE_SIZE;
 
+namespace de {
 
 template <RecordInterface R>
 class MutableBuffer {
@@ -37,7 +38,7 @@ public:
         m_data = (Wrapped<R>*) std::aligned_alloc(CACHELINE_SIZE, aligned_buffersize);
         m_tombstone_filter = nullptr;
         if (max_tombstone_cap > 0) {
-            m_tombstone_filter = new BloomFilter<R>(BF_FPR, max_tombstone_cap, BF_HASH_FUNCS);
+            m_tombstone_filter = new psudb::BloomFilter<R>(BF_FPR, max_tombstone_cap, BF_HASH_FUNCS);
         }
     }
 
@@ -168,7 +169,7 @@ private:
     size_t m_tombstone_cap;
     
     Wrapped<R>* m_data;
-    BloomFilter<R>* m_tombstone_filter;
+    psudb::BloomFilter<R>* m_tombstone_filter;
 
     alignas(64) std::atomic<size_t> m_tombstonecnt;
     alignas(64) std::atomic<uint32_t> m_reccnt;

@@ -18,8 +18,6 @@
 #include <cstddef>
 #include <string>
 
-#include "util/base.h"
-
 namespace de {
 
 using std::byte;
