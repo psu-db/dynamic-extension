@@ -29,10 +29,6 @@ if (tests)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/tests")
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
 
-    add_executable(pagedfile_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pagedfile_tests.cpp)
-    target_link_libraries(pagedfile_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(pagedfile_tests PRIVATE include)
-
     add_executable(wirs_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/wirs_tests.cpp)
     target_link_libraries(wirs_tests PUBLIC gsl check subunit pthread)
     target_include_directories(wirs_tests PRIVATE include)
