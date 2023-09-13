@@ -207,7 +207,7 @@ struct EuclidPoint{
 template<RecordInterface R>
 struct RecordHash {
     size_t operator()(R const &rec) const {
-        return psudb::hash_bytes((char *) &rec, sizeof(R));
+        return psudb::hash_bytes((std::byte *) &rec, sizeof(R));
     }
 };
 

@@ -19,6 +19,10 @@
 #include "framework/MutableBuffer.h"
 
 namespace de {
+template <RecordInterface R, ShardInterface S, QueryInterface Q>
+class InternalLevel;
+
+
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q>
 class InternalLevel {
@@ -55,7 +59,7 @@ public:
 
     // WARNING: for leveling only.
     // assuming the base level is the level new level is merging into. (base_level is larger.)
-    static InternalLevel* merge_levels(InternalLevel* base_level, InternalLevel* new_level) {
+    static std::shared_ptr<InternalLevel> merge_levels(InternalLevel* base_level, InternalLevel* new_level) {
         assert(base_level->m_level_no > new_level->m_level_no || (base_level->m_level_no == 0 && new_level->m_level_no == 0));
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
@@ -64,7 +68,7 @@ public:
         shards[1] = new_level->m_shards[0];
 
         res->m_shards[0] = new S(shards, 2);
-        return res;
+        return std::shared_ptr<InternalLevel>(res);
     }
 
     void append_buffer(Buffer* buffer) {

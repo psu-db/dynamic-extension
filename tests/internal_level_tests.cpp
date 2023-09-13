@@ -37,11 +37,11 @@ START_TEST(t_memlevel_merge)
     ck_assert_int_eq(merging_level->get_record_count(), 100);
 
     auto old_level = base_level;
-    base_level = ILevel::merge_levels(old_level, merging_level);
+    auto new_level = ILevel::merge_levels(old_level, merging_level);
 
     delete old_level;
     delete merging_level;
-    ck_assert_int_eq(base_level->get_record_count(), 200);
+    ck_assert_int_eq(new_level->get_record_count(), 200);
 
     delete base_level;
     delete tbl1;
