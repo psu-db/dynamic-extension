@@ -23,19 +23,6 @@
 
 namespace de {
 
-
-struct MergeTask {
-    level_index m_source_level;
-    level_index m_target_level;
-    size_t m_size;
-    size_t m_timestamp;
-
-    bool operator<(MergeTask &other) {
-        return m_timestamp < other.m_timestamp;
-    }
-};
-
-
 template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L>
 class Scheduler {
     typedef ExtensionStructure<R, S, Q, L> Structure;
@@ -52,7 +39,20 @@ public:
     {}
 
     bool schedule_merge(Structure *version, MutableBuffer<R> *buffer) {
-        // FIXME: this is a non-concurrent implementation
+        /*
+         * Get list of individual level reconstructions that are necessary
+         * for completing the overall merge
+         */
+        std::vector<MergeTask> merges = version->get_merge_tasks(buffer->get_record_count());
+
+        /*
+         * Schedule the merge tasks (FIXME: currently this just 
+         * executes them sequentially in a blocking fashion)
+         */
+        for (ssize_t i=merges.size()-1; i>=0; i--) {
+            version->merge_levels(merges[i].m_target_level, merges[i].m_source_level);
+        }
+
         return version->merge_buffer(buffer);
     }
 

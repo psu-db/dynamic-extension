@@ -87,6 +87,10 @@ public:
     }
 
     Shard *get_merged_shard() {
+        if (m_shard_cnt == 0) {
+            return nullptr;
+        }
+
         Shard *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
