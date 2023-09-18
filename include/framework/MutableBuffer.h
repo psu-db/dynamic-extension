@@ -52,6 +52,7 @@ public:
 
         if (m_data) free(m_data);
         if (m_tombstone_filter) delete m_tombstone_filter;
+        if (m_merge_data) free(m_merge_data);
     }
 
     template <typename R_ = R>

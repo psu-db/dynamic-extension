@@ -40,7 +40,10 @@ public:
         : m_scale_factor(scale_factor)
         , m_max_delete_prop(max_delete_prop)
         , m_sched(memory_budget, thread_cnt)
-    { }
+    {
+        m_buffers.push_back(new Buffer(buffer_cap, max_delete_prop*buffer_cap));
+        m_versions.push_back(new Structure(buffer_cap, scale_factor, max_delete_prop));
+    }
 
     ~DynamicExtension() {
         for (size_t i=0; i<m_buffers.size(); i++) {
