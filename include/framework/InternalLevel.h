@@ -34,6 +34,7 @@ public:
     , m_shard_cnt(0)
     , m_shards(shard_cap, nullptr)
     , m_owns(shard_cap, true)
+    , m_pending_shard(nullptr)
     {}
 
     // Create a new memory level sharing the shards and repurposing it as previous level_no + 1
@@ -42,7 +43,9 @@ public:
     : m_level_no(level->m_level_no + 1)
     , m_shard_cnt(level->m_shard_cnt)
     , m_shards(level->m_shards.size(), nullptr)
-    , m_owns(level->m_owns.size(), true) {
+    , m_owns(level->m_owns.size(), true) 
+    , m_pending_shard(nullptr)
+    {
         assert(m_shard_cnt == 1 && m_shards.size() == 1);
 
         for (size_t i=0; i<m_shards.size(); i++) {
@@ -55,6 +58,8 @@ public:
         for (size_t i=0; i<m_shards.size(); i++) {
             if (m_owns[i]) delete m_shards[i];
         }
+
+        delete m_pending_shard;
     }
 
     // WARNING: for leveling only.
@@ -72,18 +77,43 @@ public:
     }
 
     void append_buffer(Buffer* buffer) {
-        assert(m_shard_cnt < m_shards.size());
+        if (m_shard_cnt == m_shards.size()) {
+            assert(m_pending_shard == nullptr);
+            m_pending_shard = new S(buffer);
+            return;
+        }
+
         m_shards[m_shard_cnt] = new S(buffer);
         m_owns[m_shard_cnt] = true;
         ++m_shard_cnt;
     }
 
     void append_merged_shards(InternalLevel* level) {
-        assert(m_shard_cnt < m_shards.size());
+        if (m_shard_cnt == m_shards.size()) {
+            m_pending_shard = new S(level->m_shards.data(), level->m_shard_cnt);
+            return;
+        }
+
         m_shards[m_shard_cnt] = new S(level->m_shards.data(), level->m_shard_cnt);
         m_owns[m_shard_cnt] = true;
 
         ++m_shard_cnt;
+    }
+
+
+    void finalize() {
+        if (m_pending_shard) {
+            for (size_t i=0; i<m_shards.size(); i++) {
+                if (m_owns[i]) {
+                    delete m_shards[i];
+                    m_owns[i] = false;
+                }
+            }
+
+            m_shards[0] = m_pending_shard;
+            m_owns[0] = true;
+            m_pending_shard = nullptr;
+        }
     }
 
     Shard *get_merged_shard() {
@@ -206,6 +236,9 @@ private:
     size_t m_shard_size_cap;
 
     std::vector<Shard*> m_shards;
+
+    Shard *m_pending_shard;
+
     std::vector<bool> m_owns;
 
     InternalLevel *clone() {
