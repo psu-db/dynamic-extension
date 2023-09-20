@@ -312,6 +312,7 @@ public:
             m_levels[base_level] = InternalLevel<R, Shard, Q>::merge_levels(m_levels[base_level].get(), m_levels[incoming_level].get());
         } else {
             m_levels[base_level]->append_merged_shards(m_levels[incoming_level].get());
+            m_levels[base_level]->finalize();
         }
 
         m_levels[incoming_level] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor));

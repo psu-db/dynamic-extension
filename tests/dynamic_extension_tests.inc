@@ -45,6 +45,25 @@ START_TEST(t_insert)
 END_TEST
 
 
+START_TEST(t_debug_insert)
+{
+    auto ext_wirs = new DE(100, 2, 1);
+
+    uint64_t key = 0;
+    uint32_t val = 0;
+    for (size_t i=0; i<1000; i++) {
+        WRec r = {key, val, 1};
+        ck_assert_int_eq(ext_wirs->insert(r), 1);
+        ck_assert_int_eq(ext_wirs->get_record_count(), i+1);
+        key++;
+        val++;
+    }
+
+    delete ext_wirs;
+}
+END_TEST
+
+
 START_TEST(t_insert_with_mem_merges)
 {
     auto ext_wirs = new DE(100, 2, 1);
@@ -329,8 +348,12 @@ START_TEST(t_static_structure)
     }
 
     size_t deletes = 0;
+    size_t t_reccnt = 0;
+    size_t k=0;
     for (auto rec : records) {
+        k++;
         ck_assert_int_eq(ext_wirs->insert(rec), 1);
+        t_reccnt++;
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
             std::vector<WRec> del_vec;
@@ -378,6 +401,7 @@ Suite *unit_testing()
     TCase *insert = tcase_create("de::DynamicExtension<WIRS>::insert Testing");
     tcase_add_test(insert, t_insert);
     tcase_add_test(insert, t_insert_with_mem_merges);
+    tcase_add_test(insert, t_debug_insert);
     suite_add_tcase(unit, insert);
 
     TCase *sampling = tcase_create("de::DynamicExtension<WIRS>::range_sample Testing");

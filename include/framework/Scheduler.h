@@ -68,7 +68,7 @@ public:
          * Schedule the merge tasks (FIXME: currently this just 
          * executes them sequentially in a blocking fashion)
          */
-        for (ssize_t i=merges.size()-1; i>=0; i--) {
+        for (ssize_t i=0; i<merges.size(); i++) {
             merges[i].m_timestamp = m_timestamp.fetch_add(1);
             m_merge_queue_lock.lock();
             m_merge_queue.push(merges[i]);
@@ -120,6 +120,7 @@ private:
 
     void run_merge(MergeTask task, Structure *version) {
         version->merge_levels(task.m_target_level, task.m_source_level); 
+
         if (!version->validate_tombstone_proportion(task.m_target_level)) {
             auto tasks = version->get_merge_tasks(task.m_target_level);    
             /*
@@ -188,7 +189,6 @@ private:
     std::thread m_sched_thrd;
 
     bool m_shutdown;
-
 };
 
 }

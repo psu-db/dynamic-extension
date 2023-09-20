@@ -106,6 +106,7 @@ public:
             for (size_t i=0; i<m_shards.size(); i++) {
                 if (m_owns[i]) {
                     delete m_shards[i];
+                    m_shards[i] = nullptr;
                     m_owns[i] = false;
                 }
             }
@@ -113,6 +114,7 @@ public:
             m_shards[0] = m_pending_shard;
             m_owns[0] = true;
             m_pending_shard = nullptr;
+            m_shard_cnt = 1;
         }
     }
 
@@ -241,13 +243,15 @@ private:
 
     std::vector<bool> m_owns;
 
-    InternalLevel *clone() {
-        auto new_level = new InternalLevel(m_level_no, m_shards.size());
+    std::shared_ptr<InternalLevel> clone() {
+        auto new_level = std::make_shared<InternalLevel>(m_level_no, m_shards.size());
         for (size_t i=0; i<m_shard_cnt; i++) {
             new_level->m_shards[i] = m_shards[i];
             new_level->m_owns[i] = true;
             m_owns[i] = false;
         }
+
+        return new_level;
     }
 };
 
