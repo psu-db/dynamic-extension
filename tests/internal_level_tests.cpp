@@ -10,10 +10,10 @@
  *
  */
 #include "shard/WIRS.h"
-#include "framework/InternalLevel.h"
-#include "framework/RecordInterface.h"
-#include "framework/QueryInterface.h"
-#include "framework/ShardInterface.h"
+#include "framework/structure/InternalLevel.h"
+#include "framework/interface/Record.h"
+#include "framework/interface/Query.h"
+#include "framework/interface/Shard.h"
 
 #include "testing.h"
 

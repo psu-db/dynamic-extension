@@ -18,8 +18,8 @@
 
 #include "util/types.h"
 #include "psu-util/alignment.h"
-#include "framework/MutableBuffer.h"
-#include "framework/RecordInterface.h"
+#include "framework/structure/MutableBuffer.h"
+#include "framework/interface/Record.h"
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;

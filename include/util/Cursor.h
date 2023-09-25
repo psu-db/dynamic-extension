@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#include "framework/RecordInterface.h"
+#include "framework/ShardRequirements.h"
 
 #include "psu-ds/BloomFilter.h"
 #include "psu-ds/PriorityQueue.h"

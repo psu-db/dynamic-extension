@@ -15,7 +15,7 @@
 #include <algorithm>
 
 #include "testing.h"
-#include "framework/MutableBuffer.h"
+#include "framework/structure/MutableBuffer.h"
 
 #include <check.h>
 

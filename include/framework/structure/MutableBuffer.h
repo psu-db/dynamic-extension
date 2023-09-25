@@ -22,7 +22,7 @@
 #include "psu-ds/BloomFilter.h"
 #include "psu-ds/Alias.h"
 #include "psu-util/timer.h"
-#include "framework/RecordInterface.h"
+#include "framework/interface/Record.h"
 
 using psudb::CACHELINE_SIZE;
 

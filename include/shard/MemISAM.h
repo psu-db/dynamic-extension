@@ -14,7 +14,8 @@
 #include <queue>
 #include <memory>
 
-#include "framework/MutableBuffer.h"
+#include "framework/ShardRequirements.h"
+
 #include "util/bf_config.h"
 #include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"

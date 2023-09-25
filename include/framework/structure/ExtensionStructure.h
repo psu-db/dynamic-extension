@@ -14,33 +14,19 @@
 #include <cstdio>
 #include <vector>
 
-#include "framework/MutableBuffer.h"
-#include "framework/InternalLevel.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
-#include "framework/RecordInterface.h"
+#include "framework/structure/MutableBuffer.h"
+#include "framework/structure/InternalLevel.h"
+#include "framework/interface/Shard.h"
+#include "framework/interface/Query.h"
+#include "framework/interface/Record.h"
 
-#include "framework/Configuration.h"
+#include "framework/util/Configuration.h"
+#include "framework/scheduling/Task.h"
 
 #include "psu-util/timer.h"
 #include "psu-ds/Alias.h"
 
 namespace de {
-
-struct MergeTask {
-    level_index m_source_level;
-    level_index m_target_level;
-    size_t m_size;
-    size_t m_timestamp;
-
-    friend bool operator<(const MergeTask &self, const MergeTask &other) {
-        return self.m_timestamp < other.m_timestamp;
-    }
-
-    friend bool operator>(const MergeTask &self, const MergeTask &other) {
-        return self.m_timestamp > other.m_timestamp;
-    }
-};
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING>
 class ExtensionStructure {
@@ -233,6 +219,7 @@ public:
             MergeTask task;
             task.m_source_level = i - 1;
             task.m_target_level = i;
+            task.m_type = TaskType::MERGE;
 
             /*
              * The amount of storage required for the merge accounts

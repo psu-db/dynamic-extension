@@ -14,22 +14,24 @@
 #include <cstdio>
 #include <vector>
 
-#include "framework/MutableBuffer.h"
-#include "framework/InternalLevel.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
-#include "framework/RecordInterface.h"
-#include "framework/ExtensionStructure.h"
+#include "framework/structure/MutableBuffer.h"
+#include "framework/structure/InternalLevel.h"
+#include "framework/interface/Shard.h"
+#include "framework/interface/Query.h"
+#include "framework/interface/Record.h"
+#include "framework/interface/Query.h"
+#include "framework/interface/Scheduler.h"
+#include "framework/structure/ExtensionStructure.h"
 
-#include "framework/Configuration.h"
-#include "framework/Scheduler.h"
+#include "framework/util/Configuration.h"
+#include "framework/scheduling/SerialScheduler.h"
 
 #include "psu-util/timer.h"
 #include "psu-ds/Alias.h"
 
 namespace de {
 
-template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING, DeletePolicy D=DeletePolicy::TAGGING>
+template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING, DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SCHED=SerialScheduler<R, S, Q, L>>
 class DynamicExtension {
     typedef S Shard;
     typedef MutableBuffer<R> Buffer;
@@ -219,7 +221,7 @@ public:
     }
 
 private:
-    Scheduler<R, S, Q, L> m_sched;
+    SCHED m_sched;
 
     std::vector<Buffer *> m_buffers;
     std::vector<Structure *> m_versions;

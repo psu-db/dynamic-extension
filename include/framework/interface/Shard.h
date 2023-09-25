@@ -11,7 +11,7 @@
 #include <concepts>
 
 #include "util/types.h"
-#include "framework/RecordInterface.h"
+#include "framework/interface/Record.h"
 
 namespace de {
 

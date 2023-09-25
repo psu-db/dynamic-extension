@@ -15,15 +15,12 @@
 #include <memory>
 #include <concepts>
 
+#include "framework/ShardRequirements.h"
 #include "ts/builder.h"
 #include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"
 #include "psu-ds/BloomFilter.h"
 #include "util/bf_config.h"
-#include "framework/MutableBuffer.h"
-#include "framework/RecordInterface.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
 
 using psudb::CACHELINE_SIZE;
 using psudb::BloomFilter;

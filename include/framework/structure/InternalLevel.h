@@ -13,10 +13,10 @@
 #include <memory>
 
 #include "util/types.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
-#include "framework/RecordInterface.h"
-#include "framework/MutableBuffer.h"
+#include "framework/interface/Shard.h"
+#include "framework/interface/Query.h"
+#include "framework/interface/Record.h"
+#include "framework/structure/MutableBuffer.h"
 
 namespace de {
 template <RecordInterface R, ShardInterface S, QueryInterface Q>
