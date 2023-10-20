@@ -93,7 +93,10 @@ public:
     inline bool merge_buffer(Buffer *buffer) {
         assert(can_merge_with(0, buffer->get_record_count()));
 
+        buffer->start_merge();
         merge_buffer_into_l0(buffer);
+        buffer->finish_merge();
+
         buffer->truncate();
 
         return true;
@@ -216,10 +219,7 @@ public:
         }
 
         for (level_index i=merge_base_level; i>0; i--) {
-            MergeTask task;
-            task.m_source_level = i - 1;
-            task.m_target_level = i;
-            task.m_type = TaskType::MERGE;
+            MergeTask task = {i-1, i};
 
             /*
              * The amount of storage required for the merge accounts
@@ -237,7 +237,7 @@ public:
                     reccnt += m_levels[i]->get_record_count();
                 }
             }
-            task.m_size = 2* reccnt * sizeof(R);
+            //task.m_size = 2* reccnt * sizeof(R);
 
             merges.push_back(task);
         }
@@ -249,7 +249,7 @@ public:
     /*
      *
      */
-    std::vector<MergeTask> get_merge_tasks_from_level(size_t source_level) {
+    std::vector<MergeTask> get_merge_tasks_from_level(level_index source_level) {
         std::vector<MergeTask> merges;
 
         level_index merge_base_level = find_mergable_level(source_level);
@@ -258,10 +258,7 @@ public:
         }
 
         for (level_index i=merge_base_level; i>source_level; i--) {
-            MergeTask task;
-            task.m_source_level = i - 1;
-            task.m_target_level = i;
-
+            MergeTask task = {i - 1, i};
             /*
              * The amount of storage required for the merge accounts
              * for the cost of storing the new records, along with the
@@ -278,12 +275,12 @@ public:
                     reccnt += m_levels[i]->get_record_count();
                 }
             }
-            task.m_size = 2* reccnt * sizeof(R);
+//            task.m_size = 2* reccnt * sizeof(R);
 
             merges.push_back(task);
         }
 
-        return std::move(merges);
+        return merges;
     }
 
     /*

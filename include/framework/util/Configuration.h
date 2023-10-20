@@ -50,5 +50,6 @@ enum class DeletePolicy {
 };
 
 typedef ssize_t level_index;
+typedef std::pair<level_index, level_index> MergeTask;
 
 }

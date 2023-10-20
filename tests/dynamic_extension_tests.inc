@@ -213,10 +213,11 @@ START_TEST(t_range_sample_weighted)
     for (size_t i=0; i<1000; i++) {
 
         auto result = ext_wirs->query(&p);
-        total_samples += result.size();
+        auto r = result.get();
+        total_samples += r.size();
 
-        for (size_t j=0; j<result.size(); j++) {
-            cnt[result[j].key - 1]++;
+        for (size_t j=0; j<r.size(); j++) {
+            cnt[r[j].key - 1]++;
         }
     }
 
