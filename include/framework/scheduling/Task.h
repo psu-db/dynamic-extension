@@ -8,20 +8,20 @@
 #include <functional>
 
 #include "framework/util/Configuration.h"
+#include "framework/scheduling/Epoch.h"
 
 namespace de {
 
+template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L>
 struct MergeArgs {
-    void *version;
-    void *buffer;
+    Epoch<R, S, Q, L> *epoch;
     std::vector<MergeTask> merges;
     std::promise<bool> result;
 };
 
-template <typename R>
+template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L>
 struct QueryArgs {
-    void *version;
-    void *buffer;
+    Epoch<R, S, Q, L> *epoch;
     std::promise<std::vector<R>> result_set;
     void *query_parms;
 };

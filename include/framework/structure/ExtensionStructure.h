@@ -302,11 +302,37 @@ public:
         m_levels[incoming_level] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor));
     }
 
+    bool take_reference() {
+        m_refcnt.fetch_add(1);
+        return true;
+    }
+
+    bool release_reference() {
+        assert(m_refcnt.load() > 0);
+        m_refcnt.fetch_add(-1);
+        return true;
+    }
+
+    size_t get_reference_count() {
+        return m_refcnt.load();
+    }
+
+    std::vector<void *> get_query_states(std::vector<std::pair<ShardID, Shard*>> &shards, void *parms) {
+        std::vector<void*> states;
+
+        for (auto &level : m_levels) {
+            level->get_query_states(shards, states, parms);
+        }
+
+        return states;
+    }
 
 private:
     size_t m_scale_factor;
     double m_max_delete_prop;
     size_t m_buffer_size;
+
+    std::atomic<size_t> m_refcnt;
 
     std::vector<std::shared_ptr<InternalLevel<R, S, Q>>> m_levels;
 

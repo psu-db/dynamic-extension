@@ -13,6 +13,7 @@
 #include <numeric>
 #include <cstdio>
 #include <vector>
+#include <set>
 
 #include "framework/structure/MutableBuffer.h"
 #include "framework/structure/InternalLevel.h"
@@ -24,7 +25,8 @@
 #include "framework/structure/ExtensionStructure.h"
 
 #include "framework/util/Configuration.h"
-#include "framework/scheduling/SerialScheduler.h"
+#include "framework/scheduling/FIFOScheduler.h"
+#include "framework/scheduling/Epoch.h"
 
 #include "psu-util/timer.h"
 #include "psu-ds/Alias.h"
@@ -32,20 +34,30 @@
 namespace de {
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING, 
-          DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SCHED=SerialScheduler>
+          DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SCHED=FIFOScheduler>
 class DynamicExtension {
     typedef S Shard;
     typedef MutableBuffer<R> Buffer;
     typedef ExtensionStructure<R, S, Q, L> Structure;
+    typedef Epoch<R, S, Q, L> Epoch;
+    typedef BufferView<R, Q> BufView;
+
 public:
     DynamicExtension(size_t buffer_cap, size_t scale_factor, double max_delete_prop, size_t memory_budget=0, 
                      size_t thread_cnt=16)
         : m_scale_factor(scale_factor)
         , m_max_delete_prop(max_delete_prop)
         , m_sched(memory_budget, thread_cnt)
+        , m_buffer_capacity(buffer_cap)
+        , m_buffer_delete_capacity(max_delete_prop*buffer_cap)
     {
+        auto buf = new Buffer(m_buffer_capacity, m_buffer_delete_capacity);
+        auto vers = new Structure(m_buffer_capacity, m_scale_factor, m_max_delete_prop);
+        auto epoch = new Epoch(vers, buf);
+
         m_buffers.push_back(new Buffer(buffer_cap, max_delete_prop*buffer_cap));
         m_versions.push_back(new Structure(buffer_cap, scale_factor, max_delete_prop));
+        m_epochs.push_back({0, epoch});
     }
 
     ~DynamicExtension() {
@@ -63,10 +75,10 @@ public:
     }
 
     int erase(const R &rec) {
-        Buffer *buffer = get_buffer();
-
         if constexpr (D == DeletePolicy::TAGGING) {
-            if (get_active_version()->tagged_delete(rec)) {
+            BufView buffers = get_active_epoch()->get_buffer_view();
+
+            if (get_active_epoch()->get_structure()->tagged_delete(rec)) {
                 return 1;
             }
 
@@ -75,7 +87,7 @@ public:
              * probably has the lowest probability of having the record,
              * so we'll check it last.
              */
-            return buffer->delete_record(rec);
+            return buffers->delete_record(rec);
         }
 
         /*
@@ -85,43 +97,43 @@ public:
     }
 
     std::future<std::vector<R>> query(void *parms) {
-        return schedule_query(get_active_version(), get_buffer(), parms);
+        return schedule_query(get_active_epoch()->get_structure(), get_active_epoch()->get_buffers()[0], parms);
     }
 
     size_t get_record_count() {
-        size_t cnt = get_buffer()->get_record_count();
-        return cnt + get_active_version()->get_record_count();
+        size_t cnt = get_active_epoch()->get_buffer_view().get_record_count();
+        return cnt + get_active_epoch()->get_structure()->get_record_count();
     }
 
     size_t get_tombstone_cnt() {
-        size_t cnt = get_buffer()->get_tombstone_count();
-        return cnt + get_active_version()->get_tombstone_cnt();
+        size_t cnt = get_active_epoch()->get_buffer_view().get_tombstone_count();
+        return cnt + get_active_epoch()->get_structure()->get_tombstone_cnt();
     }
 
     size_t get_height() {
-        return get_active_version()->get_height();
+        return get_active_epoch()->get_structure()->get_height();
     }
 
     size_t get_memory_usage() {
-        auto vers = get_active_version();
-        auto buffer = get_buffer();
+        auto vers = get_active_epoch()->get_structure()->get_memory_usage();
+        auto buffer = get_active_epoch()->get_buffer_view().get_memory_usage();
 
-        return vers.get_memory_usage() + buffer->get_memory_usage();
+        return vers + buffer;
     }
 
     size_t get_aux_memory_usage() {
-        auto vers = get_active_version();
-        auto buffer = get_buffer();
+        auto vers = get_active_epoch()->get_structure()->get_aux_memory_usage();
+        auto buffer = get_active_epoch()->get_buffer_view().get_aux_memory_usage();
 
-        return vers.get_aux_memory_usage() + buffer->get_aux_memory_usage();
+        return vers + buffer;
     }
 
     size_t get_buffer_capacity() {
-        return get_height()->get_capacity();
+        return m_buffer_capacity;
     }
     
     Shard *create_static_structure() {
-        auto vers = get_active_version();
+        auto vers = get_active_epoch()->get_structure();
         std::vector<Shard *> shards;
 
         if (vers->get_levels().size() > 0) {
@@ -132,7 +144,9 @@ public:
             }
         }
 
-        shards.emplace_back(new S(get_buffer()));
+        // FIXME: should use a buffer view--or perhaps some sort of a 
+        // raw record iterator model.
+        shards.emplace_back(new S(get_active_epoch()->get_buffers()[0]));
 
         Shard *shards_array[shards.size()];
 
@@ -158,33 +172,121 @@ public:
      * tombstone proportion invariant. 
      */
     bool validate_tombstone_proportion() {
-        return get_active_version()->validate_tombstone_proportion();
+        return get_active_epoch()->get_structure()->validate_tombstone_proportion();
     }
 
 private:
     SCHED m_sched;
 
-    std::vector<Buffer *> m_buffers;
-    std::vector<Structure *> m_versions;
+    std::mutex m_struct_lock;
+    std::set<Buffer*> m_buffers;
+    std::set<Structure *> m_versions;
 
     std::atomic<size_t> m_current_epoch;
+    std::unordered_map<size_t, Epoch *> m_epochs;
 
     size_t m_scale_factor;
     double m_max_delete_prop;
+    size_t m_buffer_capacity;
+    size_t m_buffer_delete_capacity;
 
-    Buffer *get_buffer() {
-        return m_buffers[0];
+    Epoch *get_active_epoch() {
+        return m_epochs[m_current_epoch.load()];
     }
 
-    Structure *get_active_version() {
-        return m_versions[0];
+    void advance_epoch() {
+        size_t new_epoch_num = m_current_epoch.load() + 1;
+        Epoch *new_epoch = m_epochs[new_epoch_num];
+        Epoch *old_epoch = m_epochs[m_current_epoch.load()];
+
+        // Update the new Epoch to contain the buffers
+        // from the old one that it doesn't currently have
+        size_t old_buffer_cnt = new_epoch->clear_buffers();
+        for (size_t i=old_buffer_cnt; i<old_epoch->get_buffers().size(); i++) { 
+            new_epoch->add_buffer(old_epoch->get_buffers[i]);
+        }
+        m_current_epoch.fetch_add(1);
+    }
+
+    /*
+     * Creates a new epoch by copying the currently active one. The new epoch's
+     * structure will be a shallow copy of the old one's. 
+     */
+    Epoch *create_new_epoch() {
+        auto new_epoch = get_active_epoch()->clone();
+        std::unique_lock<std::mutex> m_struct_lock;
+        m_versions.insert(new_epoch->get_structure());
+        m_epochs.insert({m_current_epoch.load() + 1, new_epoch});
+        m_struct_lock.release();
+
+        return new_epoch;
+    }
+
+    /*
+     * Add a new empty buffer to the specified epoch. This is intended to be used
+     * when a merge is triggered, to allow for inserts to be sustained in the new
+     * buffer while a new epoch is being created in the background. Returns a
+     * pointer to the newly created buffer.
+     */
+    Buffer *add_empty_buffer(Epoch *epoch) {
+        auto new_buffer = Buffer(m_buffer_capacity, m_buffer_delete_capacity); 
+
+        std::unique_lock<std::mutex> m_struct_lock;
+        m_buffers.insert(new_buffer);
+        m_struct_lock.release();
+
+        epoch->add_buffer(new_buffer);
+        return new_buffer;
+    }
+
+    void retire_epoch(Epoch *epoch) {
+        /*
+         * Epochs with currently active jobs cannot
+         * be retired. By the time retire_epoch is called,
+         * it is assumed that a new epoch is active, meaning
+         * that the epoch to be retired should no longer
+         * accumulate new active jobs. Eventually, this
+         * number will hit zero and the function will
+         * proceed.
+         *
+         * FIXME: this can be replaced with a cv, which
+         * is probably a superior solution in this case
+         */
+        while (epoch->get_active_job_num() > 0) 
+            ;
+
+        /*
+         * The epoch's destructor will handle releasing
+         * all the references it holds
+         */ 
+        delete epoch;
+
+        /*
+         * Following the epoch's destruction, any buffers
+         * or structures with no remaining references can
+         * be safely freed.
+         */
+        std::unique_lock<std::mutex> lock(m_struct_lock);
+        for (auto buf : m_buffers) {
+            if (buf->get_reference_count() == 0) {
+                m_buffers.erase(buf);
+                delete buf;
+            }
+        }
+
+        for (auto vers : m_versions) {
+            if (vers->get_reference_count() == 0) {
+                m_versions.erase(vers);
+                delete vers;
+            }
+        }
     }
 
     static void merge(void *arguments) {
-        MergeArgs *args = (MergeArgs *) arguments;
+        MergeArgs<R, S, Q, L> *args = (MergeArgs<R, S, Q, L> *) arguments;
 
-        Structure *vers = (Structure *) args->version;
-        Buffer *buff = (Buffer *) args->buffer;
+        Structure *vers = args->epoch->get_structure();
+        Buffer *buff = (Buffer *) args->epoch->get_buffers()[0];
 
         for (ssize_t i=args->merges.size() - 1; i>=0; i--) {
             vers->merge_levels(args->merges[i].second, args->merges[i].first);
@@ -193,98 +295,94 @@ private:
         vers->merge_buffer(buff);
 
         args->result.set_value(true);
+        args->epoch->end_job();
         delete args;
     }
 
-    static void async_query(void *arguments) {
-        QueryArgs<R> *args = (QueryArgs<R> *) arguments;
+    static std::vector<R> finalize_query_result(std::vector<std::vector<Wrapped<R>>> &query_results, void *parms, 
+                                                std::vector<void *> &shard_states, std::vector<void *> &buffer_states) {
+        auto result = Q::merge(query_results, parms);
 
-        auto buffer = (Buffer *) args->buffer;
-        auto vers = (Structure *) args->version;
+        for (size_t i=0; i<buffer_states.size(); i++) {
+            Q::delete_buffer_query_state(buffer_states[i]);
+        }
+
+        for (size_t i=0; i<states.size(); i++) {
+            Q::delete_query_state(shard_states[i]);
+        }
+
+        return result;
+    }
+
+    static void async_query(void *arguments) {
+        QueryArgs<R, S, Q, L> *args = (QueryArgs<R, S, Q, L> *) arguments;
+
+        auto buffers = args->epoch->get_buffer_view();
+        auto vers = args->epoch->get_structure();
         void *parms = args->query_parms;
 
-        // Get the buffer query state
-        auto buffer_state = Q::get_buffer_query_state(buffer, parms);
+        // Get the buffer query states
+        std::vector<void *> buffer_states = buffers->get_buffer_query_states(parms);
 
         // Get the shard query states
         std::vector<std::pair<ShardID, Shard*>> shards;
-        std::vector<void*> states;
+        std::vector<void *> shard_states = vers->get_query_states(shards, parms);
 
-        for (auto &level : vers->get_levels()) {
-            level->get_query_states(shards, states, parms);
-        }
+        Q::process_query_states(parms, shard_states, buffer_states);
 
-        Q::process_query_states(parms, states, buffer_state);
-
-        std::vector<std::vector<Wrapped<R>>> query_results(shards.size() + 1);
+        std::vector<std::vector<Wrapped<R>>> query_results(shards.size() + buffer_states.size());
 
         // Execute the query for the buffer
-        auto buffer_results = Q::buffer_query(buffer, buffer_state, parms);
-        query_results[0] = std::move(filter_deletes(buffer_results, {-1, -1}, buffer, vers));
-        if constexpr (Q::EARLY_ABORT) {
-            if (query_results[0].size() > 0) {
-                auto result = Q::merge(query_results, parms);
-                for (size_t i=0; i<states.size(); i++) {
-                    Q::delete_query_state(states[i]);
-                }
+        std::vector<std::vector<Wrapped<R>>> buffer_results(buffer_states.size());
+        for (size_t i=0; i<buffer_states.size(); i++) {
+            auto buffer_results = Q::buffer_query(buffers->get_buffers[i], buffer_states[i], parms);
+            query_results[i] = std::move(filter_deletes(buffer_results, {-1, -1}, buffers, vers));
 
-                Q::delete_buffer_query_state(buffer_state);
-                return result;
-            }
-        }
-
-        // Execute the query for each shard
-        for (size_t i=0; i<shards.size(); i++) {
-            auto shard_results = Q::query(shards[i].second, states[i], parms);
-            query_results[i+1] = std::move(filter_deletes(shard_results, shards[i].first, buffer, vers));
             if constexpr (Q::EARLY_ABORT) {
-                if (query_results[i].size() > 0) {
-                    auto result = Q::merge(query_results, parms);
-                    for (size_t i=0; i<states.size(); i++) {
-                        Q::delete_query_state(states[i]);
-                    }
-
-                    Q::delete_buffer_query_state(buffer_state);
-
-                    return result;
+                if (query_results[i] > 0) {
+                    return finalize_query_result(query_results, parms, buffer_states, shard_states);
                 }
             }
         }
         
-        // Merge the results together
-        auto result = Q::merge(query_results, parms);
-
-        for (size_t i=0; i<states.size(); i++) {
-            Q::delete_query_state(states[i]);
+        // Execute the query for each shard
+        for (size_t i=0; i<shards.size(); i++) {
+            auto shard_results = Q::query(shards[i].second, states[i], parms);
+            query_results[i+buffer_states.size()] = std::move(filter_deletes(shard_results, shards[i].first, buffers, vers));
+            if constexpr (Q::EARLY_ABORT) {
+                if (query_results[i+buffer_states.size()].size() > 0) {
+                    return finalize_query_result(query_results, parms, buffer_states, shard_states);
+                }
+            }
         }
-
-        Q::delete_buffer_query_state(buffer_state);
-        buffer->release_reference();
-
+        
+        // Merge the results together and finalize the job
+        auto result = finalize_query_result(query_results, parms, buffer_states, shard_states);
         args->result_set.set_value(std::move(result));
+
+        args->epoch->end_job();
         delete args;
     }
 
-    std::future<bool> schedule_merge(Structure *version, Buffer *buffer) {
-        MergeArgs *args = new MergeArgs();
-        args->merges = version->get_merge_tasks(buffer->get_record_count());
-        args->buffer = buffer;
-        args->version = version;
+    std::future<bool> schedule_merge() {
+        auto epoch = get_active_epoch();
+        epoch->start_job();
 
+        MergeArgs<R, S, Q, L> *args = new MergeArgs<R, S, Q, L>();
+        args->epoch = epoch;
+        args->merges = epoch->get_structure()->get_merge_tasks(epoch->get_buffers()[0]);
         m_sched.schedule_job(merge, 0, args);
 
         return args->result.get_future();
     }
 
-    std::future<std::vector<R>> schedule_query(Structure *version, Buffer *buffer, void *query_parms) {
-        buffer->take_reference(); // FIXME: this is wrong. The buffer and version need to be
-                                  //        taken atomically, together.
+    std::future<std::vector<R>> schedule_query(void *query_parms) {
+        auto epoch = get_active_epoch();
+        epoch->start_job();
         
-        QueryArgs<R> *args = new QueryArgs<R>();
-        args->buffer = buffer;
-        args->version = version;
+        QueryArgs<R, S, Q, L> *args = new QueryArgs<R, S, Q, L>();
+        args->epoch = epoch;
         args->query_parms = query_parms;
-
         m_sched.schedule_job(async_query, 0, args);
 
         return args->result_set.get_future();
@@ -292,20 +390,19 @@ private:
 
     int internal_append(const R &rec, bool ts) {
         Buffer *buffer;
-        while (!(buffer = get_buffer()))
+        while (!(buffer = get_active_epoch()->get_active_buffer()))
             ;
         
         if (buffer->is_full()) {
-            auto vers = get_active_version();
+            auto vers = get_active_epoch()->get_structure();
             auto res = schedule_merge(vers, buffer);
             res.get();
         }
 
-
         return buffer->append(rec, ts);
     }
 
-    static std::vector<Wrapped<R>> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, Buffer *buffer, Structure *vers) {
+    static std::vector<Wrapped<R>> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, BufView *buffers, Structure *vers) {
         if constexpr (!Q::SKIP_DELETE_FILTER) {
             return records;
         }
@@ -334,7 +431,7 @@ private:
                 continue;
             } 
 
-            if (buffer->check_tombstone(rec.rec)) {
+            if (buffers->check_tombstone(rec.rec)) {
                 continue;
             }
 

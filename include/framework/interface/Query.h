@@ -14,7 +14,6 @@
 
 template <typename Q>
 concept QueryInterface = requires(Q q, void *p, std::vector<void*> &s) {
-
 /*
     {q.get_query_state(p, p)} -> std::convertible_to<void*>;
     {q.get_buffer_query_state(p, p)};
@@ -27,7 +26,7 @@ concept QueryInterface = requires(Q q, void *p, std::vector<void*> &s) {
     {Q::SKIP_DELETE_FILTER} -> std::convertible_to<bool>;
     //{Q::get_query_state(p, p)} -> std::convertible_to<void*>;
     //{Q::get_buffer_query_state(p, p)} -> std::convertible_to<void*>;
-    {Q::process_query_states(p, s, p)};
+    {Q::process_query_states(p, s, s)};
 
     {Q::delete_query_state(std::declval<void*>())} -> std::same_as<void>;
     {Q::delete_buffer_query_state(p)};

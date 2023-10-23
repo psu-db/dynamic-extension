@@ -217,6 +217,10 @@ public:
         return true;
     }
 
+    size_t get_reference_count() {
+        return m_refcnt.load();
+    }
+
     bool active_merge() {
         return m_merging.load();
     }

@@ -29,19 +29,19 @@
 
 namespace de {
 
-class SerialScheduler {
+class FIFOScheduler {
 public:
-    SerialScheduler(size_t memory_budget, size_t thread_cnt)
+    FIFOScheduler(size_t memory_budget, size_t thread_cnt)
       : m_memory_budget((memory_budget) ? memory_budget : UINT64_MAX)
       , m_thrd_cnt((thread_cnt) ? thread_cnt: UINT64_MAX)
       , m_used_memory(0)
       , m_used_thrds(0)
       , m_shutdown(false)
     {
-        m_sched_thrd = std::thread(&SerialScheduler::run, this);
+        m_sched_thrd = std::thread(&FIFOScheduler::run, this);
     }
 
-    ~SerialScheduler() {
+    ~FIFOScheduler() {
         shutdown();
 
         m_cv.notify_all();
