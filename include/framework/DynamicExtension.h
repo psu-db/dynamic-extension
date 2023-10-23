@@ -259,6 +259,7 @@ private:
         }
 
         Q::delete_buffer_query_state(buffer_state);
+        buffer->release_reference();
 
         args->result_set.set_value(std::move(result));
         delete args;
@@ -276,10 +277,13 @@ private:
     }
 
     std::future<std::vector<R>> schedule_query(Structure *version, Buffer *buffer, void *query_parms) {
+        buffer->take_reference(); // FIXME: this is wrong. The buffer and version need to be
+                                  //        taken atomically, together.
+        
         QueryArgs<R> *args = new QueryArgs<R>();
         args->buffer = buffer;
         args->version = version;
-        args->buffer = query_parms;
+        args->query_parms = query_parms;
 
         m_sched.schedule_job(async_query, 0, args);
 

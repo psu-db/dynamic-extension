@@ -195,6 +195,7 @@ public:
 
     bool finish_merge() {
         m_merge_lock.unlock();
+        m_merging.store(false);
         return true;
     }
 
