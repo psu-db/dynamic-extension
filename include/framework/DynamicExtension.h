@@ -224,8 +224,10 @@ private:
         _Epoch *new_epoch = m_epochs[new_epoch_num];
         _Epoch *old_epoch = m_epochs[m_current_epoch.load()];
 
-        // Update the new Epoch to contain the buffers
-        // from the old one that it doesn't currently have
+        /*
+         * Update the new Epoch to contain the buffers from the old one 
+         * that it doesn't currently have
+         */
         size_t old_buffer_cnt = new_epoch->clear_buffers();
         for (size_t i=old_buffer_cnt; i<old_epoch->get_buffers().size(); i++) { 
             new_epoch->add_buffer(old_epoch->get_buffers()[i]);
@@ -275,7 +277,6 @@ private:
          * number will hit zero and the function will
          * proceed.
          */
-
         while (!epoch->retirable()) 
             ;
 
@@ -323,7 +324,6 @@ private:
 
         ((DynamicExtension *) args->extension)->advance_epoch();
         
-        // FIXME: this might break things... not sure
         delete args;
     }
     
@@ -334,10 +334,10 @@ private:
         auto vers = args->epoch->get_structure();
         void *parms = args->query_parms;
 
-        // Get the buffer query states
+        /* Get the buffer query states */
         std::vector<void *> buffer_states = buffers.get_query_states(parms);
 
-        // Get the shard query states
+        /* Get the shard query states */
         std::vector<std::pair<ShardID, Shard*>> shards;
         std::vector<void *> states = vers->get_query_states(shards, parms);
 
@@ -370,7 +370,6 @@ private:
             Q::delete_query_state(states[i]);
         }
 
-        // FIXME: this might break things... not sure
         delete args;
     }
 
@@ -430,8 +429,10 @@ private:
         std::vector<Wrapped<R>> processed_records;
         processed_records.reserve(records.size());
 
-        // For delete tagging, we just need to check the delete bit on each
-        // record.
+        /* 
+         * For delete tagging, we just need to check the delete bit 
+         * on each record. 
+         */
         if constexpr (D == DeletePolicy::TAGGING) {
             for (auto &rec : records) {
                 if (rec.is_deleted()) {
@@ -444,8 +445,10 @@ private:
             return processed_records;
         }
 
-        // For tombstone deletes, we need to search for the corresponding 
-        // tombstone for each record.
+        /*
+         * For tombstone deletes, we need to search for the corresponding 
+         * tombstone for each record.
+         */
         for (auto &rec : records) {
            if (rec.is_tombstone()) {
                 continue;
