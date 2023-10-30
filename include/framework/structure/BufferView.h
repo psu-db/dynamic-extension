@@ -116,6 +116,10 @@ public:
         return m_buffers;
     }
 
+    size_t size() {
+        return m_buffers.size();
+    }
+
 private:
     std::vector<Buffer *> m_buffers;
     size_t m_cutoff;

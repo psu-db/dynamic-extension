@@ -105,13 +105,20 @@ public:
     }
 
     size_t get_record_count() {
-        size_t cnt = get_active_epoch()->get_buffer_view().get_record_count();
-        return cnt + get_active_epoch()->get_structure()->get_record_count();
+        auto epoch = get_active_epoch();
+        epoch->start_job();
+        auto t =  epoch->get_buffer_view().get_record_count() + epoch->get_structure()->get_record_count();
+        epoch->end_job();
+
+        return t;
     }
 
-    size_t get_tombstone_cnt() {
-        size_t cnt = get_active_epoch()->get_buffer_view().get_tombstone_count();
-        return cnt + get_active_epoch()->get_structure()->get_tombstone_cnt();
+    size_t get_tombstone_count() {
+        auto epoch = get_active_epoch();
+        epoch->start_job();
+        auto t = epoch->get_buffer_view().get_tombstone_count() + epoch->get_structure()->get_tombstone_count();
+        epoch->end_job();
+        return t;
     }
 
     size_t get_height() {
@@ -119,17 +126,21 @@ public:
     }
 
     size_t get_memory_usage() {
-        auto vers = get_active_epoch()->get_structure()->get_memory_usage();
-        auto buffer = get_active_epoch()->get_buffer_view().get_memory_usage();
+        auto epoch = get_active_epoch();
+        epoch->start_job();
+        auto t= epoch->get_buffer_view().get_memory_usage() + epoch->get_structure()->get_memory_usage();
+        epoch->end_job();
 
-        return vers + buffer;
+        return t;
     }
 
     size_t get_aux_memory_usage() {
-        auto vers = get_active_epoch()->get_structure()->get_aux_memory_usage();
-        auto buffer = get_active_epoch()->get_buffer_view().get_aux_memory_usage();
+        auto epoch = get_active_epoch();
+        epoch->start_job();
+        auto t = epoch->get_buffer_view().get_aux_memory_usage() + epoch->get_structure()->get_aux_memory_usage();
+        epoch->end_job();
 
-        return vers + buffer;
+        return t;
     }
 
     size_t get_buffer_capacity() {
@@ -137,7 +148,11 @@ public:
     }
     
     Shard *create_static_structure() {
-        auto vers = get_active_epoch()->get_structure();
+        auto epoch = get_active_epoch();
+        auto bv = epoch->get_buffer_view();
+        epoch->start_job();
+
+        auto vers = epoch->get_structure();
         std::vector<Shard *> shards;
 
         if (vers->get_levels().size() > 0) {
@@ -148,9 +163,11 @@ public:
             }
         }
 
-        // FIXME: should use a buffer view--or perhaps some sort of a 
-        // raw record iterator model.
-        shards.emplace_back(new S(get_active_epoch()->get_buffers()[0]));
+        // FIXME: With an interface adjustment, this could be done in
+        //        one call, rather than a loop.
+        for (size_t i=bv.size() - 1; i>=0; i--) {
+            shards.emplace_back(new S(bv.get_buffers()[i]));
+        }
 
         Shard *shards_array[shards.size()];
 
@@ -167,6 +184,7 @@ public:
             delete shard;
         }
 
+        epoch->end_job();
         return flattened;
     }
 
