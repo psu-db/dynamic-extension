@@ -448,17 +448,21 @@ public:
         return state;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, std::vector<void*> &buff_states) {
+        // FIXME: need to redo for the buffer vector interface
         auto p = (wirs_query_parms<R> *) query_parms;
-        auto bs = (WIRSBufferState<R> *) buff_state;
 
         std::vector<size_t> shard_sample_sizes(shard_states.size()+1, 0);
         size_t buffer_sz = 0;
 
-        std::vector<decltype(R::weight)> weights;
-        weights.push_back(bs->total_weight);
-
         decltype(R::weight) total_weight = 0;
+        std::vector<decltype(R::weight)> weights;
+        for (auto &s : buff_states) {
+            auto state = (WIRSBufferState<R> *) s;
+            total_weight += state->total_weight;
+            weights.push_back(state->total_weight);
+        }
+
         for (auto &s : shard_states) {
             auto state = (WIRSState<R> *) s;
             total_weight += state->total_weight;
@@ -480,8 +484,6 @@ public:
             }
         }
 
-
-        bs->sample_size = buffer_sz;
         for (size_t i=0; i<shard_states.size(); i++) {
             auto state = (WIRSState<R> *) shard_states[i];
             state->sample_size = shard_sample_sizes[i+1];

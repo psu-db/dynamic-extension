@@ -35,7 +35,7 @@ public:
 
     BufferView(std::vector<Buffer*> buffers) 
         : m_buffers(buffers)
-        , m_cutoff(buffers[buffers->size()-1]->get_record_count())
+        , m_cutoff(buffers[buffers.size()-1]->get_record_count())
     {}
 
     ~BufferView() = default;
@@ -102,7 +102,7 @@ public:
         return m_buffers[0]->get_tombstone_capacity();
     }
 
-    std::vector<void *> get_buffer_states(void *parms) {
+    std::vector<void *> get_query_states(void *parms) {
         std::vector<void *> states;
 
         for (auto buf : m_buffers) {

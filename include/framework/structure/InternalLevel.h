@@ -231,6 +231,17 @@ public:
         return (double) tscnt / (double) (tscnt + reccnt);
     }
 
+    std::shared_ptr<InternalLevel> clone() {
+        auto new_level = std::make_shared<InternalLevel>(m_level_no, m_shards.size());
+        for (size_t i=0; i<m_shard_cnt; i++) {
+            new_level->m_shards[i] = m_shards[i];
+            new_level->m_owns[i] = true;
+            m_owns[i] = false;
+        }
+
+        return new_level;
+    }
+
 private:
     ssize_t m_level_no;
     
@@ -243,16 +254,6 @@ private:
 
     std::vector<bool> m_owns;
 
-    std::shared_ptr<InternalLevel> clone() {
-        auto new_level = std::make_shared<InternalLevel>(m_level_no, m_shards.size());
-        for (size_t i=0; i<m_shard_cnt; i++) {
-            new_level->m_shards[i] = m_shards[i];
-            new_level->m_owns[i] = true;
-            m_owns[i] = false;
-        }
-
-        return new_level;
-    }
 };
 
 }

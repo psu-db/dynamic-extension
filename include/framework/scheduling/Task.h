@@ -17,6 +17,7 @@ struct MergeArgs {
     Epoch<R, S, Q, L> *epoch;
     std::vector<MergeTask> merges;
     std::promise<bool> result;
+    void *extension;
 };
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L>

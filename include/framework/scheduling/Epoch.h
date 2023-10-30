@@ -41,7 +41,7 @@ public:
         assert(m_active_jobs.load() == 0);
 
         for (auto buf : m_buffers) {
-            buf.release_reference();
+            buf->release_reference();
         }
 
         if (m_structure) {
@@ -111,6 +111,8 @@ public:
         if (m_structure) {
             epoch->m_structure = m_structure->copy();
         }
+
+        return epoch;
     }
 
 private:
