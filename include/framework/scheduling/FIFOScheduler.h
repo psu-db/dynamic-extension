@@ -44,13 +44,18 @@ public:
     ~FIFOScheduler() {
         shutdown();
 
+        std::unique_lock<std::mutex> lk(m_cv_lock);
         m_cv.notify_all();
+        lk.release();
+
         m_sched_thrd.join();
     }
 
     void schedule_job(std::function<void(void*)> job, size_t size, void *args) {
         size_t ts = m_counter.fetch_add(1);
         m_task_queue.push(Task(size, ts, job, args));
+
+        std::unique_lock<std::mutex> lk(m_cv_lock);
         m_cv.notify_all();
     }
 
