@@ -1,11 +1,13 @@
 /*
  * include/util/Cursor.h
  *
- * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
  *
  * All rights reserved. Published under the Modified BSD License.
  *
+ * A simple record cursor type with associated methods for help in
+ * merging record sets when constructing shards. 
  */
 #pragma once
 

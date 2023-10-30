@@ -1,8 +1,7 @@
 /*
- * include/framework/DynamicExtension.h
+ * include/framework/util/Configuration.h
  *
- * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
- *                    Dong Xie <dongx@psu.edu>
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *
  * All rights reserved. Published under the Modified BSD License.
  *

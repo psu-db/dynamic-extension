@@ -1,9 +1,13 @@
 /*
+ * include/framework/scheduling/Task.h
+ *
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
+ *
+ * All rights reserved. Published under the Modified BSD License.
  *
  */
 #pragma once
 
-#include <variant>
 #include <future>
 #include <functional>
 

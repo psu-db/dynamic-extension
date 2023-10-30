@@ -1,7 +1,7 @@
 /*
  * include/shard/MemISAM.h
  *
- * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
  *
  * All rights reserved. Published under the Modified BSD License.
@@ -262,6 +262,10 @@ public:
 
     size_t get_memory_usage() {
         return m_internal_node_cnt * inmem_isam_node_size + m_alloc_size;
+    }
+
+    size_t get_aux_memory_usage() {
+        return 0;
     }
 
 private:

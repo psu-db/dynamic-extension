@@ -2,7 +2,7 @@
  * include/shard/WIRS.h
  *
  * Copyright (C) 2023 Dong Xie <dongx@psu.edu>
- *                    Douglas Rumbaugh <drumbaugh@psu.edu>
+ *                    Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
  * All rights reserved. Published under the Modified BSD License.
  *
@@ -258,6 +258,10 @@ public:
 
     size_t get_memory_usage() {
         return m_alloc_size + m_node_cnt * sizeof(wirs_node<Wrapped<R>>);
+    }
+
+    size_t get_aux_memory_usage() {
+        return 0;
     }
 
 private:

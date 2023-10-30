@@ -235,6 +235,10 @@ public:
         return m_pgm.size_in_bytes() + m_alloc_size;
     }
 
+    size_t get_aux_memory_usage() {
+        return 0;
+    }
+
     size_t get_lower_bound(const K& key) const {
         auto bound = m_pgm.search(key);
         size_t idx = bound.lo;

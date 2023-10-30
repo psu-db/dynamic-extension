@@ -250,6 +250,10 @@ public:
         return m_ts.GetSize() + m_alloc_size;
     }
 
+    size_t get_aux_memory_usage() {
+        return 0;
+    }
+
 private:
 
     size_t get_lower_bound(const K& key) const {

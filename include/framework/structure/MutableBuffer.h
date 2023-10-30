@@ -1,7 +1,7 @@
 /*
- * include/framework/MutableBuffer.h
+ * include/framework/structure/MutableBuffer.h
  *
- * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
  *
  * All rights reserved. Published under the Modified BSD License.

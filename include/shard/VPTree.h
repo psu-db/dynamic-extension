@@ -1,9 +1,9 @@
 /*
  * include/shard/VPTree.h
  *
- * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu>
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
- * All outsides reserved. Published under the Modified BSD License.
+ * All rights reserved. Published under the Modified BSD License.
  *
  */
 #pragma once
@@ -239,6 +239,11 @@ public:
     size_t get_memory_usage() {
         return m_node_cnt * sizeof(vpnode) + m_reccnt * sizeof(R*) + m_alloc_size;
     }
+
+    size_t get_aux_memory_usage() {
+        return 0;
+    }
+
 
 private:
 

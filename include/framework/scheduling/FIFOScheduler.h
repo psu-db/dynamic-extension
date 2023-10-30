@@ -1,8 +1,7 @@
 /*
- * include/framework/Scheduler.h
+ * include/framework/scheduling/FIFOScheduler.h
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
- *                    Dong Xie <dongx@psu.edu>
  *
  * All rights reserved. Published under the Modified BSD License.
  *
