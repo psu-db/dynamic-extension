@@ -79,6 +79,8 @@ public:
     }
 
     int erase(const R &rec) {
+        // FIXME: delete tagging will require a lot of extra work to get
+        //        operating "correctly" in a concurrent environment.
         if constexpr (D == DeletePolicy::TAGGING) {
             BufView buffers = get_active_epoch()->get_buffer_view();
 
@@ -118,6 +120,7 @@ public:
         epoch->start_job();
         auto t = epoch->get_buffer_view().get_tombstone_count() + epoch->get_structure()->get_tombstone_count();
         epoch->end_job();
+
         return t;
     }
 
@@ -271,11 +274,9 @@ private:
          * accumulate new active jobs. Eventually, this
          * number will hit zero and the function will
          * proceed.
-         *
-         * FIXME: this can be replaced with a cv, which
-         * is probably a superior solution in this case
          */
-        while (epoch->get_active_job_num() > 0) 
+
+        while (!epoch->retirable()) 
             ;
 
         /*

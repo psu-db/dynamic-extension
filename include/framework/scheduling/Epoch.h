@@ -62,6 +62,11 @@ public:
 
     void end_job() {
         m_active_jobs.fetch_add(-1);
+
+        if (m_active_jobs.load() == 0) {
+            std::unique_lock<std::mutex> lk(m_cv_lock);
+            m_active_cv.notify_all();  
+        }
     }
 
     size_t get_active_job_num() {
@@ -115,9 +120,34 @@ public:
         return epoch;
     }
 
+    /*
+     * 
+     */
+    bool retirable() {
+        /* if epoch is currently active, then it cannot be retired */
+        if (m_active) {
+            return false;
+        }
+
+        /* 
+         * if the epoch has active jobs but is not itself active, 
+         * wait for them to finish and return true. If there are 
+         * not active jobs, return true immediately 
+         */
+        while (m_active_jobs > 0) {
+            std::unique_lock<std::mutex> lk(m_cv_lock);
+            m_active_cv.wait(lk);
+        }
+
+        return true;
+    }
+
 private:
     Structure *m_structure;
     std::vector<Buffer *> m_buffers;
+
+    std::condition_variable m_active_cv;
+    std::mutex m_cv_lock;
 
     /*
      * The number of currently active jobs
@@ -126,5 +156,6 @@ private:
      * when this number is 0.
      */
     std::atomic<size_t> m_active_jobs;
+    bool m_active;
 };
 }
