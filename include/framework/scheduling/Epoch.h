@@ -33,6 +33,8 @@ public:
         , m_structure(structure)
         , m_active_jobs(0) 
     {
+        structure->take_reference();
+        buff->take_reference();
         m_buffers.push_back(buff);
     }
 
