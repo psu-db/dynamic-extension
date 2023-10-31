@@ -14,6 +14,8 @@
 #include <memory>
 #include <concepts>
 #include <map>
+#include <unordered_map>
+#include <functional>
 
 #include "framework/ShardRequirements.h"
 
