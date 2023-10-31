@@ -15,11 +15,12 @@
 
 #include "testing.h"
 #include "framework/DynamicExtension.h"
+#include "framework/scheduling/SerialScheduler.h"
 #include "shard/WIRS.h"
 
 #include <check.h>
 using namespace de;
 
-typedef DynamicExtension<WRec, WIRS<WRec>, WIRSQuery<WRec>, LayoutPolicy::TEIRING, DeletePolicy::TAGGING> DE;
+typedef DynamicExtension<WRec, WIRS<WRec>, WIRSQuery<WRec>, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
 
 #include "dynamic_extension_tests.inc"

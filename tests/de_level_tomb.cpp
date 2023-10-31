@@ -20,6 +20,6 @@
 #include <check.h>
 using namespace de;
 
-typedef DynamicExtension<WRec, WIRS<WRec>, WIRSQuery<WRec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE> DE;
+typedef DynamicExtension<WRec, WIRS<WRec>, WIRSQuery<WRec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
 
 #include "dynamic_extension_tests.inc"
