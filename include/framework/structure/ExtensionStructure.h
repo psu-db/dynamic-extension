@@ -54,7 +54,7 @@ public:
      * need to be forwarded to the appropriate structures manually.
      */
     ExtensionStructure<R, S, Q, L> *copy() {
-       auto new_struct = new ExtensionStructure<R, S, Q, L>(m_scale_factor, m_max_delete_prop, m_buffer_size);
+       auto new_struct = new ExtensionStructure<R, S, Q, L>(m_buffer_size, m_scale_factor, m_max_delete_prop);
         for (size_t i=0; i<m_levels.size(); i++) {
             new_struct->m_levels.push_back(m_levels[i]->clone());
         }
@@ -432,7 +432,7 @@ private:
      * vector.
      */
     inline bool can_merge_with(level_index idx, size_t incoming_rec_cnt) {
-        if (idx>= m_levels.size() || !m_levels[idx]) {
+        if (idx >= m_levels.size() || !m_levels[idx]) {
             return false;
         }
 
