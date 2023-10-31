@@ -42,13 +42,10 @@ public:
         }
 
         m_refcnt.store(0);
-        m_deferred_truncate.store(false);
-        m_merging.store(false);
     }
 
     ~MutableBuffer() {
         assert(m_refcnt.load() == 0);
-        assert(m_merging.load() == false);
 
         if (m_data) free(m_data);
         if (m_tombstone_filter) delete m_tombstone_filter;
@@ -90,22 +87,11 @@ public:
     }
 
     bool truncate() {
-
-        while (active_merge() || m_refcnt.load() > 0)
-            ;
-
-        m_merge_lock.lock();
-
-        while (m_refcnt > 0) 
-            ;
-
         m_tombstonecnt.store(0);
         m_reccnt.store(0);
         m_weight.store(0);
         m_max_weight.store(0);
         if (m_tombstone_filter) m_tombstone_filter->clear();
-
-        m_merge_lock.unlock();
 
         return true;
     }
@@ -176,26 +162,15 @@ public:
         return m_max_weight;
     }
 
+    /*
+     * This operation assumes that no other threads have write access
+     * to the buffer. This will be the case in normal operation, at
+     * present, but may change (in which case this approach will need
+     * to be adjusted). Other threads having read access is perfectly
+     * acceptable, however.
+     */
     bool start_merge() {
-        if (m_merge_lock.try_lock()) {
-            /* there cannot already been an active merge */
-            if (m_merging.load()) {
-                m_merge_lock.unlock();
-                return false;
-            } 
-
-            m_merging.store(true);
-            memcpy(m_merge_data, m_data, sizeof(Wrapped<R>) * m_reccnt.load());
-            return true;
-        }
-
-        /* lock could not be obtained */
-        return false;
-    }
-
-    bool finish_merge() {
-        m_merge_lock.unlock();
-        m_merging.store(false);
+        memcpy(m_merge_data, m_data, sizeof(Wrapped<R>) * m_reccnt.load());
         return true;
     }
 
@@ -208,21 +183,13 @@ public:
     }
 
     bool release_reference() {
+        assert(m_refcnt > 0);
         m_refcnt.fetch_add(-1);
-
-        if (m_refcnt.load() == 0 && m_deferred_truncate.load()) {
-            assert(this->truncate());
-        }
-
         return true;
     }
 
     size_t get_reference_count() {
         return m_refcnt.load();
-    }
-
-    bool active_merge() {
-        return m_merging.load();
     }
 
 private:
@@ -245,14 +212,8 @@ private:
     alignas(64) std::atomic<uint32_t> m_reccnt;
     alignas(64) std::atomic<double> m_weight;
     alignas(64) std::atomic<double> m_max_weight;
-    alignas(64) std::atomic<bool> m_merging;
-    alignas(64) std::atomic<bool> m_deferred_truncate;
+
     alignas(64) std::atomic<size_t> m_refcnt;
-
-    alignas(64) std::mutex m_merge_lock;
-    alignas(64) std::mutex m_trunc_lock;
-    alignas(64) std::condition_variable m_trunc_signal;
-
 };
 
 }

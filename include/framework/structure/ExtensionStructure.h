@@ -93,11 +93,11 @@ public:
     inline bool merge_buffer(Buffer *buffer) {
         assert(can_merge_with(0, buffer->get_record_count()));
 
+        // FIXME: this step makes an extra copy of the buffer,
+        //        which could be avoided by adjusting the shard
+        //        reconstruction process a bit, possibly.
         buffer->start_merge();
         merge_buffer_into_l0(buffer);
-        buffer->finish_merge();
-
-        buffer->truncate();
 
         return true;
     }
