@@ -55,22 +55,22 @@ public:
         auto vers = new Structure(m_buffer_capacity, m_scale_factor, m_max_delete_prop);
         auto epoch = new _Epoch(vers, buf);
 
-        m_buffers.insert(new Buffer(buffer_cap, max_delete_prop*buffer_cap));
-        m_versions.insert(new Structure(buffer_cap, scale_factor, max_delete_prop));
+        m_buffers.insert(buf);
+        m_versions.insert(vers);
         m_epochs.insert({0, epoch});
     }
 
     ~DynamicExtension() {
+        for (auto e : m_epochs) {
+            delete e.second;
+        }
+
         for (auto e : m_buffers) {
             delete e;
         }
 
         for (auto e : m_versions) {
             delete e;
-        }
-
-        for (auto e : m_epochs) {
-            delete e.second;
         }
     }
 
