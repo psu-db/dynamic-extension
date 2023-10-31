@@ -43,23 +43,20 @@ public:
     ~FIFOScheduler() {
         shutdown();
 
-        std::unique_lock<std::mutex> lk(m_cv_lock);
         m_cv.notify_all();
-        lk.release();
-
         m_sched_thrd.join();
     }
 
     void schedule_job(std::function<void(void*)> job, size_t size, void *args) {
+        std::unique_lock<std::mutex> lk(m_cv_lock);
         size_t ts = m_counter.fetch_add(1);
         m_task_queue.push(Task(size, ts, job, args));
 
-        std::unique_lock<std::mutex> lk(m_cv_lock);
         m_cv.notify_all();
     }
 
     void shutdown() {
-        m_shutdown = true;
+        m_shutdown.store(true);
     }
 
 private:
@@ -68,7 +65,7 @@ private:
     size_t m_memory_budget;
     size_t m_thrd_cnt;
 
-    bool m_shutdown; 
+    std::atomic<bool> m_shutdown; 
 
     std::atomic<size_t> m_counter;
     std::mutex m_cv_lock;
@@ -80,6 +77,7 @@ private:
     std::atomic<size_t> m_used_memory;
 
     void schedule_next() {
+        assert(m_task_queue.size() > 0);
         auto t = m_task_queue.pop();
         t();
     }
@@ -92,8 +90,7 @@ private:
             while (m_task_queue.size() > 0 && m_used_thrds.load() < m_thrd_cnt) {
                 schedule_next();
             }
-            cv_lock.unlock();
-        } while(!m_shutdown);
+        } while(!m_shutdown.load());
     }
 };
 
