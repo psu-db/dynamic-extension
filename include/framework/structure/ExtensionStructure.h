@@ -46,7 +46,8 @@ public:
      * Create a shallow copy of this extension structure. The copy will share references to the
      * same levels/shards as the original, but will have its own lists. As all of the shards are
      * immutable (with the exception of deletes), the copy can be restructured with merges, etc., 
-     * without affecting the original.
+     * without affecting the original. The copied structure will be returned with a reference
+     * count of 0; generally you will want to immediately call take_reference() on it.
      *
      * NOTE: When using tagged deletes, a delete of a record in the original structure will affect
      * the copy, so long as the copy retains a reference to the same shard as the original. This could
@@ -58,6 +59,8 @@ public:
         for (size_t i=0; i<m_levels.size(); i++) {
             new_struct->m_levels.push_back(m_levels[i]->clone());
         }
+
+        new_struct->m_refcnt = 0;
 
         return new_struct;
     }

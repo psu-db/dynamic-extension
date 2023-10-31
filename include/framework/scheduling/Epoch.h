@@ -22,16 +22,20 @@ private:
     typedef ExtensionStructure<R, S, Q, L> Structure;
     typedef BufferView<R, Q> BufView;
 public:
-    Epoch()
+    Epoch(size_t number=0)
         : m_buffers()
         , m_structure(nullptr)
         , m_active_jobs(0) 
+        , m_active(true)
+        , m_epoch_number(number)
     {}
 
-    Epoch(Structure *structure, Buffer *buff) 
+    Epoch(size_t number, Structure *structure, Buffer *buff) 
         : m_buffers()
         , m_structure(structure)
         , m_active_jobs(0) 
+        , m_active(true)
+        , m_epoch_number(number)
     {
         structure->take_reference();
         buff->take_reference();
@@ -62,6 +66,7 @@ public:
     }
 
     void end_job() {
+        assert(m_active_jobs.load() > 0);
         m_active_jobs.fetch_add(-1);
 
         if (m_active_jobs.load() == 0) {
@@ -72,6 +77,10 @@ public:
 
     size_t get_active_job_num() {
         return m_active_jobs.load();
+    }
+
+    size_t get_epoch_number() {
+        return m_epoch_number;
     }
 
     Structure *get_structure() {
@@ -109,16 +118,27 @@ public:
 
     /*
      * Returns a new Epoch object that is a copy of this one. The new object will also contain
-     * a copy of the m_structure, rather than a reference to the same one.
+     * a copy of the m_structure, rather than a reference to the same one. The epoch number of
+     * the new epoch will be set to the provided argument.
      */
-    Epoch *clone() {
-        auto epoch = new Epoch();
+    Epoch *clone(size_t number) {
+        auto epoch = new Epoch(number);
         epoch->m_buffers = m_buffers;
         if (m_structure) {
             epoch->m_structure = m_structure->copy();
+            /* the copy routine returns a structure with 0 references */
+            epoch->m_structure->take_reference();
+        }
+
+        for (auto b : m_buffers) {
+            b->take_reference();
         }
 
         return epoch;
+    }
+
+    void set_inactive() {
+        m_active = false;
     }
 
     /*
@@ -158,5 +178,6 @@ private:
      */
     std::atomic<size_t> m_active_jobs;
     bool m_active;
+    size_t m_epoch_number;
 };
 }
