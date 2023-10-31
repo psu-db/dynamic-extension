@@ -26,6 +26,7 @@
 
 #include "framework/util/Configuration.h"
 #include "framework/scheduling/FIFOScheduler.h"
+#include "framework/scheduling/SerialScheduler.h"
 #include "framework/scheduling/Epoch.h"
 
 #include "psu-util/timer.h"
@@ -82,6 +83,7 @@ public:
         // FIXME: delete tagging will require a lot of extra work to get
         //        operating "correctly" in a concurrent environment.
         if constexpr (D == DeletePolicy::TAGGING) {
+            static_assert(std::same_as<SCHED, SerialScheduler>, "Tagging is only supported in single-threaded operation");
             BufView buffers = get_active_epoch()->get_buffer_view();
 
             if (get_active_epoch()->get_structure()->tagged_delete(rec)) {
