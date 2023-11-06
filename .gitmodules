@@ -16,3 +16,6 @@
 [submodule "external/psudb-common"]
 	path = external/psudb-common
 	url = git@github.com:PSU-Database-Systems-Group/psudb-common
+[submodule "external/ctpl"]
+	path = external/ctpl
+	url = git@github.com:vit-vit/CTPL.git

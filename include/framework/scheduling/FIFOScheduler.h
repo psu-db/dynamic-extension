@@ -24,20 +24,26 @@
 #include "framework/structure/ExtensionStructure.h"
 #include "framework/scheduling/Task.h"
 
+#include "ctpl/ctpl.h"
 #include "psu-ds/LockedPriorityQueue.h"
 
 namespace de {
 
+
 class FIFOScheduler {
+private:
+    static const size_t DEFAULT_MAX_THREADS = 8;
+
 public:
     FIFOScheduler(size_t memory_budget, size_t thread_cnt)
       : m_memory_budget((memory_budget) ? memory_budget : UINT64_MAX)
-      , m_thrd_cnt((thread_cnt) ? thread_cnt: UINT64_MAX)
+      , m_thrd_cnt((thread_cnt) ? thread_cnt: DEFAULT_MAX_THREADS)
       , m_used_memory(0)
       , m_used_thrds(0)
       , m_shutdown(false)
     {
         m_sched_thrd = std::thread(&FIFOScheduler::run, this);
+        m_thrd_pool.resize(m_thrd_cnt);
     }
 
     ~FIFOScheduler() {
@@ -72,6 +78,7 @@ private:
     std::condition_variable m_cv;
 
     std::thread m_sched_thrd;
+    ctpl::thread_pool m_thrd_pool;
 
     std::atomic<size_t> m_used_thrds;
     std::atomic<size_t> m_used_memory;
@@ -79,7 +86,7 @@ private:
     void schedule_next() {
         assert(m_task_queue.size() > 0);
         auto t = m_task_queue.pop();
-        t();
+        m_thrd_pool.push(t);
     }
 
     void run() {
@@ -87,7 +94,7 @@ private:
             std::unique_lock<std::mutex> cv_lock(m_cv_lock);
             m_cv.wait(cv_lock);
 
-            while (m_task_queue.size() > 0 && m_used_thrds.load() < m_thrd_cnt) {
+            while (m_task_queue.size() > 0 && m_thrd_pool.n_idle() > 0) {
                 schedule_next();
             }
         } while(!m_shutdown.load());

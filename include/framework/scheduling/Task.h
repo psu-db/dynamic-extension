@@ -54,7 +54,7 @@ struct Task {
         return self.m_timestamp > other.m_timestamp;
     }
 
-    void operator()() {
+    void operator()(size_t thrd_id) {
         m_job(m_args);
     }
 };

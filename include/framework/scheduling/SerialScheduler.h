@@ -47,7 +47,7 @@ public:
     void schedule_job(std::function<void(void*)> job, size_t size, void *args) {
         size_t ts = m_counter++;
         auto t = Task(size, ts, job, args);
-        t();
+        t(0);
     }
 
     void shutdown() {

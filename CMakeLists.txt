@@ -12,7 +12,7 @@ set(bench false)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
-add_compile_options(-Iinclude -Iexternal/PLEX/include)
+add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal)
 
 if (debug) 
     add_compile_options(-g -O0)
@@ -51,19 +51,19 @@ if (tests)
 
     add_executable(de_tier_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tag.cpp)
     target_link_libraries(de_tier_tag PUBLIC gsl check subunit pthread)
-    target_include_directories(de_tier_tag PRIVATE include external/psudb-common/cpp/include)
+    target_include_directories(de_tier_tag PRIVATE include external/psudb-common/cpp/include external)
 
     add_executable(de_tier_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tomb.cpp)
     target_link_libraries(de_tier_tomb PUBLIC gsl check subunit pthread)
-    target_include_directories(de_tier_tomb PRIVATE include external/psudb-common/cpp/include)
+    target_include_directories(de_tier_tomb PRIVATE include external/psudb-common/cpp/include external)
 
     add_executable(de_level_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tag.cpp)
     target_link_libraries(de_level_tag PUBLIC gsl check subunit pthread)
-    target_include_directories(de_level_tag PRIVATE include external/psudb-common/cpp/include)
+    target_include_directories(de_level_tag PRIVATE include external/psudb-common/cpp/include external)
 
     add_executable(de_level_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tomb.cpp)
     target_link_libraries(de_level_tomb PUBLIC gsl check subunit pthread)
-    target_include_directories(de_level_tomb PRIVATE include external/psudb-common/cpp/include)
+    target_include_directories(de_level_tomb PRIVATE include external/ctpl external/psudb-common/cpp/include external)
     
     add_executable(memisam_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/memisam_tests.cpp)
     target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread)

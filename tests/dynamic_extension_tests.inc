@@ -77,6 +77,8 @@ START_TEST(t_insert_with_mem_merges)
         val++;
     }
 
+    ext_wirs->await_next_epoch();
+
     ck_assert_int_eq(ext_wirs->get_record_count(), 300);
     ck_assert_int_eq(ext_wirs->get_height(), 1);
 
@@ -197,6 +199,9 @@ START_TEST(t_range_sample_weighted)
         WRec r = {keys[i], (uint32_t) i, weight};
         ext_wirs->insert(r);
     }
+
+    ext_wirs->await_next_epoch();
+
     size_t k = 1000;
     uint64_t lower_key = 0;
     uint64_t upper_key = 5;
@@ -276,6 +281,8 @@ START_TEST(t_tombstone_merging_01)
 
         ck_assert(ext_wirs->validate_tombstone_proportion());
     }
+
+    ext_wirs->await_next_epoch();
 
     ck_assert(ext_wirs->validate_tombstone_proportion());
 
