@@ -238,8 +238,17 @@ private:
     }
 
     _Epoch *get_active_epoch_protected() {
-        m_epochs[m_current_epoch.load()]->start_job();
-        return m_epochs[m_current_epoch.load()];
+        ssize_t cur_epoch = -1;
+        do {
+            if (cur_epoch != -1) {
+                m_epochs[cur_epoch]->end_job();
+            }
+
+            cur_epoch = m_current_epoch.load();
+            m_epochs[cur_epoch]->start_job();
+        } while (cur_epoch != m_current_epoch.load());
+
+        return m_epochs[cur_epoch];
     }
 
     void advance_epoch() {
