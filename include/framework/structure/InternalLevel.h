@@ -33,32 +33,10 @@ public:
     : m_level_no(level_no)
     , m_shard_cnt(0)
     , m_shards(shard_cap, nullptr)
-    , m_owns(shard_cap, true)
     , m_pending_shard(nullptr)
     {}
 
-    // Create a new memory level sharing the shards and repurposing it as previous level_no + 1
-    // WARNING: for leveling only.
-    InternalLevel(InternalLevel* level)
-    : m_level_no(level->m_level_no + 1)
-    , m_shard_cnt(level->m_shard_cnt)
-    , m_shards(level->m_shards.size(), nullptr)
-    , m_owns(level->m_owns.size(), true) 
-    , m_pending_shard(nullptr)
-    {
-        assert(m_shard_cnt == 1 && m_shards.size() == 1);
-
-        for (size_t i=0; i<m_shards.size(); i++) {
-            level->m_owns[i] = false;
-            m_shards[i] = level->m_shards[i];
-        }
-    }
-
     ~InternalLevel() { 
-        for (size_t i=0; i<m_shards.size(); i++) {
-            if (m_owns[i]) delete m_shards[i];
-        }
-
         delete m_pending_shard;
     }
 
@@ -69,10 +47,10 @@ public:
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
         Shard* shards[2];
-        shards[0] = base_level->m_shards[0];
-        shards[1] = new_level->m_shards[0];
+        shards[0] = base_level->m_shards[0].get();
+        shards[1] = new_level->m_shards[0].get();
 
-        res->m_shards[0] = new S(shards, 2);
+        res->m_shards[0] = std::make_shared<S>(shards, 2);
         return std::shared_ptr<InternalLevel>(res);
     }
 
@@ -83,19 +61,23 @@ public:
             return;
         }
 
-        m_shards[m_shard_cnt] = new S(buffer);
-        m_owns[m_shard_cnt] = true;
+        m_shards[m_shard_cnt] = std::make_shared<S>(buffer);
         ++m_shard_cnt;
     }
 
     void append_merged_shards(InternalLevel* level) {
+        Shard *shards[level->m_shard_cnt];
+        for (size_t i=0; i<level->m_shard_cnt; i++) {
+            shards[i] = level->m_shards[i].get();
+        }
+
         if (m_shard_cnt == m_shards.size()) {
-            m_pending_shard = new S(level->m_shards.data(), level->m_shard_cnt);
+            m_pending_shard = new S(shards, level->m_shard_cnt);
             return;
         }
 
-        m_shards[m_shard_cnt] = new S(level->m_shards.data(), level->m_shard_cnt);
-        m_owns[m_shard_cnt] = true;
+        auto tmp = new S(shards, level->m_shard_cnt);
+        m_shards[m_shard_cnt] = std::shared_ptr<S>(tmp);
 
         ++m_shard_cnt;
     }
@@ -104,15 +86,10 @@ public:
     void finalize() {
         if (m_pending_shard) {
             for (size_t i=0; i<m_shards.size(); i++) {
-                if (m_owns[i]) {
-                    delete m_shards[i];
-                    m_shards[i] = nullptr;
-                    m_owns[i] = false;
-                }
+                m_shards[i] = nullptr;
             }
 
-            m_shards[0] = m_pending_shard;
-            m_owns[0] = true;
+            m_shards[0] = std::shared_ptr<S>(m_pending_shard);
             m_pending_shard = nullptr;
             m_shard_cnt = 1;
         }
@@ -126,7 +103,7 @@ public:
         Shard *shards[m_shard_cnt];
 
         for (size_t i=0; i<m_shard_cnt; i++) {
-            shards[i] = m_shards[i];
+            shards[i] = m_shards[i].get();
         }
 
         return new S(shards, m_shard_cnt);
@@ -136,8 +113,8 @@ public:
     void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_shards[i]) {
-                auto shard_state = Q::get_query_state(m_shards[i], query_parms);
-                shards.push_back({{m_level_no, (ssize_t) i}, m_shards[i]});
+                auto shard_state = Q::get_query_state(m_shards[i].get(), query_parms);
+                shards.push_back({{m_level_no, (ssize_t) i}, m_shards[i].get()});
                 shard_states.emplace_back(shard_state);
             }
         }
@@ -174,7 +151,7 @@ public:
     }
 
     Shard* get_shard(size_t idx) {
-        return m_shards[idx];
+        return m_shards[idx].get();
     }
 
     size_t get_shard_count() {
@@ -184,7 +161,9 @@ public:
     size_t get_record_count() {
         size_t cnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
-            cnt += m_shards[i]->get_record_count();
+            if (m_shards[i]) {
+                cnt += m_shards[i]->get_record_count();
+            }
         }
 
         return cnt;
@@ -193,7 +172,9 @@ public:
     size_t get_tombstone_count() {
         size_t res = 0;
         for (size_t i = 0; i < m_shard_cnt; ++i) {
-            res += m_shards[i]->get_tombstone_count();
+            if (m_shards[i]) {
+                res += m_shards[i]->get_tombstone_count();
+            }
         }
         return res;
     }
@@ -201,7 +182,9 @@ public:
     size_t get_aux_memory_usage() {
         size_t cnt = 0;
         for (size_t i=0; i<m_shard_cnt; i++) {
-            cnt += m_shards[i]->get_aux_memory_usage();
+            if (m_shards[i]){
+                cnt += m_shards[i]->get_aux_memory_usage();
+            }
         }
 
         return cnt;
@@ -224,7 +207,7 @@ public:
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_shards[i]) {
                 tscnt += m_shards[i]->get_tombstone_count();
-                reccnt += (*m_shards[i])->get_record_count();
+                reccnt += m_shards[i]->get_record_count();
             }
         }
 
@@ -235,8 +218,6 @@ public:
         auto new_level = std::make_shared<InternalLevel>(m_level_no, m_shards.size());
         for (size_t i=0; i<m_shard_cnt; i++) {
             new_level->m_shards[i] = m_shards[i];
-            new_level->m_owns[i] = true;
-            m_owns[i] = false;
         }
 
         return new_level;
@@ -248,12 +229,8 @@ private:
     size_t m_shard_cnt;
     size_t m_shard_size_cap;
 
-    std::vector<Shard*> m_shards;
-
+    std::vector<std::shared_ptr<Shard>> m_shards;
     Shard *m_pending_shard;
-
-    std::vector<bool> m_owns;
-
 };
 
 }
