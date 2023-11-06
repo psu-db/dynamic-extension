@@ -198,8 +198,8 @@ public:
      */
     void await_next_epoch() {
         while (m_current_epoch.load() != m_newest_epoch.load()) {
-            std::unique_lock<std::mutex> m_epoch_cv_lk;
-            m_epoch_cv.wait(m_epoch_cv_lk);
+            std::unique_lock<std::mutex> lk(m_epoch_cv_lk);
+            m_epoch_cv.wait(lk);
         }
 
         return;
