@@ -37,6 +37,6 @@ template <typename S, typename R>
 concept SortedShardInterface = ShardInterface<S> && requires(S s, R r, R *rp) {
     {s.lower_bound(r)} -> std::convertible_to<size_t>;
     {s.upper_bound(r)} -> std::convertible_to<size_t>;
-}
+};
 
 }

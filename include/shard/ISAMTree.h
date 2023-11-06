@@ -1,5 +1,5 @@
 /*
- * include/shard/MemISAM.h
+ * include/shard/ISAMTree.h
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -32,11 +32,8 @@ namespace de {
 thread_local size_t mrun_cancelations = 0;
 
 template <RecordInterface R>
-class MemISAM {
+class ISAMTree {
 private:
-    friend class IRSQuery<R, true>;
-    friend class IRSQuery<R, false>;
-    friend class ISAMRangeQuery<R>;
 
 typedef decltype(R::key) K;
 typedef decltype(R::value) V;
@@ -44,7 +41,7 @@ typedef decltype(R::value) V;
 constexpr static size_t inmem_isam_node_size = 256;
 constexpr static size_t inmem_isam_fanout = inmem_isam_node_size / (sizeof(K) + sizeof(char*));
 
-struct InMemISAMNode {
+struct InternalNode {
     K keys[inmem_isam_fanout];
     char* child[inmem_isam_fanout];
 };
@@ -52,10 +49,10 @@ struct InMemISAMNode {
 constexpr static size_t inmem_isam_leaf_fanout = inmem_isam_node_size / sizeof(R);
 constexpr static size_t inmem_isam_node_keyskip = sizeof(K) * inmem_isam_fanout;
 
-static_assert(sizeof(InMemISAMNode) == inmem_isam_node_size, "node size does not match");
+static_assert(sizeof(InternalNode) == inmem_isam_node_size, "node size does not match");
 
 public:
-    MemISAM(MutableBuffer<R>* buffer)
+    ISAMTree(MutableBuffer<R>* buffer)
     :m_reccnt(0), m_tombstone_cnt(0), m_isam_nodes(nullptr), m_deleted_cnt(0) {
 
         m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
@@ -112,7 +109,7 @@ public:
         auto level_time = TIMER_RESULT();
     }
 
-    MemISAM(MemISAM** runs, size_t len)
+    ISAMTree(ISAMTree** runs, size_t len)
     : m_reccnt(0), m_tombstone_cnt(0), m_deleted_cnt(0), m_isam_nodes(nullptr) {
         std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(len);
@@ -173,7 +170,7 @@ public:
         }
     }
 
-    ~MemISAM() {
+    ~ISAMTree() {
         if (m_data) free(m_data);
         if (m_isam_nodes) free(m_isam_nodes);
         if (m_bf) delete m_bf;
@@ -222,19 +219,18 @@ public:
         return 0;
     }
 
-private:
     size_t get_lower_bound(const K& key) const {
-        const InMemISAMNode* now = m_root;
+        const InternalNode* now = m_root;
         while (!is_leaf(reinterpret_cast<const char*>(now))) {
-            const InMemISAMNode* next = nullptr;
+            const InternalNode* next = nullptr;
             for (size_t i = 0; i < inmem_isam_fanout - 1; ++i) {
                 if (now->child[i + 1] == nullptr || key <= now->keys[i]) {
-                    next = reinterpret_cast<InMemISAMNode*>(now->child[i]);
+                    next = reinterpret_cast<InternalNode*>(now->child[i]);
                     break;
                 }
             }
 
-            now = next ? next : reinterpret_cast<const InMemISAMNode*>(now->child[inmem_isam_fanout - 1]);
+            now = next ? next : reinterpret_cast<const InternalNode*>(now->child[inmem_isam_fanout - 1]);
         }
 
         const Wrapped<R>* pos = reinterpret_cast<const Wrapped<R>*>(now);
@@ -244,17 +240,17 @@ private:
     }
 
     size_t get_upper_bound(const K& key) const {
-        const InMemISAMNode* now = m_root;
+        const InternalNode* now = m_root;
         while (!is_leaf(reinterpret_cast<const char*>(now))) {
-            const InMemISAMNode* next = nullptr;
+            const InternalNode* next = nullptr;
             for (size_t i = 0; i < inmem_isam_fanout - 1; ++i) {
                 if (now->child[i + 1] == nullptr || key < now->keys[i]) {
-                    next = reinterpret_cast<InMemISAMNode*>(now->child[i]);
+                    next = reinterpret_cast<InternalNode*>(now->child[i]);
                     break;
                 }
             }
 
-            now = next ? next : reinterpret_cast<const InMemISAMNode*>(now->child[inmem_isam_fanout - 1]);
+            now = next ? next : reinterpret_cast<const InternalNode*>(now->child[inmem_isam_fanout - 1]);
         }
 
         const Wrapped<R>* pos = reinterpret_cast<const Wrapped<R>*>(now);
@@ -263,6 +259,8 @@ private:
         return pos - m_data;
     }
 
+
+private:
     void build_internal_levels() {
         size_t n_leaf_nodes = m_reccnt / inmem_isam_leaf_fanout + (m_reccnt % inmem_isam_leaf_fanout != 0);
         size_t level_node_cnt = n_leaf_nodes;
@@ -275,11 +273,11 @@ private:
         m_alloc_size = (node_cnt * inmem_isam_node_size) + (CACHELINE_SIZE - (node_cnt * inmem_isam_node_size) % CACHELINE_SIZE);
         assert(m_alloc_size % CACHELINE_SIZE == 0);
 
-        m_isam_nodes = (InMemISAMNode*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
+        m_isam_nodes = (InternalNode*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
         m_internal_node_cnt = node_cnt;
         memset(m_isam_nodes, 0, node_cnt * inmem_isam_node_size);
 
-        InMemISAMNode* current_node = m_isam_nodes;
+        InternalNode* current_node = m_isam_nodes;
 
         const Wrapped<R>* leaf_base = m_data;
         const Wrapped<R>* leaf_stop = m_data + m_reccnt;
@@ -330,8 +328,8 @@ private:
     // Members: sorted data, internal ISAM levels, reccnt;
     Wrapped<R>* m_data;
     psudb::BloomFilter<R> *m_bf;
-    InMemISAMNode* m_isam_nodes;
-    InMemISAMNode* m_root;
+    InternalNode* m_isam_nodes;
+    InternalNode* m_root;
     size_t m_reccnt;
     size_t m_tombstone_cnt;
     size_t m_internal_node_cnt;

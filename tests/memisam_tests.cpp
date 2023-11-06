@@ -1,7 +1,7 @@
 /*
- * tests/irs_tests.cpp
+ * tests/isam_tests.cpp
  *
- * Unit tests for MemISAM (Augmented B+Tree) shard
+ * Unit tests for ISAM Tree shard
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -10,14 +10,15 @@
  *
  */
 
-#include "shard/MemISAM.h"
+#include "shard/ISAMTree.h"
+#include "query/irs.h"
 #include "testing.h"
 
 #include <check.h>
 
 using namespace de;
 
-typedef MemISAM<Rec> Shard;
+typedef ISAMTree<Rec> Shard;
 
 START_TEST(t_mbuffer_init)
 {
@@ -181,15 +182,15 @@ START_TEST(t_irs_query)
     size_t k = 100;
 
     size_t cnt[3] = {0};
-    irs_query_parms<Rec> parms = {lower_key, upper_key, k};
+    irs::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = IRSQuery<Rec, false>::get_query_state(&isam, &parms);
-        ((IRSState<WRec> *) state)->sample_size = k;
-        auto result = IRSQuery<Rec, false>::query(&isam, state, &parms);
+        auto state = irs::Query<Shard, Rec, false>::get_query_state(&isam, &parms);
+        ((irs::State<WRec> *) state)->sample_size = k;
+        auto result = irs::Query<Shard, Rec, false>::query(&isam, state, &parms);
 
         ck_assert_int_eq(result.size(), k);
 
@@ -198,7 +199,7 @@ START_TEST(t_irs_query)
             ck_assert_int_ge(rec.rec.key, lower_key);
         }
 
-        IRSQuery<Rec, false>::delete_query_state(state);
+        irs::Query<Shard, Rec, false>::delete_query_state(state);
     }
 
     gsl_rng_free(parms.rng);
@@ -220,25 +221,25 @@ START_TEST(t_irs_query_merge)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    irs_query_parms<Rec> parms = {lower_key, upper_key, k};
+    irs::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     std::vector<std::vector<de::Wrapped<Rec>>> results(2);
 
     for (size_t i=0; i<1000; i++) {
-        auto state1 = IRSQuery<Rec>::get_query_state(&shard, &parms);
-        ((IRSState<WRec> *) state1)->sample_size = k;
-        results[0] = IRSQuery<Rec>::query(&shard, state1, &parms);
+        auto state1 = irs::Query<Shard, Rec>::get_query_state(&shard, &parms);
+        ((irs::State<WRec> *) state1)->sample_size = k;
+        results[0] = irs::Query<Shard, Rec>::query(&shard, state1, &parms);
 
-        auto state2 = IRSQuery<Rec>::get_query_state(&shard, &parms);
-        ((IRSState<WRec> *) state2)->sample_size = k;
-        results[1] = IRSQuery<Rec>::query(&shard, state2, &parms);
+        auto state2 = irs::Query<Shard, Rec>::get_query_state(&shard, &parms);
+        ((irs::State<WRec> *) state2)->sample_size = k;
+        results[1] = irs::Query<Shard, Rec>::query(&shard, state2, &parms);
 
-        IRSQuery<Rec>::delete_query_state(state1);
-        IRSQuery<Rec>::delete_query_state(state2);
+        irs::Query<Shard, Rec>::delete_query_state(state1);
+        irs::Query<Shard, Rec>::delete_query_state(state2);
     }
 
-    auto merged = IRSQuery<Rec>::merge(results, nullptr);
+    auto merged = irs::Query<Shard, Rec>::merge(results, nullptr);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {
@@ -263,15 +264,15 @@ START_TEST(t_irs_buffer_query_scan)
     size_t k = 100;
 
     size_t cnt[3] = {0};
-    irs_query_parms<Rec> parms = {lower_key, upper_key, k};
+    irs::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = IRSQuery<Rec, false>::get_buffer_query_state(buffer, &parms);
-        ((IRSBufferState<WRec> *) state)->sample_size = k;
-        auto result = IRSQuery<Rec, false>::buffer_query(buffer, state, &parms);
+        auto state = irs::Query<Shard, Rec, false>::get_buffer_query_state(buffer, &parms);
+        ((irs::BufferState<WRec> *) state)->sample_size = k;
+        auto result = irs::Query<Shard, Rec, false>::buffer_query(buffer, state, &parms);
 
         ck_assert_int_eq(result.size(), k);
 
@@ -280,7 +281,7 @@ START_TEST(t_irs_buffer_query_scan)
             ck_assert_int_ge(rec.rec.key, lower_key);
         }
 
-        IRSQuery<Rec, false>::delete_buffer_query_state(state);
+        irs::Query<Shard, Rec, false>::delete_buffer_query_state(state);
     }
 
     gsl_rng_free(parms.rng);
@@ -300,15 +301,15 @@ START_TEST(t_irs_buffer_query_rejection)
     size_t k = 10000;
 
     size_t cnt[3] = {0};
-    irs_query_parms<Rec> parms = {lower_key, upper_key, k};
+    irs::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = IRSQuery<Rec>::get_buffer_query_state(buffer, &parms);
-        ((IRSBufferState<WRec> *) state)->sample_size = k;
-        auto result = IRSQuery<Rec>::buffer_query(buffer, state, &parms);
+        auto state = irs::Query<Shard, Rec>::get_buffer_query_state(buffer, &parms);
+        ((irs::BufferState<WRec> *) state)->sample_size = k;
+        auto result = irs::Query<Shard, Rec>::buffer_query(buffer, state, &parms);
 
         ck_assert_int_gt(result.size(), 0);
         ck_assert_int_le(result.size(), k);
@@ -318,7 +319,7 @@ START_TEST(t_irs_buffer_query_rejection)
             ck_assert_int_ge(rec.rec.key, lower_key);
         }
 
-        IRSQuery<Rec>::delete_buffer_query_state(state);
+        irs::Query<Shard, Rec>::delete_buffer_query_state(state);
     }
 
     gsl_rng_free(parms.rng);
@@ -329,27 +330,27 @@ END_TEST
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("MemISAM Shard Unit Testing");
+    Suite *unit = suite_create("ISAMTree Shard Unit Testing");
 
-    TCase *create = tcase_create("de::MemISAM constructor Testing");
+    TCase *create = tcase_create("de::ISAMTree constructor Testing");
     tcase_add_test(create, t_mbuffer_init);
     tcase_add_test(create, t_irs_init);
     tcase_set_timeout(create, 100);
     suite_add_tcase(unit, create);
 
 
-    TCase *tombstone = tcase_create("de:MemISAM::tombstone cancellation Testing");
+    TCase *tombstone = tcase_create("de:ISAMTree::tombstone cancellation Testing");
     tcase_add_test(tombstone, t_full_cancelation);
     suite_add_tcase(unit, tombstone);
 
 
-    TCase *lookup = tcase_create("de:MemISAM:point_lookup Testing");
+    TCase *lookup = tcase_create("de:ISAMTree:point_lookup Testing");
     tcase_add_test(lookup, t_point_lookup);
     tcase_add_test(lookup, t_point_lookup_miss);
     suite_add_tcase(unit, lookup);
 
 
-    TCase *sampling = tcase_create("de:MemISAM::MemISAMQuery Testing");
+    TCase *sampling = tcase_create("de:ISAMTree::ISAMTreeQuery Testing");
     tcase_add_test(sampling, t_irs_query);
     tcase_add_test(sampling, t_irs_query_merge);
     tcase_add_test(sampling, t_irs_buffer_query_rejection);

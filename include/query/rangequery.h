@@ -8,6 +8,12 @@
  */
 #pragma once
 
+#include "framework/interface/Record.h"
+#include "framework/interface/Shard.h"
+#include "framework/structure/MutableBuffer.h"
+#include "psu-ds/PriorityQueue.h"
+#include "util/Cursor.h"
+
 namespace de { namespace rq {
 
 template <RecordInterface R>
@@ -27,7 +33,7 @@ struct BufferState {
     size_t cutoff;
 };
 
-template <RecordInterface R>
+template <ShardInterface S, RecordInterface R>
 class Query {
 public:
     constexpr static bool EARLY_ABORT=false;
@@ -74,7 +80,7 @@ public:
             ptr++;
         }
 
-        while (ptr->rec.key <= p->upper_bound && ptr < shard->m_data + s->stop_idx) {
+        while (ptr->rec.key <= p->upper_bound && ptr < shard->get_data() + s->stop_idx) {
             records.emplace_back(*ptr);
             ptr++;
         }
@@ -101,7 +107,7 @@ public:
         std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(results.size());
 
-        PriorityQueue<Wrapped<R>> pq(results.size());
+        psudb::PriorityQueue<Wrapped<R>> pq(results.size());
         size_t total = 0;
 		size_t tmp_n = results.size();
         
@@ -126,7 +132,7 @@ public:
 
         while (pq.size()) {
             auto now = pq.peek();
-            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
+            auto next = pq.size() > 1 ? pq.peek(1) : psudb::queue_record<Wrapped<R>>{nullptr, 0};
             if (!now.data->is_tombstone() && next.data != nullptr &&
                 now.data->rec == next.data->rec && next.data->is_tombstone()) {
                 
