@@ -25,6 +25,7 @@ public:
     Epoch(size_t number=0)
         : m_buffers()
         , m_structure(nullptr)
+        , m_active_merge(false)
         , m_active_jobs(0) 
         , m_active(true)
         , m_epoch_number(number)
@@ -34,6 +35,7 @@ public:
         : m_buffers()
         , m_structure(structure)
         , m_active_jobs(0) 
+        , m_active_merge(false)
         , m_active(true)
         , m_epoch_number(number)
     {
@@ -151,6 +153,31 @@ public:
         return epoch;
     }
 
+    /*
+     * Check if a merge can be started from this Epoch.
+     * At present, without concurrent merging, this simply
+     * checks if there is currently a scheduled merge based
+     * on this Epoch. If there is, returns false. If there
+     * isn't, return true and set a flag indicating that
+     * there is an active merge.
+     */
+    bool prepare_merge() {
+        auto old = m_active_merge.load();
+        if (old) {
+            return false;
+        }
+
+        // FIXME: this needs cleaned up
+        while (!m_active_merge.compare_exchange_strong(old, true)) {
+            old = m_active_merge.load();
+            if (old) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     void set_inactive() {
         m_active = false;
     }
@@ -183,6 +210,8 @@ private:
 
     std::condition_variable m_active_cv;
     std::mutex m_cv_lock;
+
+    std::atomic<bool> m_active_merge;
 
     /*
      * The number of currently active jobs
