@@ -169,7 +169,7 @@ public:
 
         // FIXME: With an interface adjustment, this could be done in
         //        one call, rather than a loop.
-        for (size_t i=bv.size() - 1; i>=0; i--) {
+        for (ssize_t i=bv.size() - 1; i>=0; i--) {
             shards.emplace_back(new S(bv.get_buffers()[i]));
         }
 
