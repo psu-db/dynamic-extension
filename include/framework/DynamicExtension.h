@@ -301,13 +301,21 @@ private:
      * buffer while a new epoch is being created in the background. Returns a
      * pointer to the newly created buffer.
      */
-    Buffer *add_empty_buffer(_Epoch *epoch) {
-        auto new_buffer = new Buffer(m_buffer_capacity, m_buffer_delete_capacity); 
+    Buffer *add_empty_buffer(_Epoch *epoch, Buffer *current_buffer=nullptr) {
+        auto temp_buffer = new Buffer(m_buffer_capacity, m_buffer_delete_capacity); 
 
         std::unique_lock<std::mutex> m_struct_lock;
-        epoch->add_buffer(new_buffer);
+        auto new_buffer = epoch->add_buffer(temp_buffer, current_buffer);
+        /* 
+         * if epoch->add_buffer doesn't add the new buffer, this insert 
+         * won't update the buffer set (duplicate insert)
+         */
         m_buffers.insert(new_buffer);
         m_struct_lock.release();
+
+        if (new_buffer != temp_buffer) {
+            delete temp_buffer;
+        }
 
         return new_buffer;
     }

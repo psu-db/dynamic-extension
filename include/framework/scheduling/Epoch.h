@@ -54,11 +54,25 @@ public:
         }
     }
 
-    void add_buffer(Buffer *buf) {
+    Buffer *add_buffer(Buffer *buf, Buffer *cur_buf=nullptr) {
         assert(buf);
+
+        /* 
+         * if a current buffer is specified, only add the
+         * new buffer if the active buffer is the current,
+         * otherwise just return the active buffer (poor man's
+         * CAS).
+         */
+        if (cur_buf) {
+            auto active_buf = get_active_buffer();
+            if (active_buf != cur_buf) {
+                return active_buf;
+            }
+        }
 
         buf->take_reference();
         m_buffers.push_back(buf);
+        return buf;
     }
 
     void start_job() {
