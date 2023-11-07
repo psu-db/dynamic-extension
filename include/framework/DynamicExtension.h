@@ -271,6 +271,7 @@ private:
             // the empty buffer added when the merge was first triggered is also included.
             // Due to the reordering of operations in internal_append, the new buffer exists
             // at the time of the clone, and so is already in the new epoch. 
+            std::unique_lock<std::mutex> lk(m_struct_lock);
             for (size_t i=old_buffer_cnt-1; i<old_epoch->get_buffers().size(); i++) { 
                 new_epoch->add_buffer(old_epoch->get_buffers()[i]);
             }
@@ -361,17 +362,23 @@ private:
          * be safely freed.
          */
         std::unique_lock<std::mutex> lock(m_struct_lock);
-        for (auto buf : m_buffers) {
-            if (buf->get_reference_count() == 0) {
-                m_buffers.erase(buf);
-                delete buf;
+        for (auto itr = m_buffers.begin(); itr != m_buffers.end();) {
+            if ((*itr)->get_reference_count() == 0) {
+                auto tmp = *itr;
+                itr = m_buffers.erase(itr);
+                delete tmp;
+            } else {
+                itr++;
             }
         }
 
-        for (auto vers : m_versions) {
-            if (vers->get_reference_count() == 0) {
-                m_versions.erase(vers);
-                delete vers;
+        for (auto itr = m_versions.begin(); itr != m_versions.end();) {
+            if ((*itr)->get_reference_count() == 0) {
+                auto tmp = *itr;
+                itr = m_versions.erase(itr);
+                delete tmp;
+            } else {
+                itr++;
             }
         }
     }
