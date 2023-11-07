@@ -13,6 +13,7 @@
 #include <functional>
 
 #include "shard/TrieSpline.h"
+#include "query/rangequery.h"
 #include "testing.h"
 
 #include <check.h>
@@ -176,13 +177,13 @@ START_TEST(t_range_query)
     auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
     auto shard = Shard(buffer);
 
-    ts_range_query_parms<Rec> parms;
+    rq::Parms<Rec> parms;
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = TrieSplineRangeQuery<Rec>::get_query_state(&shard, &parms);
-    auto result = TrieSplineRangeQuery<Rec>::query(&shard, state, &parms);
-    TrieSplineRangeQuery<Rec>::delete_query_state(state);
+    auto state = rq::Query<Shard, Rec>::get_query_state(&shard, &parms);
+    auto result = rq::Query<Shard, Rec>::query(&shard, state, &parms);
+    rq::Query<Shard, Rec>::delete_query_state(state);
 
     ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
     for (size_t i=0; i<result.size(); i++) {
@@ -199,13 +200,13 @@ START_TEST(t_buffer_range_query)
 {
     auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
 
-    ts_range_query_parms<Rec> parms;
+    rq::Parms<Rec> parms;
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = TrieSplineRangeQuery<Rec>::get_buffer_query_state(buffer, &parms);
-    auto result = TrieSplineRangeQuery<Rec>::buffer_query(buffer, state, &parms);
-    TrieSplineRangeQuery<Rec>::delete_buffer_query_state(state);
+    auto state = rq::Query<Shard, Rec>::get_buffer_query_state(buffer, &parms);
+    auto result = rq::Query<Shard, Rec>::buffer_query(buffer, state, &parms);
+    rq::Query<Shard, Rec>::delete_buffer_query_state(state);
 
     ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
     for (size_t i=0; i<result.size(); i++) {

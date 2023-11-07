@@ -11,6 +11,7 @@
  */
 
 #include "shard/PGM.h"
+#include "query/rangequery.h"
 #include "testing.h"
 
 #include <check.h>
@@ -144,13 +145,13 @@ START_TEST(t_range_query)
     auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
     auto shard = Shard(buffer);
 
-    pgm_range_query_parms<Rec> parms;
+    rq::Parms<Rec> parms;
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = PGMRangeQuery<Rec>::get_query_state(&shard, &parms);
-    auto result = PGMRangeQuery<Rec>::query(&shard, state, &parms);
-    PGMRangeQuery<Rec>::delete_query_state(state);
+    auto state = rq::Query<Shard, Rec>::get_query_state(&shard, &parms);
+    auto result = rq::Query<Shard, Rec>::query(&shard, state, &parms);
+    rq::Query<Shard, Rec>::delete_query_state(state);
 
     ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
     for (size_t i=0; i<result.size(); i++) {
@@ -167,13 +168,13 @@ START_TEST(t_buffer_range_query)
 {
     auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
 
-    pgm_range_query_parms<Rec> parms;
+    rq::Parms<Rec> parms;
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = PGMRangeQuery<Rec>::get_buffer_query_state(buffer, &parms);
-    auto result = PGMRangeQuery<Rec>::buffer_query(buffer, state, &parms);
-    PGMRangeQuery<Rec>::delete_buffer_query_state(state);
+    auto state = rq::Query<Shard, Rec>::get_buffer_query_state(buffer, &parms);
+    auto result = rq::Query<Shard, Rec>::buffer_query(buffer, state, &parms);
+    rq::Query<Shard, Rec>::delete_buffer_query_state(state);
 
     ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
     for (size_t i=0; i<result.size(); i++) {
@@ -194,21 +195,21 @@ START_TEST(t_range_query_merge)
     auto shard1 = Shard(buffer1);
     auto shard2 = Shard(buffer2);
 
-    pgm_range_query_parms<Rec> parms;
+    rq::Parms<Rec> parms;
     parms.lower_bound = 150;
     parms.upper_bound = 500;
 
     size_t result_size = parms.upper_bound - parms.lower_bound + 1 - 200;
 
-    auto state1 = PGMRangeQuery<Rec>::get_query_state(&shard1, &parms);
-    auto state2 = PGMRangeQuery<Rec>::get_query_state(&shard2, &parms);
+    auto state1 = rq::Query<Shard, Rec>::get_query_state(&shard1, &parms);
+    auto state2 = rq::Query<Shard, Rec>::get_query_state(&shard2, &parms);
 
     std::vector<std::vector<de::Wrapped<Rec>>> results(2);
-    results[0] = PGMRangeQuery<Rec>::query(&shard1, state1, &parms);
-    results[1] = PGMRangeQuery<Rec>::query(&shard2, state2, &parms);
+    results[0] = rq::Query<Shard, Rec>::query(&shard1, state1, &parms);
+    results[1] = rq::Query<Shard, Rec>::query(&shard2, state2, &parms);
 
-    PGMRangeQuery<Rec>::delete_query_state(state1);
-    PGMRangeQuery<Rec>::delete_query_state(state2);
+    rq::Query<Shard, Rec>::delete_query_state(state1);
+    rq::Query<Shard, Rec>::delete_query_state(state2);
 
     ck_assert_int_eq(results[0].size() + results[1].size(), result_size);
 
@@ -221,7 +222,7 @@ START_TEST(t_range_query_merge)
         }
     }
 
-    auto result = PGMRangeQuery<Rec>::merge(proc_results, nullptr);
+    auto result = rq::Query<Shard, Rec>::merge(proc_results, nullptr);
     std::sort(result.begin(), result.end());
 
     ck_assert_int_eq(result.size(), result_size);

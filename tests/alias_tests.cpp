@@ -1,7 +1,7 @@
 /*
- * tests/wss_tests.cpp
+ * tests/alias_tests.cpp
  *
- * Unit tests for WSS (Augmented B+Tree) shard
+ * Unit tests for Alias shard
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -10,14 +10,15 @@
  *
  */
 
-#include "shard/WSS.h"
+#include "shard/Alias.h"
+#include "query/wss.h"
 #include "testing.h"
 
 #include <check.h>
 
 using namespace de;
 
-typedef WSS<WRec> Shard;
+typedef Alias<WRec> Shard;
 
 START_TEST(t_mbuffer_init)
 {
@@ -45,7 +46,7 @@ START_TEST(t_mbuffer_init)
 }
 
 
-START_TEST(t_wss_init)
+START_TEST(t_alias_init)
 {
     size_t n = 512;
     auto mbuffer1 = create_test_mbuffer<WRec>(n);
@@ -101,7 +102,7 @@ START_TEST(t_point_lookup)
     size_t n = 10000;
 
     auto buffer = create_double_seq_mbuffer<WRec>(n, false);
-    auto wss = Shard(buffer);
+    auto alias = Shard(buffer);
 
     for (size_t i=0; i<n; i++) {
         WRec r;
@@ -109,7 +110,7 @@ START_TEST(t_point_lookup)
         r.key = rec->rec.key;
         r.value = rec->rec.value;
 
-        auto result = wss.point_lookup(r);
+        auto result = alias.point_lookup(r);
         ck_assert_ptr_nonnull(result);
         ck_assert_int_eq(result->rec.key, r.key);
         ck_assert_int_eq(result->rec.value, r.value);
@@ -125,14 +126,14 @@ START_TEST(t_point_lookup_miss)
     size_t n = 10000;
 
     auto buffer = create_double_seq_mbuffer<WRec>(n, false);
-    auto wss = Shard(buffer);
+    auto alias = Shard(buffer);
 
     for (size_t i=n + 100; i<2*n; i++) {
         WRec r;
         r.key = i;
         r.value = i;
 
-        auto result = wss.point_lookup(r);
+        auto result = alias.point_lookup(r);
         ck_assert_ptr_null(result);
     }
 
@@ -169,7 +170,7 @@ START_TEST(t_full_cancelation)
 END_TEST
 
 
-START_TEST(t_wss_query)
+START_TEST(t_alias_query)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -179,15 +180,15 @@ START_TEST(t_wss_query)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss_query_parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = WSSQuery<WRec>::get_query_state(shard, &parms);
-        ((WSSState<WRec> *) state)->sample_size = k;
-        auto result = WSSQuery<WRec>::query(shard, state, &parms);
+        auto state = wss::Query<Shard, WRec>::get_query_state(shard, &parms);
+        ((wss::State<WRec> *) state)->sample_size = k;
+        auto result = wss::Query<Shard, WRec>::query(shard, state, &parms);
 
         total_samples += result.size();
 
@@ -195,7 +196,7 @@ START_TEST(t_wss_query)
             cnt[result[j].rec.key - 1]++;
         }
 
-        WSSQuery<WRec>::delete_query_state(state);
+        wss::Query<Shard, WRec>::delete_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .05));
@@ -209,7 +210,7 @@ START_TEST(t_wss_query)
 END_TEST
 
 
-START_TEST(t_wss_query_merge)
+START_TEST(t_alias_query_merge)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -222,25 +223,25 @@ START_TEST(t_wss_query_merge)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss_query_parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     std::vector<std::vector<Wrapped<WRec>>> results(2);
 
     for (size_t i=0; i<1000; i++) {
-        auto state1 = WSSQuery<WRec>::get_query_state(shard, &parms);
-        ((WSSState<WRec> *) state1)->sample_size = k;
-        results[0] = WSSQuery<WRec>::query(shard, state1, &parms);
+        auto state1 = wss::Query<Shard, WRec>::get_query_state(shard, &parms);
+        ((wss::State<WRec> *) state1)->sample_size = k;
+        results[0] = wss::Query<Shard, WRec>::query(shard, state1, &parms);
 
-        auto state2 = WSSQuery<WRec>::get_query_state(shard, &parms);
-        ((WSSState<WRec> *) state2)->sample_size = k;
-        results[1] = WSSQuery<WRec>::query(shard, state2, &parms);
+        auto state2 = wss::Query<Shard, WRec>::get_query_state(shard, &parms);
+        ((wss::State<WRec> *) state2)->sample_size = k;
+        results[1] = wss::Query<Shard, WRec>::query(shard, state2, &parms);
 
-        WSSQuery<WRec>::delete_query_state(state1);
-        WSSQuery<WRec>::delete_query_state(state2);
+        wss::Query<Shard, WRec>::delete_query_state(state1);
+        wss::Query<Shard, WRec>::delete_query_state(state2);
     }
 
-    auto merged = WSSQuery<WRec>::merge(results, nullptr);
+    auto merged = wss::Query<Shard, WRec>::merge(results, nullptr);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {
@@ -255,7 +256,7 @@ START_TEST(t_wss_query_merge)
 END_TEST
 
 
-START_TEST(t_wss_buffer_query_scan)
+START_TEST(t_alias_buffer_query_scan)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -266,22 +267,22 @@ START_TEST(t_wss_buffer_query_scan)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss_query_parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = WSSQuery<WRec, false>::get_buffer_query_state(buffer, &parms);
-        ((WSSBufferState<WRec> *) state)->sample_size = k;
-        auto result = WSSQuery<WRec, false>::buffer_query(buffer, state, &parms);
+        auto state = wss::Query<Shard, WRec, false>::get_buffer_query_state(buffer, &parms);
+        ((wss::BufferState<WRec> *) state)->sample_size = k;
+        auto result = wss::Query<Shard, WRec, false>::buffer_query(buffer, state, &parms);
         total_samples += result.size();
 
         for (size_t j=0; j<result.size(); j++) {
             cnt[result[j].rec.key - 1]++;
         }
 
-        WSSQuery<WRec, false>::delete_buffer_query_state(state);
+        wss::Query<Shard, WRec, false>::delete_buffer_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .05));
@@ -294,7 +295,7 @@ START_TEST(t_wss_buffer_query_scan)
 END_TEST
 
 
-START_TEST(t_wss_buffer_query_rejection)
+START_TEST(t_alias_buffer_query_rejection)
 {
     size_t n=1000;
     auto buffer = create_weighted_mbuffer<WRec>(n);
@@ -305,15 +306,15 @@ START_TEST(t_wss_buffer_query_rejection)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss_query_parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = WSSQuery<WRec>::get_buffer_query_state(buffer, &parms);
-        ((WSSBufferState<WRec> *) state)->sample_size = k;
-        auto result = WSSQuery<WRec>::buffer_query(buffer, state, &parms);
+        auto state = wss::Query<Shard, WRec>::get_buffer_query_state(buffer, &parms);
+        ((wss::BufferState<WRec> *) state)->sample_size = k;
+        auto result = wss::Query<Shard, WRec>::buffer_query(buffer, state, &parms);
 
         total_samples += result.size();
 
@@ -321,7 +322,7 @@ START_TEST(t_wss_buffer_query_rejection)
             cnt[result[j].rec.key - 1]++;
         }
 
-        WSSQuery<WRec>::delete_buffer_query_state(state);
+        wss::Query<Shard, WRec>::delete_buffer_query_state(state);
     }
 
     ck_assert(roughly_equal(cnt[0], (double) total_samples/4.0, total_samples, .1));
@@ -336,32 +337,32 @@ END_TEST
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("WSS Shard Unit Testing");
+    Suite *unit = suite_create("Alias Shard Unit Testing");
 
-    TCase *create = tcase_create("de::WSS constructor Testing");
+    TCase *create = tcase_create("de::Alias constructor Testing");
     tcase_add_test(create, t_mbuffer_init);
-    tcase_add_test(create, t_wss_init);
+    tcase_add_test(create, t_alias_init);
     tcase_set_timeout(create, 100);
     suite_add_tcase(unit, create);
 
 
-    TCase *tombstone = tcase_create("de:WSS::tombstone cancellation Testing");
+    TCase *tombstone = tcase_create("de:Alias::tombstone cancellation Testing");
     tcase_add_test(tombstone, t_full_cancelation);
     suite_add_tcase(unit, tombstone);
 
 
-    TCase *lookup = tcase_create("de:WSS:point_lookup Testing");
+    TCase *lookup = tcase_create("de:Alias:point_lookup Testing");
     tcase_add_test(lookup, t_point_lookup);
     tcase_add_test(lookup, t_point_lookup_miss);
     suite_add_tcase(unit, lookup);
 
 
 
-    TCase *sampling = tcase_create("de:WSS::WSSQuery Testing");
-    tcase_add_test(sampling, t_wss_query);
-    tcase_add_test(sampling, t_wss_query_merge);
-    tcase_add_test(sampling, t_wss_buffer_query_rejection);
-    tcase_add_test(sampling, t_wss_buffer_query_scan);
+    TCase *sampling = tcase_create("de:Alias::AliasQuery Testing");
+    tcase_add_test(sampling, t_alias_query);
+    tcase_add_test(sampling, t_alias_query_merge);
+    tcase_add_test(sampling, t_alias_buffer_query_rejection);
+    tcase_add_test(sampling, t_alias_buffer_query_scan);
     suite_add_tcase(unit, sampling);
 
     return unit;
