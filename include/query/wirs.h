@@ -3,7 +3,11 @@
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
+ *
+ * A query class for weighted independent range sampling. This
+ * class is tightly coupled with include/shard/AugBTree.h, and
+ * so is probably of limited general utility.
  *
  */
 #pragma once

@@ -4,10 +4,10 @@
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
  * Global parameters for configuring bloom filters used as auxiliary
- * structures on shards within the framework. The bloom filters themselves
+ * structures on shards within the framework. The bloom filter class
  * can be found in
  *
  * $PROJECT_ROOT/external/psudb-common/cpp/include/psu-ds/BloomFilter.h

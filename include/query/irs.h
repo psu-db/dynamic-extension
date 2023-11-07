@@ -3,7 +3,11 @@
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
+ *
+ * A query class for independent range sampling. This query requires 
+ * that the shard support get_lower_bound(key), get_upper_bound(key), 
+ * and get_record_at(index).
  *
  */
 #pragma once

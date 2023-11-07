@@ -4,7 +4,11 @@
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *                    Dong Xie <dongx@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
+ *
+ * A shard shim around the psudb::Alias Walker's Alias
+ * structure. Designed to be used along side the WSS
+ * query in include/query/wss.h
  *
  */
 #pragma once

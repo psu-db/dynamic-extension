@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
  * IMPORTANT: This "scheduler" is a shim implementation for allowing
  * strictly serial, single-threaded operation of the framework. It should 

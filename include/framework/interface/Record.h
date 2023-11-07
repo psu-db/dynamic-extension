@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
  * FIXME: the record implementations could probably be broken out into 
  *        different files, leaving only the interface here

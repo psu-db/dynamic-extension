@@ -2,8 +2,12 @@
  * include/shard/PGM.h
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
+ *                    Dong Xie <dongx@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
+ *
+ * A shard shim around the static version of the PGM learned
+ * index.
  *
  */
 #pragma once

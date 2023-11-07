@@ -1,10 +1,13 @@
 /*
- * include/query/rangequery.h
+ * include/query/wss.h
  *
- * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
+ * A query class for weighted set sampling. This
+ * class is tightly coupled with include/shard/Alias.h, 
+ * and so is probably of limited general utility.
  */
 #pragma once
 

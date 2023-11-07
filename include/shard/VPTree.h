@@ -3,7 +3,12 @@
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
+ *
+ * A shard shim around the VPTree spatial index. 
+ *
+ * FIXME: separate the KNN query class out into a standalone
+ * file in include/query . 
  *
  */
 #pragma once

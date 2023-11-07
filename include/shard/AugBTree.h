@@ -4,8 +4,12 @@
  * Copyright (C) 2023 Dong Xie <dongx@psu.edu>
  *                    Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
+ * A shard shim around the alias augmented B-tree. Designed to be 
+ * used along side the WIRS query in include/query/wirs.h, but
+ * also supports the necessary methods for other common query
+ * types.
  */
 #pragma once
 

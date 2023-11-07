@@ -1,11 +1,11 @@
 /*
- * tests/dynamic_extension_tests.cpp
+ * tests/de_cc_isam_level.cpp
  *
  * Unit tests for Dynamic Extension Framework
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
  */
 

@@ -1,12 +1,12 @@
 /*
- * tests/wirs_tests.cpp
+ * tests/augbtree_tests.cpp
  *
  * Unit tests for AugBTree (Augmented B+Tree) shard
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
  */
 
