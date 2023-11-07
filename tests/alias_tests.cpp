@@ -180,7 +180,7 @@ START_TEST(t_alias_query)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss:Parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
@@ -223,7 +223,7 @@ START_TEST(t_alias_query_merge)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss:Parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     std::vector<std::vector<Wrapped<WRec>>> results(2);
@@ -267,7 +267,7 @@ START_TEST(t_alias_buffer_query_scan)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss:Parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
@@ -306,7 +306,7 @@ START_TEST(t_alias_buffer_query_rejection)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    wss:Parms<WRec> parms = {k};
+    wss::Parms<WRec> parms = {k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;

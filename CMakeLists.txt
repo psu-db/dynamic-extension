@@ -69,9 +69,9 @@ if (tests)
     target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread)
     target_include_directories(memisam_tests PRIVATE include external/psudb-common/cpp/include)
 
-    add_executable(wss_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/wss_tests.cpp)
-    target_link_libraries(wss_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(wss_tests PRIVATE include external/psudb-common/cpp/include)
+    add_executable(alias_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/alias_tests.cpp)
+    target_link_libraries(alias_tests PUBLIC gsl check subunit pthread)
+    target_include_directories(alias_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(triespline_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_tests.cpp)
     target_link_libraries(triespline_tests PUBLIC gsl check subunit pthread)

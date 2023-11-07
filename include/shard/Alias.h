@@ -19,7 +19,7 @@
 
 #include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"
-#include "psu-ds/psudb::Alias.h"
+#include "psu-ds/Alias.h"
 #include "psu-ds/BloomFilter.h"
 #include "util/bf_config.h"
 
@@ -207,7 +207,13 @@ public:
         return 0;
     }
 
-private:
+    W get_total_weight() {
+        return m_total_weight;
+    }
+
+    size_t get_weighted_sample(gsl_rng *rng) const {
+        return m_alias->get(rng);
+    }
 
     size_t get_lower_bound(const K& key) const {
         size_t min = 0;
@@ -226,6 +232,8 @@ private:
 
         return min;
     }
+
+private:
 
     void build_alias_structure(std::vector<W> &weights) {
 
@@ -249,3 +257,4 @@ private:
     size_t m_alloc_size;
     BloomFilter<R> *m_bf;
 };
+}
