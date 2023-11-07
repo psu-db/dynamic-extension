@@ -9,7 +9,8 @@
  * All rights reserved. Published under the Modified BSD License.
  *
  */
-#include "shard/WIRS.h"
+#include "shard/ISAMTree.h"
+#include "query/rangequery.h"
 #include "framework/structure/InternalLevel.h"
 #include "framework/interface/Record.h"
 #include "framework/interface/Query.h"
@@ -21,12 +22,12 @@
 
 using namespace de;
 
-typedef InternalLevel<WRec, WIRS<WRec>, WIRSQuery<WRec>> ILevel;
+typedef InternalLevel<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>> ILevel;
 
 START_TEST(t_memlevel_merge)
 {
-    auto tbl1 = create_test_mbuffer<WRec>(100);
-    auto tbl2 = create_test_mbuffer<WRec>(100);
+    auto tbl1 = create_test_mbuffer<Rec>(100);
+    auto tbl2 = create_test_mbuffer<Rec>(100);
 
     auto base_level = new ILevel(1, 1);
     base_level->append_buffer(tbl1);
@@ -48,8 +49,8 @@ START_TEST(t_memlevel_merge)
 
 
 ILevel *create_test_memlevel(size_t reccnt) {
-    auto tbl1 = create_test_mbuffer<WRec>(reccnt/2);
-    auto tbl2 = create_test_mbuffer<WRec>(reccnt/2);
+    auto tbl1 = create_test_mbuffer<Rec>(reccnt/2);
+    auto tbl2 = create_test_mbuffer<Rec>(reccnt/2);
 
     auto base_level = new ILevel(1, 2);
     base_level->append_buffer(tbl1); 
