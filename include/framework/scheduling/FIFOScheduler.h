@@ -47,9 +47,10 @@ public:
     }
 
     ~FIFOScheduler() {
-        shutdown();
+        if (!m_shutdown.load()) {
+            shutdown();
+        }
 
-        m_cv.notify_all();
         m_sched_thrd.join();
     }
 
@@ -63,6 +64,8 @@ public:
 
     void shutdown() {
         m_shutdown.store(true);
+        m_thrd_pool.stop(true);
+        m_cv.notify_all();
     }
 
 private:
