@@ -436,11 +436,12 @@ private:
         MergeArgs<R, S, Q, L> *args = (MergeArgs<R, S, Q, L> *) arguments;
 
         Structure *vers = args->epoch->get_structure();
+
         // FIXME: with an improved shard interface, multiple full buffers
         //        could be merged at once here.
         Buffer *buff = (Buffer *) args->epoch->get_buffers()[0];
 
-        for (ssize_t i=args->merges.size() - 1; i>=0; i--) {
+        for (ssize_t i=0; i<args->merges.size(); i++) {
             vers->merge_levels(args->merges[i].second, args->merges[i].first);
         }
 

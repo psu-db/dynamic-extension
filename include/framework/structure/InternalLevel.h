@@ -219,6 +219,7 @@ public:
         for (size_t i=0; i<m_shard_cnt; i++) {
             new_level->m_shards[i] = m_shards[i];
         }
+        new_level->m_shard_cnt = m_shard_cnt;
 
         return new_level;
     }
