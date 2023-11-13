@@ -245,8 +245,6 @@ START_TEST(t_tombstone_merging_01)
         if (gsl_rng_uniform(rng) < 0.25 && deleted.find(rec) == deleted.end()) {
             to_delete.insert(rec);
         }
-
-        ck_assert(test_de->validate_tombstone_proportion());
     }
 
     test_de->await_next_epoch();

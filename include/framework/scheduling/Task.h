@@ -21,6 +21,7 @@ struct MergeArgs {
     Epoch<R, S, Q, L> *epoch;
     std::vector<MergeTask> merges;
     std::promise<bool> result;
+    bool compaction;
     void *extension;
 };
 

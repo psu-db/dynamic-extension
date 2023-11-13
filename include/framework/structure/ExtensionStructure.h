@@ -201,6 +201,57 @@ public:
         return m_levels;
     }
 
+    std::vector<MergeTask> get_compaction_tasks() {
+        std::vector<MergeTask> tasks;
+
+        /* if the tombstone/delete invariant is satisfied, no need for compactions */
+        if (validate_tombstone_proportion()) {
+            return tasks;
+        }
+
+        /* locate the first level to violate the invariant */
+        level_index violation_idx = -1;
+        for (level_index i=0; i<m_levels.size(); i++) {
+            if (!validate_tombstone_proportion(i))  {
+                violation_idx = i;
+                break;
+            }
+        }
+
+        assert(violation_idx != -1);
+
+        level_index merge_base_level = find_mergable_level(violation_idx);
+        if (merge_base_level == -1) {
+            merge_base_level = grow();
+        }
+
+        for (level_index i=merge_base_level; i>0; i--) {
+            MergeTask task = {i-1, i};
+
+            /*
+             * The amount of storage required for the merge accounts
+             * for the cost of storing the new records, along with the
+             * cost of retaining the old records during the process 
+             * (hence the 2x multiplier). 
+             *
+             * FIXME: currently does not account for the *actual* size 
+             * of the shards, only the storage for the records 
+             * themselves.
+             */
+            size_t reccnt = m_levels[i-1]->get_record_count();
+            if constexpr (L == LayoutPolicy::LEVELING) {
+                if (can_merge_with(i, reccnt)) {
+                    reccnt += m_levels[i]->get_record_count();
+                }
+            }
+            //task.m_size = 2* reccnt * sizeof(R);
+
+            tasks.push_back(task);
+        }
+
+        return tasks;
+    }
+
     /*
      *
      */

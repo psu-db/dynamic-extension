@@ -32,7 +32,7 @@ template <RecordInterface R>
 class MutableBuffer {
 public:
     MutableBuffer(size_t capacity, size_t max_tombstone_cap)
-    : m_cap(capacity), m_tombstone_cap(max_tombstone_cap), m_reccnt(0)
+    : m_cap(capacity), m_tombstone_cap(capacity), m_reccnt(0)
     , m_tombstonecnt(0), m_weight(0), m_max_weight(0), m_tail(0) {
         m_data = (Wrapped<R>*) psudb::sf_aligned_alloc(CACHELINE_SIZE, capacity*sizeof(Wrapped<R>));
         m_merge_data = (Wrapped<R>*) psudb::sf_aligned_alloc(CACHELINE_SIZE, capacity*sizeof(Wrapped<R>));
