@@ -14,6 +14,8 @@
 #include <cstdio>
 #include <vector>
 #include <set>
+#include <shared_mutex>
+#include <mutex>
 
 #include "framework/structure/MutableBuffer.h"
 #include "framework/structure/InternalLevel.h"
@@ -247,6 +249,7 @@ private:
     std::mutex m_epoch_cv_lk;
 
     std::mutex m_epoch_transition_lk;
+    std::shared_mutex m_epoch_retire_lk;
 
     size_t m_scale_factor;
     double m_max_delete_prop;
@@ -284,15 +287,10 @@ private:
     }
 
     _Epoch *get_active_epoch_protected() {
-        ssize_t cur_epoch = -1;
-        do {
-            if (cur_epoch != -1) {
-                m_epochs[cur_epoch]->end_job();
-            }
-
-            cur_epoch = m_current_epoch.load();
-            m_epochs[cur_epoch]->start_job();
-        } while (cur_epoch != m_current_epoch.load());
+        m_epoch_retire_lk.lock_shared();
+        auto cur_epoch = m_current_epoch.load();
+        m_epochs[cur_epoch]->start_job();
+        m_epoch_retire_lk.unlock_shared();
 
         return m_epochs[cur_epoch];
     }
@@ -429,8 +427,14 @@ private:
          * number will hit zero and the function will
          * proceed.
          */
-        while (!epoch->retirable()) 
-            ;
+
+        do {
+            m_epoch_retire_lk.lock();
+            if (epoch->retirable()) {
+                break;
+            }
+            m_epoch_retire_lk.unlock();
+        } while (true);
 
         /* remove epoch from the framework's map */
         m_epochs.erase(epoch->get_epoch_number());
@@ -440,6 +444,7 @@ private:
          * all the references it holds
          */ 
         delete epoch;
+        m_epoch_retire_lk.unlock();
 
         /*
          * Following the epoch's destruction, any buffers
