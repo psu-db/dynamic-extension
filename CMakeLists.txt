@@ -6,9 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug true)
+set(debug false)
 set(tests True)
-set(bench false)
+set(bench true)
+set(old_bench False)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
@@ -21,7 +22,7 @@ if (debug)
     add_compile_options(-fsanitize=undefined)
     add_link_options(-fsanitize=undefined)
 else()
-    add_compile_options(-O3)
+    add_compile_options(-g -O3)
 endif()
 
 # Test build instructions
@@ -31,7 +32,7 @@ if (tests)
 
     add_executable(augbtree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/augbtree_tests.cpp)
     target_link_libraries(augbtree_tests PUBLIC gsl check subunit pthread)
-    target_include_directories(augbtree_tests PRIVATE include external/psudb-common/cpp/include)
+    target_include_directories(augbtree_tests PRIVATE include external/psudb-common/cpp/include external/ctpl)
 
     add_executable(internal_level_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/internal_level_tests.cpp)
     target_link_libraries(internal_level_tests PUBLIC gsl check subunit pthread)
@@ -83,6 +84,13 @@ endif()
 if (bench)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
 
+    add_executable(insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insertion_tput.cpp)
+    target_link_libraries(insertion_tput PUBLIC gsl pthread gomp)
+    target_include_directories(insertion_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_compile_options(insertion_tput PUBLIC -fopenmp)
+endif()
+
+if (old_bench)
     add_executable(alias_wss_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/alias_wss_bench.cpp)
     target_link_libraries(alias_wss_bench PUBLIC gsl pthread gomp)
     target_include_directories(alias_wss_bench PRIVATE include external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include)
