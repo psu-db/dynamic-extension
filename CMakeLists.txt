@@ -88,6 +88,11 @@ if (bench)
     target_link_libraries(insertion_tput PUBLIC gsl pthread gomp)
     target_include_directories(insertion_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_compile_options(insertion_tput PUBLIC -fopenmp)
+
+    add_executable(insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_query_tput.cpp)
+    target_link_libraries(insert_query_tput PUBLIC gsl pthread gomp)
+    target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_compile_options(insert_query_tput PUBLIC -fopenmp)
 endif()
 
 if (old_bench)
