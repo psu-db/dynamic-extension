@@ -40,9 +40,14 @@ public:
         delete m_pending_shard;
     }
 
-    // WARNING: for leveling only.
-    // assuming the base level is the level new level is merging into. (base_level is larger.)
-    static std::shared_ptr<InternalLevel> merge_levels(InternalLevel* base_level, InternalLevel* new_level) {
+    /*
+     * Create a new shard combining the records from base_level and new_level,
+     * and return a shared_ptr to a new level containing this shard. This is used
+     * for reconstructions under the leveling layout policy.
+     *
+     * No changes are made to the levels provided as arguments.
+     */
+    static std::shared_ptr<InternalLevel> reconstruction(InternalLevel* base_level, InternalLevel* new_level) {
         assert(base_level->m_level_no > new_level->m_level_no || (base_level->m_level_no == 0 && new_level->m_level_no == 0));
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
@@ -54,18 +59,15 @@ public:
         return std::shared_ptr<InternalLevel>(res);
     }
 
-    void append_buffer(Buffer* buffer) {
-        if (m_shard_cnt == m_shards.size()) {
-            assert(m_pending_shard == nullptr);
-            m_pending_shard = new S(buffer);
-            return;
-        }
-
-        m_shards[m_shard_cnt] = std::make_shared<S>(buffer);
-        ++m_shard_cnt;
-    }
-
-    void append_merged_shards(InternalLevel* level) {
+    /*
+     * Create a new shard combining the records from all of
+     * the shards in level, and append this new shard into
+     * this level. This is used for reconstructions under
+     * the tiering layout policy.
+     *
+     * No changes are made to the level provided as an argument.
+     */
+    void append_level(InternalLevel* level) {
         Shard *shards[level->m_shard_cnt];
         for (size_t i=0; i<level->m_shard_cnt; i++) {
             shards[i] = level->m_shards[i].get();
@@ -82,6 +84,22 @@ public:
         ++m_shard_cnt;
     }
 
+    /*
+     * Create a new shard using the records in the
+     * provided buffer, and append this new shard
+     * into this level. This is used for buffer
+     * flushes under the tiering layout policy.
+     */
+    void append_buffer(Buffer* buffer) {
+        if (m_shard_cnt == m_shards.size()) {
+            assert(m_pending_shard == nullptr);
+            m_pending_shard = new S(buffer);
+            return;
+        }
+
+        m_shards[m_shard_cnt] = std::make_shared<S>(buffer);
+        ++m_shard_cnt;
+    }
 
     void finalize() {
         if (m_pending_shard) {
@@ -95,7 +113,13 @@ public:
         }
     }
 
-    Shard *get_merged_shard() {
+    /*
+     * Create a new shard containing the combined records
+     * from all shards on this level and return it.
+     *
+     * No changes are made to this level.
+     */
+    Shard *get_combined_shard() {
         if (m_shard_cnt == 0) {
             return nullptr;
         }
@@ -109,7 +133,7 @@ public:
         return new S(shards, m_shard_cnt);
     }
 
-    // Append the sample range in-order.....
+    /* Append the sample range in-order */
     void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_shards[i]) {

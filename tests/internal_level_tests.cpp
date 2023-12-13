@@ -37,7 +37,7 @@ START_TEST(t_memlevel_merge)
     merging_level->append_buffer(tbl2);
     ck_assert_int_eq(merging_level->get_record_count(), 100);
 
-    auto new_level = ILevel::merge_levels(base_level, merging_level);
+    auto new_level = ILevel::reconstruction(base_level, merging_level);
 
     delete merging_level;
     ck_assert_int_eq(new_level->get_record_count(), 200);
@@ -66,7 +66,7 @@ Suite *unit_testing()
 {
     Suite *unit = suite_create("InternalLevel Unit Testing");
 
-    TCase *merge = tcase_create("de::InternalLevel::merge_level Testing");
+    TCase *merge = tcase_create("de::InternalLevel::reconstruction Testing");
     tcase_add_test(merge, t_memlevel_merge);
     suite_add_tcase(unit, merge);
 

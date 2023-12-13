@@ -170,7 +170,7 @@ public:
      * isn't, return true and set a flag indicating that
      * there is an active merge.
      */
-    bool prepare_merge() {
+    bool prepare_reconstruction() {
         auto old = m_active_merge.load();
         if (old) {
             return false;

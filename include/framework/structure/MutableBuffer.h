@@ -1,10 +1,16 @@
 /*
  * include/framework/structure/MutableBuffer.h
  *
- * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *                    Dong Xie <dongx@psu.edu>
  *
  * Distributed under the Modified BSD License.
+ *
+ * FIXME: currently, the buffer itself is responsible for managing a
+ * secondary buffer for storing sorted records used during buffer flushes. It
+ * probably makes more sense to make the shard being flushed into responsible
+ * for this instead. This would also facilitate simultaneous flushes of multiple
+ * buffers more easily.
  *
  */
 #pragma once
@@ -35,7 +41,7 @@ public:
     : m_cap(capacity), m_tombstone_cap(capacity), m_reccnt(0)
     , m_tombstonecnt(0), m_weight(0), m_max_weight(0), m_tail(0) {
         m_data = (Wrapped<R>*) psudb::sf_aligned_alloc(CACHELINE_SIZE, capacity*sizeof(Wrapped<R>));
-        m_merge_data = (Wrapped<R>*) psudb::sf_aligned_alloc(CACHELINE_SIZE, capacity*sizeof(Wrapped<R>));
+        m_sorted_data = (Wrapped<R>*) psudb::sf_aligned_alloc(CACHELINE_SIZE, capacity*sizeof(Wrapped<R>));
         m_tombstone_filter = nullptr;
         if (max_tombstone_cap > 0) {
             m_tombstone_filter = new psudb::BloomFilter<R>(BF_FPR, max_tombstone_cap, BF_HASH_FUNCS);
@@ -49,7 +55,7 @@ public:
 
         if (m_data) free(m_data);
         if (m_tombstone_filter) delete m_tombstone_filter;
-        if (m_merge_data) free(m_merge_data);
+        if (m_sorted_data) free(m_sorted_data);
     }
 
     template <typename R_ = R>
@@ -171,8 +177,8 @@ public:
      * to be adjusted). Other threads having read access is perfectly
      * acceptable, however.
      */
-    bool start_merge() {
-        memcpy(m_merge_data, m_data, sizeof(Wrapped<R>) * m_reccnt.load());
+    bool start_flush() {
+        memcpy(m_sorted_data, m_data, sizeof(Wrapped<R>) * m_reccnt.load());
         return true;
     }
 
@@ -210,7 +216,7 @@ private:
     size_t m_tombstone_cap;
     
     Wrapped<R>* m_data;
-    Wrapped<R>* m_merge_data;
+    Wrapped<R>* m_sorted_data;
 
     psudb::BloomFilter<R>* m_tombstone_filter;
 
