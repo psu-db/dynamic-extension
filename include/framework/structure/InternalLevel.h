@@ -68,6 +68,13 @@ public:
      * No changes are made to the level provided as an argument.
      */
     void append_level(InternalLevel* level) {
+        // FIXME: that this is happening probably means that
+        // something is going terribly wrong earlier in the
+        // reconstruction logic.
+        if (level->get_shard_count() == 0) {
+            return;
+        }
+
         Shard *shards[level->m_shard_cnt];
         for (size_t i=0; i<level->m_shard_cnt; i++) {
             shards[i] = level->m_shards[i].get();
