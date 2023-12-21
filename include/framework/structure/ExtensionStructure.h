@@ -347,13 +347,19 @@ public:
      */
     inline void reconstruction(level_index base_level, level_index incoming_level) {
         if constexpr (L == LayoutPolicy::LEVELING) {
-            auto tmp = m_levels[base_level];
-            m_levels[base_level] = InternalLevel<R, Shard, Q>::reconstruction(m_levels[base_level].get(), m_levels[incoming_level].get());
+            /* if the base level has a shard, merge the base and incoming together to make a new one */
+            if (m_levels[base_level]->get_shard_count() > 0) {
+                m_levels[base_level] = InternalLevel<R, Shard, Q>::reconstruction(m_levels[base_level].get(), m_levels[incoming_level].get());
+            /* otherwise, we can just move the incoming to the base */
+            } else {
+                m_levels[base_level] = m_levels[incoming_level];
+            }
         } else {
             m_levels[base_level]->append_level(m_levels[incoming_level].get());
             m_levels[base_level]->finalize();
         }
 
+        /* place a new, empty level where the incoming level used to be */
         m_levels[incoming_level] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor));
     }
 
@@ -432,10 +438,13 @@ private:
             auto old_level = m_levels[0].get();
             auto temp_level = new InternalLevel<R, Shard, Q>(0, 1);
             temp_level->append_buffer(buffer);
-            auto new_level = InternalLevel<R, Shard, Q>::reconstruction(old_level, temp_level);
 
-            m_levels[0] = new_level;
-            delete temp_level;
+            if (old_level->get_shard_count() > 0) {
+                m_levels[0] = InternalLevel<R, Shard, Q>::reconstruction(old_level, temp_level);
+                delete temp_level;
+            } else {
+                m_levels[0] = std::shared_ptr<InternalLevel<R, Shard, Q>>(temp_level);
+            }
         } else {
             m_levels[0]->append_buffer(buffer);
         }
