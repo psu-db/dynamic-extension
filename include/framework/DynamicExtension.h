@@ -261,23 +261,29 @@ private:
         auto compactions = structure->get_compaction_tasks();
 
         while (compactions.size() > 0) {
-            /* otherwise, we need to schedule a compaction */
+
+            /* schedule a compaction */
             ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
             args->epoch = epoch;
-            // FIXME: all full buffers can be flushed at this point--but that requires
-            //        retooling the shard interface a bit to do efficiently.
             args->merges = compactions;
             args->extension = this;
             args->compaction = true;
+            /* NOTE: args is deleted by the reconstruction job, so shouldn't be freed here */
 
             auto wait = args->result.get_future();
 
+            /* 
+             * the reconstruction process calls end_job(), 
+             * so we must start one before calling it
+             */
             epoch->start_job();
+
             m_sched.schedule_job(reconstruction, 0, args);
 
-            /* wait for reconstruction completion */
+            /* wait for compaction completion */
             wait.get();
 
+            /* get a new batch of compactions to perform, if needed */
             compactions = structure->get_compaction_tasks();
         }
     }
@@ -557,17 +563,23 @@ private:
     }
 
     void schedule_reconstruction() {
-        //fprintf(stderr, "%ld\t Reconstruction Scheduling", m_current_epoch);
         auto epoch = create_new_epoch();
+        /* 
+         * the reconstruction process calls end_job(), 
+         * so we must start one before calling it
+         */
         epoch->start_job();
 
-        ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
-        args->epoch = epoch;
         // FIXME: all full buffers can be flushed at this point--but that requires
         //        retooling the shard interface a bit to do efficiently.
+        //
+        ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
+        args->epoch = epoch;
         args->merges = epoch->get_structure()->get_reconstruction_tasks(epoch->get_buffers()[0]->get_record_count());
         args->extension = this;
         args->compaction = false;
+        /* NOTE: args is deleted by the reconstruction job, so shouldn't be freed here */
+
         m_sched.schedule_job(reconstruction, 0, args);
     }
 
