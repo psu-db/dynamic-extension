@@ -22,107 +22,59 @@
 #include "psu-ds/Alias.h"
 #include "psu-util/timer.h"
 #include "framework/interface/Record.h"
-#include "framework/structure/MutableBuffer.h"
 #include "framework/interface/Query.h"
 
 namespace de {
 
-template <RecordInterface R, QueryInterface Q>
+template <RecordInterface R>
 class BufferView {
-    typedef MutableBuffer<R> Buffer;
 public:
     BufferView() = default;
 
-    BufferView(std::vector<Buffer*> buffers) 
-        : m_buffers(buffers)
-        , m_cutoff(buffers[buffers.size()-1]->get_record_count())
-    {}
+    BufferView(const Wrapped<R> *buffer, size_t head, size_t tail, psudb::BloomFilter<R> *filter) 
+        : m_buffer(buffer), m_head(head), m_tail(tail), m_tombstone_filter(filter) {}
 
     ~BufferView() = default;
 
-    bool delete_record(const R& rec) {
-        auto res = false;
-        for (auto buf : m_buffers) {
-            res = buf->delete_record(rec);
-            if (res) return true;
-        }
-        return false;
-    }
-
     bool check_tombstone(const R& rec) {
-        auto res = false;
-        for (auto buf : m_buffers) {
-            res = buf->check_tombstone(rec);
-            if (res) return true;
+        if (m_tombstone_filter && !m_tombstone_filter->lookup(rec)) return false;
+
+        for (size_t i=0; i<get_record_count(); i++) {
+            if (m_buffer[to_idx(i)].rec == rec && m_buffer[to_idx(i)].is_tombstone()) {
+                return true;
+            }
         }
+
         return false;
     }
 
     size_t get_record_count() {
-        size_t reccnt = 0;
-        for (auto buf : m_buffers) {
-            reccnt += buf->get_record_count();
-        }
-        return reccnt;
+        return m_tail - m_head;
     }
     
-    size_t get_capacity() {
-        return m_buffers[0]->get_capacity();
-    }
-
-    bool is_full() {
-        return m_buffers[m_buffers.size() - 1]->is_full();
-    }
-
     size_t get_tombstone_count() {
-        size_t tscnt = 0;
-        for (auto buf : m_buffers) {
-            tscnt += buf->get_tombstone_count();
-        }
-        return tscnt;
+        // FIXME: tombstone count
+        return 0;
     }
 
-    size_t get_memory_usage() {
-        size_t mem = 0;
-        for (auto buf : m_buffers) {
-            mem += buf->get_memory_usage();
-        }
-        return mem;
+    Wrapped<R> *get(size_t i) {
+        assert(i < get_record_count());
+        return m_buffer + to_idx(i);
     }
 
-    size_t get_aux_memory_usage() {
-        size_t mem = 0;
-        for (auto buf : m_buffers) {
-            mem += buf->get_aux_memory_usage();
-        }
-        return mem;
-    }
-
-    size_t get_tombstone_capacity() {
-        return m_buffers[0]->get_tombstone_capacity();
-    }
-
-    std::vector<void *> get_query_states(void *parms) {
-        std::vector<void *> states;
-
-        for (auto buf : m_buffers) {
-            states.push_back(Q::get_buffer_query_state(buf, parms));
-        }
-
-        return states;
-    }
-
-    std::vector<Buffer *> &get_buffers() {
-        return m_buffers;
-    }
-
-    size_t size() {
-        return m_buffers.size();
+    void copy_to_buffer(byte *buffer) {
+        memcpy(buffer, m_buffer, get_record_count() * sizeof(Wrapped<R>));
     }
 
 private:
-    std::vector<Buffer *> m_buffers;
-    size_t m_cutoff;
+    const Wrapped<R>* m_buffer;
+    size_t m_head;
+    size_t m_tail;
+    psudb::BloomFilter<R> *m_tombstone_filter;
+
+    size_t to_idx(size_t i) {
+        return (m_head + i) % m_buffer->get_capacity();
+    }
 };
 
 }
