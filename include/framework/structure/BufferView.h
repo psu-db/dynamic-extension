@@ -9,32 +9,34 @@
 #pragma once
 
 #include <cstdlib>
-#include <atomic>
-#include <condition_variable>
 #include <cassert>
-#include <numeric>
-#include <algorithm>
-#include <type_traits>
+#include <functional>
 
 #include "psu-util/alignment.h"
-#include "util/bf_config.h"
 #include "psu-ds/BloomFilter.h"
-#include "psu-ds/Alias.h"
-#include "psu-util/timer.h"
 #include "framework/interface/Record.h"
-#include "framework/interface/Query.h"
 
 namespace de {
+
+typedef std::function<void(void*, size_t)> ReleaseFunction;
 
 template <RecordInterface R>
 class BufferView {
 public:
     BufferView() = default;
 
-    BufferView(const Wrapped<R> *buffer, size_t head, size_t tail, psudb::BloomFilter<R> *filter) 
-        : m_buffer(buffer), m_head(head), m_tail(tail), m_tombstone_filter(filter) {}
+    BufferView(const Wrapped<R> *buffer, size_t head, size_t tail, psudb::BloomFilter<R> *filter,
+               void *parent_buffer, ReleaseFunction release) 
+        : m_buffer(buffer)
+        , m_release(release)
+        , m_parent_buffer(parent_buffer)
+        , m_head(head)
+        , m_tail(tail)
+        , m_tombstone_filter(filter) {}
 
-    ~BufferView() = default;
+    ~BufferView() {
+        m_release(m_parent_buffer, m_head);
+    }
 
     bool check_tombstone(const R& rec) {
         if (m_tombstone_filter && !m_tombstone_filter->lookup(rec)) return false;
@@ -62,12 +64,14 @@ public:
         return m_buffer + to_idx(i);
     }
 
-    void copy_to_buffer(byte *buffer) {
-        memcpy(buffer, m_buffer, get_record_count() * sizeof(Wrapped<R>));
+    void copy_to_buffer(psudb::byte *buffer) {
+        memcpy(buffer, (std::byte*) (m_buffer + m_head), get_record_count() * sizeof(Wrapped<R>));
     }
 
 private:
     const Wrapped<R>* m_buffer;
+    void *m_parent_buffer;
+    ReleaseFunction m_release;
     size_t m_head;
     size_t m_tail;
     psudb::BloomFilter<R> *m_tombstone_filter;
