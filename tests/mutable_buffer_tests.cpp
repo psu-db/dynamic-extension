@@ -12,14 +12,11 @@
 
 #include <thread>
 #include <vector>
-#include <algorithm>
 
 #include "testing.h"
 #include "framework/structure/MutableBuffer.h"
 
 #include <check.h>
-
-#define DE_MT_TEST 0
 
 using namespace de;
 
@@ -60,9 +57,9 @@ START_TEST(t_insert)
     /* insert records up to the low watermark */
     size_t cnt = 0;
     for (size_t i=0; i<50; i++) {
+        ck_assert_int_eq(buffer->is_at_low_watermark(), false);
         ck_assert_int_eq(buffer->append(rec), 1);
         ck_assert_int_eq(buffer->check_tombstone(rec), 0);
-        ck_assert_int_eq(buffer->is_at_low_watermark(), false);
 
         rec.key++;
         rec.value++;
@@ -72,6 +69,8 @@ START_TEST(t_insert)
         ck_assert_int_eq(buffer->get_buffer_view().get_record_count(), cnt);
         ck_assert_int_eq(buffer->get_tail(), cnt);
     }
+
+    ck_assert_int_eq(buffer->is_at_low_watermark(), true);
 
     /* insert records up to the high watermark */
     for (size_t i=0; i<50; i++) {
@@ -118,7 +117,7 @@ START_TEST(t_advance_head)
         cnt++;
 
         if (buffer->is_at_low_watermark() && new_head == 0) {
-            new_head = buffer->get_tail() - 1;
+            new_head = buffer->get_tail();
         }
     }
 
@@ -132,30 +131,38 @@ START_TEST(t_advance_head)
         view.copy_to_buffer((psudb::byte *) view_records);
 
         /* advance the head */
-        buffer->advance_head(new_head);
+        ck_assert_int_eq(buffer->advance_head(new_head), 1);
         ck_assert_int_eq(buffer->get_record_count(), 25);
         ck_assert_int_eq(buffer->get_buffer_view().get_record_count(), 25);
         ck_assert_int_eq(view.get_record_count(), cnt);
         ck_assert_int_eq(buffer->get_available_capacity(), 200 - cnt);
+
+        /* refuse to advance head again while there remain references to the old one */
+        ck_assert_int_eq(buffer->advance_head(buffer->get_tail() -1), 0);
     }
 
     /* once the buffer view falls out of scope, the capacity of the buffer should increase */
     ck_assert_int_eq(buffer->get_available_capacity(), 175);
+
+    /* now the head should be able to be advanced */
+    ck_assert_int_eq(buffer->advance_head(buffer->get_tail()), 1);
+
+    /* and the buffer should be empty */
+    ck_assert_int_eq(buffer->get_record_count(), 0);
 
     delete buffer;
     delete[] view_records;
 }
 END_TEST
 
-void insert_records(std::vector<std::pair<uint64_t, uint32_t>> *values, size_t start, size_t stop, MutableBuffer<Rec> *buffer)
+void insert_records(std::vector<Rec> *values, size_t start, size_t stop, MutableBuffer<Rec> *buffer)
 {
     for (size_t i=start; i<stop; i++) {
-        buffer->append({(*values)[i].first, (*values)[i].second});
+        buffer->append((*values)[i]);
     }
 
 }
 
-/*
 START_TEST(t_multithreaded_insert)
 {
     size_t cnt = 10000;
@@ -166,7 +173,7 @@ START_TEST(t_multithreaded_insert)
         records[i] = Rec {(uint64_t) rand(), (uint32_t) rand()};
     }
 
-    // perform a multithreaded insertion
+    /* perform a multithreaded insertion */
     size_t thread_cnt = 8;
     size_t per_thread = cnt / thread_cnt;
     std::vector<std::thread> workers(thread_cnt);
@@ -186,9 +193,10 @@ START_TEST(t_multithreaded_insert)
 
     ck_assert_int_eq(buffer->is_full(), 1);
     ck_assert_int_eq(buffer->get_record_count(), cnt);
+
+    delete buffer;
 }
 END_TEST
-*/
 
 
 START_TEST(t_truncate)
@@ -243,7 +251,7 @@ Suite *unit_testing()
     TCase *append = tcase_create("de::MutableBuffer::append Testing");
     tcase_add_test(append, t_insert);
     tcase_add_test(append, t_advance_head);
-    //tcase_add_test(append, t_multithreaded_insert);
+    tcase_add_test(append, t_multithreaded_insert);
 
     suite_add_tcase(unit, append);
 

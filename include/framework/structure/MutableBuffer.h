@@ -49,7 +49,6 @@ public:
         delete m_tombstone_filter;
     }
 
-    template <typename R_ = R>
     int append(const R &rec, bool tombstone=false) {
         int32_t pos = 0;
         if ((pos = try_advance_tail()) == -1) return 0;
@@ -91,7 +90,7 @@ public:
     }
 
     bool is_at_low_watermark() {
-        return (m_tail % m_cap) > m_lwm;
+        return get_record_count() >= m_lwm;
     }
 
     size_t get_tombstone_count() {
@@ -139,10 +138,14 @@ public:
      * head and head_refcnt into old_head and old_head_refcnt, then
      * assign new_head to old_head.
      */
-    void advance_head(size_t new_head) {
+    bool advance_head(size_t new_head) {
         assert(new_head > m_head.load());
         assert(new_head <= m_tail.load());
-        assert(m_old_head_refcnt == 0);
+
+        /* refuse to advance head while there is an old with one references */
+        if (m_old_head_refcnt > 0) {
+            return false;
+        }
 
         /*
          * the order here is very important. We first store zero to the 
@@ -159,6 +162,8 @@ public:
 
         m_head_refcnt.store(0);
         m_head.store(new_head);
+
+        return true;
     }
 
     void set_low_watermark(size_t lwm) {
