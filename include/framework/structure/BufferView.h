@@ -25,7 +25,24 @@ class BufferView {
 public:
     BufferView() = default;
 
-    BufferView(const Wrapped<R> *buffer, size_t cap, size_t head, size_t tail, size_t tombstone_cnt, psudb::BloomFilter<R> *filter,
+    /* 
+     * the BufferView's lifetime is tightly linked to buffer versioning, and so
+     * copying and assignment are disabled.
+     */
+    BufferView(const BufferView&) = delete;
+    BufferView &operator=(BufferView &) = delete;
+
+    void operator=(BufferView &&src) {
+        m_data = src.m_data;
+        m_release = src.m_release;
+        m_head = src.m_head;
+        m_tail = src.m_tail;
+        m_cap = src.m_cap;
+        m_approx_ts_cnt = src.m_approx_ts_cnt;
+        m_tombstone_filter = src.filter;
+    }
+
+    BufferView(Wrapped<R> *buffer, size_t cap, size_t head, size_t tail, size_t tombstone_cnt, psudb::BloomFilter<R> *filter,
                ReleaseFunction release) 
         : m_data(buffer)
         , m_release(release)
@@ -85,7 +102,7 @@ public:
     }
 
 private:
-    const Wrapped<R>* m_data;
+    Wrapped<R>* m_data;
     ReleaseFunction m_release;
     size_t m_head;
     size_t m_tail;
