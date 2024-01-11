@@ -77,7 +77,7 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
 }
 
 static de::MutableBuffer<PRec> *create_2d_mbuffer(size_t cnt) {
-    auto buffer = new de::MutableBuffer<PRec>(cnt, cnt);
+    auto buffer = new de::MutableBuffer<PRec>(cnt/2, cnt);
 
     for (int64_t i=0; i<cnt; i++) {
         buffer->append({rand(), rand()});
@@ -87,7 +87,7 @@ static de::MutableBuffer<PRec> *create_2d_mbuffer(size_t cnt) {
 }
 
 static de::MutableBuffer<PRec> *create_2d_sequential_mbuffer(size_t cnt) {
-    auto buffer = new de::MutableBuffer<PRec>(cnt, cnt);
+    auto buffer = new de::MutableBuffer<PRec>(cnt/2, cnt);
     for (int64_t i=0; i<cnt; i++) {
         buffer->append({i, i});
     }
@@ -98,7 +98,7 @@ static de::MutableBuffer<PRec> *create_2d_sequential_mbuffer(size_t cnt) {
 template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     R rec;
     for (size_t i = 0; i < cnt; i++) {
@@ -119,7 +119,7 @@ template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, decltype(R::key) stop)
 {
     size_t cnt = stop - start;
-    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     for (size_t i=start; i<stop; i++) {
         R rec;
@@ -139,7 +139,7 @@ static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, d
 template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, ts_cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     std::vector<std::pair<uint64_t, uint32_t>> tombstones;
 
@@ -171,7 +171,7 @@ template <typename R>
 requires de::WeightedRecordInterface<R> && de::KVPInterface<R>
 static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
     
     // Put in half of the count with weight one.
     for (uint32_t i=0; i< cnt / 2; i++) {
@@ -194,7 +194,7 @@ static de::MutableBuffer<R> *create_weighted_mbuffer(size_t cnt)
 template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false) 
 {
-    auto buffer = new de::MutableBuffer<R>(cnt, cnt);
+    auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     for (size_t i = 0; i < cnt / 2; i++) { 
         R rec;

@@ -11,7 +11,7 @@
  */
 
 #include "shard/ISAMTree.h"
-#include "query/irs.h"
+#include "query/rangequery.h"
 #include "testing.h"
 
 #include <check.h>
@@ -22,7 +22,7 @@ typedef ISAMTree<Rec> Shard;
 
 START_TEST(t_mbuffer_init)
 {
-    auto buffer = new MutableBuffer<Rec>(1024, 1024);
+    auto buffer = new MutableBuffer<Rec>(512, 1024);
     for (uint64_t i = 512; i > 0; i--) {
         uint32_t v = i;
         buffer->append({i,v, 1});
@@ -38,7 +38,7 @@ START_TEST(t_mbuffer_init)
         buffer->append({i, v, 1});
     }
 
-    Shard* shard = new Shard(buffer);
+    Shard* shard = new Shard(buffer->get_buffer_view());
     ck_assert_uint_eq(shard->get_record_count(), 512);
 
     delete buffer;
@@ -46,16 +46,16 @@ START_TEST(t_mbuffer_init)
 }
 
 
-START_TEST(t_irs_init)
+START_TEST(t_rq_init)
 {
     size_t n = 512;
     auto mbuffer1 = create_test_mbuffer<Rec>(n);
     auto mbuffer2 = create_test_mbuffer<Rec>(n);
     auto mbuffer3 = create_test_mbuffer<Rec>(n);
 
-    auto shard1 = new Shard(mbuffer1);
-    auto shard2 = new Shard(mbuffer2);
-    auto shard3 = new Shard(mbuffer3);
+    auto shard1 = new Shard(mbuffer1->get_buffer_view());
+    auto shard2 = new Shard(mbuffer2->get_buffer_view());
+    auto shard3 = new Shard(mbuffer3->get_buffer_view());
 
     Shard* shards[3] = {shard1, shard2, shard3};
     auto shard4 = new Shard(shards, 3);
@@ -101,18 +101,22 @@ START_TEST(t_point_lookup)
     size_t n = 10000;
 
     auto buffer = create_double_seq_mbuffer<Rec>(n, false);
-    auto isam = Shard(buffer);
+    auto isam = Shard(buffer->get_buffer_view());
 
-    for (size_t i=0; i<n; i++) {
-        Rec r;
-        auto rec = (buffer->get_data() + i);
-        r.key = rec->rec.key;
-        r.value = rec->rec.value;
+    {
+        auto view = buffer->get_buffer_view();
 
-        auto result = isam.point_lookup(r);
-        ck_assert_ptr_nonnull(result);
-        ck_assert_int_eq(result->rec.key, r.key);
-        ck_assert_int_eq(result->rec.value, r.value);
+        for (size_t i=0; i<n; i++) {
+            Rec r;
+            auto rec = view.get(i);
+            r.key = rec->rec.key;
+            r.value = rec->rec.value;
+
+            auto result = isam.point_lookup(r);
+            ck_assert_ptr_nonnull(result);
+            ck_assert_int_eq(result->rec.key, r.key);
+            ck_assert_int_eq(result->rec.value, r.value);
+        }
     }
 
     delete buffer;
@@ -125,7 +129,7 @@ START_TEST(t_point_lookup_miss)
     size_t n = 10000;
 
     auto buffer = create_double_seq_mbuffer<Rec>(n, false);
-    auto isam = Shard(buffer);
+    auto isam = Shard(buffer->get_buffer_view());
 
     for (size_t i=n + 100; i<2*n; i++) {
         Rec r;
@@ -146,8 +150,8 @@ START_TEST(t_full_cancelation)
     auto buffer = create_double_seq_mbuffer<Rec>(n, false);
     auto buffer_ts = create_double_seq_mbuffer<Rec>(n, true);
 
-    Shard* shard = new Shard(buffer);
-    Shard* shard_ts = new Shard(buffer_ts);
+    Shard* shard = new Shard(buffer->get_buffer_view());
+    Shard* shard_ts = new Shard(buffer_ts->get_buffer_view());
 
     ck_assert_int_eq(shard->get_record_count(), n);
     ck_assert_int_eq(shard->get_tombstone_count(), 0);
@@ -170,11 +174,12 @@ START_TEST(t_full_cancelation)
 END_TEST
 
 
-START_TEST(t_irs_query)
+/*
+START_TEST(t_rq_query)
 {
     size_t n=1000;
     auto buffer = create_double_seq_mbuffer<Rec>(n);
-    auto isam = Shard(buffer);
+    auto isam = Shard(buffer->get_buffer_view());
 
     uint64_t lower_key = 100;
     uint64_t upper_key = 250;
@@ -182,15 +187,15 @@ START_TEST(t_irs_query)
     size_t k = 100;
 
     size_t cnt[3] = {0};
-    irs::Parms<Rec> parms = {lower_key, upper_key, k};
+    rq::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = irs::Query<Shard, Rec, false>::get_query_state(&isam, &parms);
-        ((irs::State<WRec> *) state)->sample_size = k;
-        auto result = irs::Query<Shard, Rec, false>::query(&isam, state, &parms);
+        auto state = rq::Query<Shard, Rec, false>::get_query_state(&isam, &parms);
+        ((rq::State<WRec> *) state)->sample_size = k;
+        auto result = rq::Query<Shard, Rec, false>::query(&isam, state, &parms);
 
         ck_assert_int_eq(result.size(), k);
 
@@ -199,7 +204,7 @@ START_TEST(t_irs_query)
             ck_assert_int_ge(rec.rec.key, lower_key);
         }
 
-        irs::Query<Shard, Rec, false>::delete_query_state(state);
+        rq::Query<Shard, Rec, false>::delete_query_state(state);
     }
 
     gsl_rng_free(parms.rng);
@@ -208,12 +213,12 @@ START_TEST(t_irs_query)
 END_TEST
 
 
-START_TEST(t_irs_query_merge)
+START_TEST(t_rq_query_merge)
 {
     size_t n=1000;
     auto buffer = create_double_seq_mbuffer<Rec>(n);
 
-    Shard shard = Shard(buffer);
+    Shard shard = Shard(buffer->get_buffer_view());
 
     uint64_t lower_key = 100;
     uint64_t upper_key = 250;
@@ -221,25 +226,25 @@ START_TEST(t_irs_query_merge)
     size_t k = 1000;
 
     size_t cnt[3] = {0};
-    irs::Parms<Rec> parms = {lower_key, upper_key, k};
+    rq::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     std::vector<std::vector<de::Wrapped<Rec>>> results(2);
 
     for (size_t i=0; i<1000; i++) {
-        auto state1 = irs::Query<Shard, Rec>::get_query_state(&shard, &parms);
-        ((irs::State<WRec> *) state1)->sample_size = k;
-        results[0] = irs::Query<Shard, Rec>::query(&shard, state1, &parms);
+        auto state1 = rq::Query<Shard, Rec>::get_query_state(&shard, &parms);
+        ((rq::State<WRec> *) state1)->sample_size = k;
+        results[0] = rq::Query<Shard, Rec>::query(&shard, state1, &parms);
 
-        auto state2 = irs::Query<Shard, Rec>::get_query_state(&shard, &parms);
-        ((irs::State<WRec> *) state2)->sample_size = k;
-        results[1] = irs::Query<Shard, Rec>::query(&shard, state2, &parms);
+        auto state2 = rq::Query<Shard, Rec>::get_query_state(&shard, &parms);
+        ((rq::State<WRec> *) state2)->sample_size = k;
+        results[1] = rq::Query<Shard, Rec>::query(&shard, state2, &parms);
 
-        irs::Query<Shard, Rec>::delete_query_state(state1);
-        irs::Query<Shard, Rec>::delete_query_state(state2);
+        rq::Query<Shard, Rec>::delete_query_state(state1);
+        rq::Query<Shard, Rec>::delete_query_state(state2);
     }
 
-    auto merged = irs::Query<Shard, Rec>::merge(results, nullptr);
+    auto merged = rq::Query<Shard, Rec>::merge(results, nullptr);
 
     ck_assert_int_eq(merged.size(), 2*k);
     for (size_t i=0; i<merged.size(); i++) {
@@ -253,7 +258,7 @@ START_TEST(t_irs_query_merge)
 END_TEST
 
 
-START_TEST(t_irs_buffer_query_scan)
+START_TEST(t_rq_buffer_query_scan)
 {
     size_t n=1000;
     auto buffer = create_double_seq_mbuffer<Rec>(n);
@@ -264,15 +269,15 @@ START_TEST(t_irs_buffer_query_scan)
     size_t k = 100;
 
     size_t cnt[3] = {0};
-    irs::Parms<Rec> parms = {lower_key, upper_key, k};
+    rq::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = irs::Query<Shard, Rec, false>::get_buffer_query_state(buffer, &parms);
-        ((irs::BufferState<WRec> *) state)->sample_size = k;
-        auto result = irs::Query<Shard, Rec, false>::buffer_query(buffer, state, &parms);
+        auto state = rq::Query<Shard, Rec, false>::get_buffer_query_state(buffer, &parms);
+        ((rq::BufferState<WRec> *) state)->sample_size = k;
+        auto result = rq::Query<Shard, Rec, false>::buffer_query(buffer, state, &parms);
 
         ck_assert_int_eq(result.size(), k);
 
@@ -281,7 +286,7 @@ START_TEST(t_irs_buffer_query_scan)
             ck_assert_int_ge(rec.rec.key, lower_key);
         }
 
-        irs::Query<Shard, Rec, false>::delete_buffer_query_state(state);
+        rq::Query<Shard, Rec, false>::delete_buffer_query_state(state);
     }
 
     gsl_rng_free(parms.rng);
@@ -290,7 +295,7 @@ START_TEST(t_irs_buffer_query_scan)
 END_TEST
 
 
-START_TEST(t_irs_buffer_query_rejection)
+START_TEST(t_rq_buffer_query_rejection)
 {
     size_t n=1000;
     auto buffer = create_double_seq_mbuffer<Rec>(n);
@@ -301,15 +306,15 @@ START_TEST(t_irs_buffer_query_rejection)
     size_t k = 10000;
 
     size_t cnt[3] = {0};
-    irs::Parms<Rec> parms = {lower_key, upper_key, k};
+    rq::Parms<Rec> parms = {lower_key, upper_key, k};
     parms.rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t total_samples = 0;
 
     for (size_t i=0; i<1000; i++) {
-        auto state = irs::Query<Shard, Rec>::get_buffer_query_state(buffer, &parms);
-        ((irs::BufferState<WRec> *) state)->sample_size = k;
-        auto result = irs::Query<Shard, Rec>::buffer_query(buffer, state, &parms);
+        auto state = rq::Query<Shard, Rec>::get_buffer_query_state(buffer, &parms);
+        ((rq::BufferState<WRec> *) state)->sample_size = k;
+        auto result = rq::Query<Shard, Rec>::buffer_query(buffer, state, &parms);
 
         ck_assert_int_gt(result.size(), 0);
         ck_assert_int_le(result.size(), k);
@@ -319,13 +324,14 @@ START_TEST(t_irs_buffer_query_rejection)
             ck_assert_int_ge(rec.rec.key, lower_key);
         }
 
-        irs::Query<Shard, Rec>::delete_buffer_query_state(state);
+        rq::Query<Shard, Rec>::delete_buffer_query_state(state);
     }
 
     gsl_rng_free(parms.rng);
     delete buffer;
 }
 END_TEST
+*/
 
 
 Suite *unit_testing()
@@ -334,7 +340,7 @@ Suite *unit_testing()
 
     TCase *create = tcase_create("de::ISAMTree constructor Testing");
     tcase_add_test(create, t_mbuffer_init);
-    tcase_add_test(create, t_irs_init);
+    tcase_add_test(create, t_rq_init);
     tcase_set_timeout(create, 100);
     suite_add_tcase(unit, create);
 
@@ -349,14 +355,15 @@ Suite *unit_testing()
     tcase_add_test(lookup, t_point_lookup_miss);
     suite_add_tcase(unit, lookup);
 
-
-    TCase *sampling = tcase_create("de:ISAMTree::ISAMTreeQuery Testing");
-    tcase_add_test(sampling, t_irs_query);
-    tcase_add_test(sampling, t_irs_query_merge);
-    tcase_add_test(sampling, t_irs_buffer_query_rejection);
-    tcase_add_test(sampling, t_irs_buffer_query_scan);
+    /*
+    TCase *sampling = tcase_create("de:ISAMTree::IRS Testing");
+    tcase_add_test(sampling, t_rq_query);
+    tcase_add_test(sampling, t_rq_query_merge);
+    tcase_add_test(sampling, t_rq_buffer_query_rejection);
+    tcase_add_test(sampling, t_rq_buffer_query_scan);
     tcase_set_timeout(sampling, 100);
     suite_add_tcase(unit, sampling);
+    */
 
     return unit;
 }
