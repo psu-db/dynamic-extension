@@ -30,11 +30,11 @@ START_TEST(t_memlevel_merge)
     auto tbl2 = create_test_mbuffer<Rec>(100);
 
     auto base_level = new ILevel(1, 1);
-    base_level->append_buffer(tbl1);
+    base_level->append_buffer(tbl1->get_buffer_view());
     ck_assert_int_eq(base_level->get_record_count(), 100);
 
     auto merging_level = new ILevel(0, 1);
-    merging_level->append_buffer(tbl2);
+    merging_level->append_buffer(tbl2->get_buffer_view());
     ck_assert_int_eq(merging_level->get_record_count(), 100);
 
     auto new_level = ILevel::reconstruction(base_level, merging_level);
@@ -53,8 +53,8 @@ ILevel *create_test_memlevel(size_t reccnt) {
     auto tbl2 = create_test_mbuffer<Rec>(reccnt/2);
 
     auto base_level = new ILevel(1, 2);
-    base_level->append_buffer(tbl1); 
-    base_level->append_buffer(tbl2);
+    base_level->append_buffer(tbl1->get_buffer_view()); 
+    base_level->append_buffer(tbl2->get_buffer_view());
 
     delete tbl1;
     delete tbl2;

@@ -16,7 +16,7 @@
 #include "framework/interface/Shard.h"
 #include "framework/interface/Query.h"
 #include "framework/interface/Record.h"
-#include "framework/structure/MutableBuffer.h"
+#include "framework/structure/BufferView.h"
 
 namespace de {
 template <RecordInterface R, ShardInterface S, QueryInterface Q>
@@ -27,7 +27,7 @@ class InternalLevel;
 template <RecordInterface R, ShardInterface S, QueryInterface Q>
 class InternalLevel {
     typedef S Shard;
-    typedef MutableBuffer<R> Buffer;
+    typedef BufferView<R> BuffView;
 public:
     InternalLevel(ssize_t level_no, size_t shard_cap)
     : m_level_no(level_no)
@@ -97,14 +97,14 @@ public:
      * into this level. This is used for buffer
      * flushes under the tiering layout policy.
      */
-    void append_buffer(Buffer* buffer) {
+    void append_buffer(BuffView buffer) {
         if (m_shard_cnt == m_shards.size()) {
             assert(m_pending_shard == nullptr);
-            m_pending_shard = new S(buffer);
+            m_pending_shard = new S(std::move(buffer));
             return;
         }
 
-        m_shards[m_shard_cnt] = std::make_shared<S>(buffer);
+        m_shards[m_shard_cnt] = std::make_shared<S>(std::move(buffer));
         ++m_shard_cnt;
     }
 
@@ -140,7 +140,6 @@ public:
         return new S(shards, m_shard_cnt);
     }
 
-    /* Append the sample range in-order */
     void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_shards[i]) {

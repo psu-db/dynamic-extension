@@ -18,12 +18,25 @@
 
 namespace de {
 
-typedef  std::_Bind<void (*(void*, long unsigned int))(void*, long unsigned int)> ReleaseFunction;
+typedef std::_Bind<void (*(void*, long unsigned int))(void*, long unsigned int)> ReleaseFunction;
+
+static void noop_func(void *arg1, size_t arg2) {
+    return;
+}
+
+constexpr auto noop_bind = std::bind(noop_func, (void*) nullptr, 0ul);
 
 template <RecordInterface R>
 class BufferView {
 public:
-    BufferView() = default;
+    BufferView() 
+        : m_data(nullptr)
+        , m_release(noop_bind)
+        , m_head(0)
+        , m_tail(0)
+        , m_cap(0)
+        , m_approx_ts_cnt(0)
+        , m_tombstone_filter(nullptr) {}
 
     /* 
      * the BufferView's lifetime is tightly linked to buffer versioning, and so
@@ -32,14 +45,25 @@ public:
     BufferView(const BufferView&) = delete;
     BufferView &operator=(BufferView &) = delete;
 
-    void operator=(BufferView &&src) {
-        m_data = src.m_data;
-        m_release = src.m_release;
-        m_head = src.m_head;
-        m_tail = src.m_tail;
-        m_cap = src.m_cap;
-        m_approx_ts_cnt = src.m_approx_ts_cnt;
-        m_tombstone_filter = src.filter;
+    BufferView(BufferView &&other) 
+        : m_data(std::exchange(other.m_data, nullptr))
+        , m_release(std::move(other.m_release))
+        , m_head(std::exchange(other.m_head, 0))
+        , m_tail(std::exchange(other.m_tail, 0))
+        , m_cap(std::exchange(other.m_cap, 0))
+        , m_approx_ts_cnt(std::exchange(other.m_approx_ts_cnt, 0))
+        , m_tombstone_filter(std::exchange(other.m_tombstone_filter, nullptr)) {}
+
+    BufferView &operator=(BufferView &&other) noexcept {
+        std::swap(m_data, other.m_data);
+        m_release = std::move(other.m_release);
+        std::swap(m_head, other.m_head);
+        std::swap(m_tail, other.m_tail);
+        std::swap(m_cap, other.m_cap);
+        std::swap(m_approx_ts_cnt, other.m_approx_ts_cnt);
+        std::swap(m_tombstone_filter, other.m_tombstone_filter);
+
+        return *this;
     }
 
     BufferView(Wrapped<R> *buffer, size_t cap, size_t head, size_t tail, size_t tombstone_cnt, psudb::BloomFilter<R> *filter,
