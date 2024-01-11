@@ -18,31 +18,43 @@
 
 namespace de {
 
-typedef std::function<void(void*, size_t)> ReleaseFunction;
+typedef  std::_Bind<void (*(void*, long unsigned int))(void*, long unsigned int)> ReleaseFunction;
 
 template <RecordInterface R>
 class BufferView {
 public:
     BufferView() = default;
 
-    BufferView(const Wrapped<R> *buffer, size_t head, size_t tail, psudb::BloomFilter<R> *filter,
-               void *parent_buffer, ReleaseFunction release) 
-        : m_buffer(buffer)
+    BufferView(const Wrapped<R> *buffer, size_t cap, size_t head, size_t tail, size_t tombstone_cnt, psudb::BloomFilter<R> *filter,
+               ReleaseFunction release) 
+        : m_data(buffer)
         , m_release(release)
-        , m_parent_buffer(parent_buffer)
         , m_head(head)
         , m_tail(tail)
+        , m_cap(cap)
+        , m_approx_ts_cnt(tombstone_cnt)
         , m_tombstone_filter(filter) {}
 
     ~BufferView() {
-        m_release(m_parent_buffer, m_head);
+        m_release();
     }
 
     bool check_tombstone(const R& rec) {
         if (m_tombstone_filter && !m_tombstone_filter->lookup(rec)) return false;
 
         for (size_t i=0; i<get_record_count(); i++) {
-            if (m_buffer[to_idx(i)].rec == rec && m_buffer[to_idx(i)].is_tombstone()) {
+            if (m_data[to_idx(i)].rec == rec && m_data[to_idx(i)].is_tombstone()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool delete_record(const R& rec) {
+        for (size_t i=0; i<get_record_count(); i++) {
+            if (m_data[to_idx(i)].rec == rec) {
+                m_data[to_idx(i)].set_delete();
                 return true;
             }
         }
@@ -54,30 +66,35 @@ public:
         return m_tail - m_head;
     }
     
+    /*
+     * NOTE: This function returns an upper bound on the number
+     *       of tombstones within the view. There may be less than
+     *       this, due to synchronization issues during view creation.
+     */
     size_t get_tombstone_count() {
-        // FIXME: tombstone count
-        return 0;
+        return m_approx_ts_cnt;
     }
 
     Wrapped<R> *get(size_t i) {
         assert(i < get_record_count());
-        return m_buffer + to_idx(i);
+        return m_data + to_idx(i);
     }
 
     void copy_to_buffer(psudb::byte *buffer) {
-        memcpy(buffer, (std::byte*) (m_buffer + m_head), get_record_count() * sizeof(Wrapped<R>));
+        memcpy(buffer, (std::byte*) (m_data + m_head), get_record_count() * sizeof(Wrapped<R>));
     }
 
 private:
-    const Wrapped<R>* m_buffer;
-    void *m_parent_buffer;
+    const Wrapped<R>* m_data;
     ReleaseFunction m_release;
     size_t m_head;
     size_t m_tail;
+    size_t m_cap;
+    size_t m_approx_ts_cnt;
     psudb::BloomFilter<R> *m_tombstone_filter;
 
     size_t to_idx(size_t i) {
-        return (m_head + i) % m_buffer->get_capacity();
+        return (m_head + i) % m_cap;
     }
 };
 

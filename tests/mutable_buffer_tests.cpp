@@ -201,7 +201,7 @@ END_TEST
 
 START_TEST(t_truncate)
 {
-    auto buffer = new MutableBuffer<Rec>(100, 100);
+    auto buffer = new MutableBuffer<Rec>(50, 100);
 
     size_t ts_cnt = 0;
     Rec rec = {0, 5};
