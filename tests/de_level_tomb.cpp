@@ -13,14 +13,46 @@
 #include <random>
 #include <algorithm>
 
-#include "testing.h"
+#include "include/testing.h"
 #include "framework/DynamicExtension.h"
 #include "shard/ISAMTree.h"
 #include "query/rangequery.h"
+#include "shard/TrieSpline.h"
 
 #include <check.h>
 using namespace de;
 
-typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
+typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
 
-#include "dynamic_extension_tests.inc"
+#include "include/dynamic_extension.h"
+
+
+Suite *unit_testing()
+{
+    Suite *unit = suite_create("DynamicExtension: Tombstone Leveling Testing");
+    inject_dynamic_extension_tests(unit);
+
+    return unit;
+}
+
+
+int shard_unit_tests()
+{
+    int failed = 0;
+    Suite *unit = unit_testing();
+    SRunner *unit_shardner = srunner_create(unit);
+
+    srunner_run_all(unit_shardner, CK_NORMAL);
+    failed = srunner_ntests_failed(unit_shardner);
+    srunner_free(unit_shardner);
+
+    return failed;
+}
+
+
+int main() 
+{
+    int unit_failed = shard_unit_tests();
+
+    return (unit_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}

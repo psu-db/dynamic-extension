@@ -1,18 +1,40 @@
 /*
- * tests/dynamic_extension_tests.inc
+ * tests/include/dynamic_extension.h
  *
- * Unit tests for Dynamic Extension Framework
+ * Standardized unit tests for DynamicExtension objects
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
- *                    Dong Xie <dongx@psu.edu>
  *
  * Distributed under the Modified BSD License.
  *
+ * WARNING: This file must be included in the main unit test set
+ *          after the definition of an appropriate Shard, Query, and Rec
+ *          type. In particular, Rec needs to implement the key-value
+ *          pair interface. For other types of record, you'll need to
+ *          use a different set of unit tests.
  */
+#pragma once
+
+/*
+ * Uncomment these lines temporarily to remove errors in this file
+ * temporarily for development purposes. They should be removed prior
+ * to building, to ensure no duplicate definitions. These includes/defines
+ * should be included in the source file that includes this one, above the
+ * include statement.
+ */
+//#include "testing.h"
+//#include "framework/DynamicExtension.h"
+//#include "framework/scheduling/SerialScheduler.h"
+//#include "shard/ISAMTree.h"
+//#include "query/rangequery.h"
+//#include <check.h>
+//using namespace de;
+//typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
+
 
 START_TEST(t_create)
 {
-    auto test_de = new DE(100, 2, 1);
+    auto test_de = new DE(100, 1000, 2);
 
     ck_assert_ptr_nonnull(test_de);
     ck_assert_int_eq(test_de->get_record_count(), 0);
@@ -25,7 +47,7 @@ END_TEST
 
 START_TEST(t_insert)
 {
-    auto test_de = new DE(100, 2, 1);
+    auto test_de = new DE(100, 1000, 2);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -46,7 +68,7 @@ END_TEST
 
 START_TEST(t_debug_insert)
 {
-    auto test_de = new DE(100, 2, 1);
+    auto test_de = new DE(100, 1000, 2);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -65,7 +87,7 @@ END_TEST
 
 START_TEST(t_insert_with_mem_merges)
 {
-    auto test_de = new DE(100, 2, 1);
+    auto test_de = new DE(100, 1000, 2);
 
     uint64_t key = 0;
     uint32_t val = 0;
@@ -86,80 +108,9 @@ START_TEST(t_insert_with_mem_merges)
 END_TEST
 
 
-/*
-START_TEST(t_range_sample_memtable)
-{
-    auto test_de = new DE(100, 2, 1);
-
-    uint64_t key = 0;
-    uint32_t val = 0;
-    for (size_t i=0; i<100; i++) {
-        Rec r = {key, val};
-        ck_assert_int_eq(test_de->insert(r), 1);
-        key++;
-        val++;
-    }
-
-    uint64_t lower_bound = 20;
-    uint64_t upper_bound = 50;
-
-    char *buf = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
-    char *util_buf = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
-    Rec sample_set[100];
-
-    test_de->range_sample(sample_set, lower_bound, upper_bound, 100);
-
-    for(size_t i=0; i<100; i++) {
-        ck_assert_int_le(sample_set[i].key, upper_bound);
-        ck_assert_int_ge(sample_set[i].key, lower_bound);
-    }
-
-    free(buf);
-    free(util_buf);
-
-    delete test_de;
-}
-END_TEST
-
-
-START_TEST(t_range_sample_memlevels)
-{
-    auto test_de = new DE(100, 2, 1);
-
-    uint64_t key = 0;
-    uint32_t val = 0;
-    for (size_t i=0; i<300; i++) {
-        Rec r = {key, val};
-        ck_assert_int_eq(test_de->insert(r), 1);
-        key++;
-        val++;
-    }
-
-    uint64_t lower_bound = 100;
-    uint64_t upper_bound = 250;
-
-    char *buf = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
-    char *util_buf = (char *) std::aligned_alloc(SECTOR_SIZE, PAGE_SIZE);
-
-    Rec sample_set[100];
-    test_de->range_sample(sample_set, lower_bound, upper_bound, 100);
-
-    for(size_t i=0; i<100; i++) {
-        ck_assert_int_le(sample_set[i].key, upper_bound);
-        ck_assert_int_ge(sample_set[i].key, lower_bound);
-    }
-
-    free(buf);
-    free(util_buf);
-
-    delete test_de;
-}
-END_TEST
-*/
-
 START_TEST(t_range_query)
 {
-    auto test_de = new DE(100, 2, 1);
+    auto test_de = new DE(100, 1000, 2);
     size_t n = 10000;
 
     std::vector<uint64_t> keys;
@@ -206,7 +157,7 @@ END_TEST
 START_TEST(t_tombstone_merging_01)
 {
     size_t reccnt = 100000;
-    auto test_de = new DE(100, 2, .01);
+    auto test_de = new DE(100, 1000, 2);
 
     auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
@@ -259,7 +210,7 @@ END_TEST
 DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
     auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
-    auto test_de = new DE(1000, 2, 1);
+    auto test_de = new DE(1000, 10000, 2);
 
     std::set<Rec> records; 
     std::set<Rec> to_delete;
@@ -305,7 +256,7 @@ START_TEST(t_static_structure)
     auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     size_t reccnt = 100000;
-    auto test_de = new DE(100, 2, 1);
+    auto test_de = new DE(100, 1000, 2);
 
     std::set<Rec> records; 
     std::set<Rec> to_delete;
@@ -363,54 +314,28 @@ START_TEST(t_static_structure)
 END_TEST
 
 
-Suite *unit_testing()
-{
-    Suite *unit = suite_create("de::DynamicExtension Unit Testing");
-
+static void inject_dynamic_extension_tests(Suite *suite) {
     TCase *create = tcase_create("de::DynamicExtension::constructor Testing");
     tcase_add_test(create, t_create);
-    suite_add_tcase(unit, create);
+    suite_add_tcase(suite, create);
 
-    TCase *insert = tcase_create("de::DynamicExtension<ISAMTree>::insert Testing");
+    TCase *insert = tcase_create("de::DynamicExtension::insert Testing");
     tcase_add_test(insert, t_insert);
     tcase_add_test(insert, t_insert_with_mem_merges);
     tcase_add_test(insert, t_debug_insert);
-    suite_add_tcase(unit, insert);
+    suite_add_tcase(suite, insert);
 
-    TCase *query = tcase_create("de::DynamicExtension<ISAMTree>::range_query Testing");
+    TCase *query = tcase_create("de::DynamicExtension::range_query Testing");
     tcase_add_test(query, t_range_query);
-    suite_add_tcase(unit, query);
+    suite_add_tcase(suite, query);
 
     TCase *ts = tcase_create("de::DynamicExtension::tombstone_compaction Testing");
     tcase_add_test(ts, t_tombstone_merging_01);
     tcase_set_timeout(ts, 500);
-    suite_add_tcase(unit, ts);
+    suite_add_tcase(suite, ts);
 
     TCase *flat = tcase_create("de::DynamicExtension::create_static_structure Testing");
     tcase_add_test(flat, t_static_structure);
     tcase_set_timeout(flat, 500);
-    suite_add_tcase(unit, flat);
-
-    return unit;
-}
-
-int run_unit_tests()
-{
-    int failed = 0;
-    Suite *unit = unit_testing();
-    SRunner *unit_runner = srunner_create(unit);
-
-    srunner_run_all(unit_runner, CK_NORMAL);
-    failed = srunner_ntests_failed(unit_runner);
-    srunner_free(unit_runner);
-
-    return failed;
-}
-
-
-int main() 
-{
-    int unit_failed = run_unit_tests();
-
-    return (unit_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    suite_add_tcase(suite, flat);
 }

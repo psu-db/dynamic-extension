@@ -16,7 +16,7 @@
 #include "framework/interface/Query.h"
 #include "framework/interface/Shard.h"
 
-#include "testing.h"
+#include "include/testing.h"
 
 #include <check.h>
 
