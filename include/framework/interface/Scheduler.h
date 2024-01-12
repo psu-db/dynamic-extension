@@ -8,10 +8,6 @@
  */
 #pragma once
 
-#include <vector>
-#include <concepts>
-#include "framework/interface/Record.h"
-#include "util/types.h"
 #include "framework/scheduling/Task.h"
 
 template <typename S>

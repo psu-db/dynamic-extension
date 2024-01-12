@@ -103,6 +103,10 @@ public:
         memcpy(buffer, (std::byte*) (m_data + m_head), get_record_count() * sizeof(Wrapped<R>));
     }
 
+    size_t get_tail() {
+        return m_tail;
+    }
+
 private:
     Wrapped<R>* m_data;
     ReleaseFunction m_release;

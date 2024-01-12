@@ -23,7 +23,7 @@ concept QueryInterface = requires(Q q, void *p, std::vector<void*> &s) {
     {Q::get_query_state(p, p)} -> std::convertible_to<void*>;
     {Q::get_buffer_query_state(p, p)} -> std::convertible_to<void *>;
     */
-    {Q::process_query_states(p, s, s)};
+    {Q::process_query_states(p, s, p)};
     /*
     {Q::query(s, p, p)} -> std::convertible_to<std::vector<Wrapped<R>>>;
     {Q::buffer_query(p, p)} -> std::convertible_to<std::vector<Wrapped<R>>>;
