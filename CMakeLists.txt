@@ -6,9 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug true)
+set(debug false)
 set(tests True)
-set(bench false)
+set(bench true)
 set(old_bench False)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -95,19 +95,24 @@ if (tests)
     #target_compile_options(pgm_tests PUBLIC -fopenmp)
 endif()
 
-# Benchmark build instructions
-if (bench)
+if (bench) 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
 
+    add_executable(reconstruction_interference ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/reconstruction_interference.cpp)
+    target_link_libraries(reconstruction_interference PUBLIC gsl pthread gomp atomic)
+    target_link_options(reconstruction_interference PUBLIC -mcx16)
+    target_include_directories(reconstruction_interference PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+
     add_executable(insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insertion_tput.cpp)
-    target_link_libraries(insertion_tput PUBLIC gsl pthread gomp)
+    target_link_libraries(insertion_tput PUBLIC gsl pthread gomp atomic)
     target_include_directories(insertion_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_compile_options(insertion_tput PUBLIC -fopenmp)
+    target_link_options(insertion_tput PUBLIC -mcx16)
 
     add_executable(insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_query_tput.cpp)
-    target_link_libraries(insert_query_tput PUBLIC gsl pthread gomp)
+    target_link_libraries(insert_query_tput PUBLIC gsl pthread gomp atomic)
     target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_compile_options(insert_query_tput PUBLIC -fopenmp)
+    target_link_options(insert_query_tput PUBLIC -mcx16)
+
 endif()
 
 if (old_bench)

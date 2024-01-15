@@ -27,7 +27,9 @@ void insert_thread(Ext *extension, size_t n, size_t k) {
         TIMER_START();
         for (int64_t j=0; j<k; j++) {
             Rec r = {i+j, i+j};
-            extension->insert(r);
+            while (!extension->insert(r)) {
+                _mm_pause();
+            }
         }
         TIMER_STOP();
         auto insert_lat = TIMER_RESULT();
@@ -58,13 +60,14 @@ void query_thread(Ext *extension, double selectivity, size_t k) {
         TIMER_STOP();
         auto query_lat = TIMER_RESULT();
         fprintf(stdout, "Q\t%ld\t%ld\t%ld\n", reccnt, query_lat, k);
+        delete q;
     }
 }
 
 int main(int argc, char **argv) {
 
     /* the closeout routine takes _forever_ ... so we'll just leak the memory */
-    auto extension = new Ext(10000, 2, 1, 0, 2);
+    auto extension = new Ext(1000, 10000, 2);
     size_t n = 10000000;
     size_t per_trial = 1000;
     double selectivity = .001;

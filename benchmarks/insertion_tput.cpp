@@ -21,7 +21,7 @@ typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 
 int main(int argc, char **argv) {
 
-    auto extension = new Ext(10000, 2, 1);
+    auto extension = new Ext(1000, 10000, 2);
 
     size_t n = 1000000000;
     size_t per_trial = 1000;
@@ -31,7 +31,9 @@ int main(int argc, char **argv) {
         TIMER_START();
         for (int64_t j=0; j<per_trial; j++) {
             Rec r = {i+j, i+j};
-            extension->insert(r);
+            while (!extension->insert(r)) {
+                _mm_pause();
+            }
         }
         TIMER_STOP();
         auto insert_lat = TIMER_RESULT();
