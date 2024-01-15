@@ -14,8 +14,9 @@ set(old_bench False)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_CXX_FLAGS=-latomic -mcx16)
 
-add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal)
+add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal -mcx16)
 
 if (debug) 
     add_compile_options(-g -O0)
@@ -37,15 +38,18 @@ if (tests)
     #target_include_directories(augbtree_tests PRIVATE include external/psudb-common/cpp/include external/ctpl)
 
     add_executable(internal_level_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/internal_level_tests.cpp)
-    target_link_libraries(internal_level_tests PUBLIC gsl check subunit pthread)
+    target_link_libraries(internal_level_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(internal_level_tests PUBLIC -mcx16)
     target_include_directories(internal_level_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(mutable_buffer_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/mutable_buffer_tests.cpp)
-    target_link_libraries(mutable_buffer_tests PUBLIC gsl check subunit pthread)
+    target_link_libraries(mutable_buffer_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(mutable_buffer_tests PUBLIC -mcx16)
     target_include_directories(mutable_buffer_tests PRIVATE include external/psudb-common/cpp/include)
 
     add_executable(rangequery_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/rangequery_tests.cpp)
-    target_link_libraries(rangequery_tests PUBLIC gsl check subunit pthread)
+    target_link_libraries(rangequery_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(rangequery_tests PUBLIC -mcx16)
     target_include_directories(rangequery_tests PRIVATE include external/psudb-common/cpp/include)
 
     #add_executable(vptree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/vptree_tests.cpp)
@@ -53,23 +57,28 @@ if (tests)
     #target_include_directories(vptree_tests PRIVATE include external/vptree external/psudb-common/cpp/include)
     
     add_executable(de_tier_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tag.cpp)
-    target_link_libraries(de_tier_tag PUBLIC gsl check subunit pthread)
+    target_link_libraries(de_tier_tag PUBLIC gsl check subunit pthread atomic)
+    target_link_options(de_tier_tag PUBLIC -mcx16)
     target_include_directories(de_tier_tag PRIVATE include external/psudb-common/cpp/include external)
 
     add_executable(de_tier_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tomb.cpp)
-    target_link_libraries(de_tier_tomb PUBLIC gsl check subunit pthread)
+    target_link_libraries(de_tier_tomb PUBLIC gsl check subunit pthread atomic)
+    target_link_options(de_tier_tomb PUBLIC -mcx16)
     target_include_directories(de_tier_tomb PRIVATE include external/PLEX/include external/psudb-common/cpp/include external)
 
     add_executable(de_level_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tag.cpp)
-    target_link_libraries(de_level_tag PUBLIC gsl check subunit pthread)
+    target_link_libraries(de_level_tag PUBLIC gsl check subunit pthread atomic)
+    target_link_options(de_level_tag PUBLIC -mcx16)
     target_include_directories(de_level_tag PRIVATE include external/psudb-common/cpp/include external)
 
     add_executable(de_level_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_tomb.cpp)
-    target_link_libraries(de_level_tomb PUBLIC gsl check subunit pthread)
+    target_link_libraries(de_level_tomb PUBLIC gsl check subunit pthread atomic)
+    target_link_options(de_level_tomb PUBLIC -mcx16)
     target_include_directories(de_level_tomb PRIVATE include external/ctpl external/PLEX/include external/psudb-common/cpp/include external)
     
     add_executable(memisam_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/memisam_tests.cpp)
-    target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread)
+    target_link_libraries(memisam_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(memisam_tests PUBLIC -mcx16)
     target_include_directories(memisam_tests PRIVATE include external/psudb-common/cpp/include)
 
     #add_executable(alias_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/alias_tests.cpp)
