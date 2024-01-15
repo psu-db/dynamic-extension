@@ -22,9 +22,9 @@
 #include <check.h>
 using namespace de;
 
-typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
+typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
 
-#include "include/dynamic_extension.h"
+#include "include/concurrent_extension.h"
 
 
 Suite *unit_testing()

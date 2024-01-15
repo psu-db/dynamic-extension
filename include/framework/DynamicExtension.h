@@ -28,6 +28,7 @@
 #include "framework/scheduling/Epoch.h"
 
 
+
 namespace de {
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L=LayoutPolicy::TEIRING, 
@@ -176,12 +177,14 @@ public:
          */
         {
             auto bv = epoch->get_buffer();
-            shards.emplace_back(new S(std::move(bv)));
+            if (bv.get_record_count() > 0) {
+                shards.emplace_back(new S(std::move(bv)));
+            }
         }
 
         if (vers->get_levels().size() > 0) {
             for (int i=vers->get_levels().size() - 1; i>= 0; i--) {
-                if (vers->get_levels()[i]) {
+                if (vers->get_levels()[i] && vers->get_levels()[i]->get_record_count() > 0) {
                     shards.emplace_back(vers->get_levels()[i]->get_combined_shard());
                 }
             }
@@ -426,13 +429,19 @@ private:
 
         Structure *vers = args->epoch->get_structure();
 
-        //        could be flushed at once here.
-        auto buffer_view = args->epoch->get_flush_buffer();
-        size_t new_head = buffer_view.get_tail();
 
         for (ssize_t i=0; i<args->merges.size(); i++) {
             vers->reconstruction(args->merges[i].second, args->merges[i].first);
         }
+
+        /* 
+         * we'll grab the buffer AFTER doing the internal reconstruction, so we can
+         * flush as many records as possible in one go. The reconstruction was done so
+         * as to make room for the full buffer anyway, so there's no real benefit to doing
+         * this first.
+         */
+        auto buffer_view = args->epoch->get_buffer();
+        size_t new_head = buffer_view.get_tail();
 
         /* 
          * if performing a compaction, don't flush the buffer, as 
@@ -528,7 +537,7 @@ private:
 
         ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
         args->epoch = epoch;
-        args->merges = epoch->get_structure()->get_reconstruction_tasks(m_buffer->get_low_watermark());
+        args->merges = epoch->get_structure()->get_reconstruction_tasks(m_buffer->get_high_watermark());
         args->extension = this;
         args->compaction = false;
         /* NOTE: args is deleted by the reconstruction job, so shouldn't be freed here */

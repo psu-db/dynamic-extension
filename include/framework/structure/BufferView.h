@@ -105,7 +105,15 @@ public:
     }
 
     void copy_to_buffer(psudb::byte *buffer) {
-        memcpy(buffer, (std::byte*) (m_data + (m_head % m_cap)), get_record_count() * sizeof(Wrapped<R>));
+        /* check if the region to be copied circles back to start. If so, do it in two steps */
+        if ((m_head % m_cap) + get_record_count() > m_cap) {
+            size_t split_idx = m_cap - (m_head % m_cap);
+
+            memcpy(buffer, (std::byte*) (m_data + (m_head % m_cap)), split_idx* sizeof(Wrapped<R>));
+            memcpy(buffer + split_idx, (std::byte*) m_data, (get_record_count() - split_idx) * sizeof(Wrapped<R>));
+        } else {
+            memcpy(buffer, (std::byte*) (m_data + (m_head % m_cap)), get_record_count() * sizeof(Wrapped<R>));
+        }
     }
 
     size_t get_tail() {
