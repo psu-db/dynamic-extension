@@ -90,8 +90,8 @@ public:
          * ordering than simply accessing the buffer directly, but is
          * not *strictly* necessary.
          */
-        auto view = m_buffer->get_buffer_view();
         if constexpr (D == DeletePolicy::TAGGING) {
+            auto view = m_buffer->get_buffer_view();
             static_assert(std::same_as<SCHED, SerialScheduler>, "Tagging is only supported in single-threaded operation");
             if (get_active_epoch()->get_structure()->tagged_delete(rec)) {
                 return 1;
@@ -426,9 +426,8 @@ private:
 
         Structure *vers = args->epoch->get_structure();
 
-        // FIXME: with an improved shard interface, multiple full buffer_viewers
         //        could be flushed at once here.
-        auto buffer_view = args->epoch->get_buffer();
+        auto buffer_view = args->epoch->get_flush_buffer();
         size_t new_head = buffer_view.get_tail();
 
         for (ssize_t i=0; i<args->merges.size(); i++) {
@@ -464,6 +463,8 @@ private:
         if (!args->compaction) {
             ((DynamicExtension *) args->extension)->advance_epoch();
         }
+
+        ((DynamicExtension *) args->extension)->m_reconstruction_scheduled = false;
         
         delete args;
     }
@@ -525,12 +526,9 @@ private:
          */
         epoch->start_job();
 
-        // FIXME: all full buffers can be flushed at this point--but that requires
-        //        retooling the shard interface a bit to do efficiently.
-        //
         ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
         args->epoch = epoch;
-        args->merges = epoch->get_structure()->get_reconstruction_tasks(epoch->get_buffer().get_record_count());
+        args->merges = epoch->get_structure()->get_reconstruction_tasks(m_buffer->get_low_watermark());
         args->extension = this;
         args->compaction = false;
         /* NOTE: args is deleted by the reconstruction job, so shouldn't be freed here */

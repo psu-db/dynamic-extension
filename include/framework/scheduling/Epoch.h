@@ -60,6 +60,16 @@ public:
         }
     }
 
+
+    /* 
+     * Epochs are *not* copyable or movable. Only one can exist, and all users of
+     * it work with pointers 
+     */
+    Epoch(const Epoch&) = delete;
+    Epoch(Epoch&&) = delete;
+    Epoch &operator=(const Epoch&) = delete;
+    Epoch &operator=(Epoch&&) = delete;
+
     void start_job() {
         m_active_jobs.fetch_add(1);
     }
@@ -88,6 +98,10 @@ public:
 
     BufView get_buffer() {
         return m_buffer->get_buffer_view();
+    }
+
+    BufView get_flush_buffer() {
+        return m_buffer->get_flush_buffer_view();
     }
 
 

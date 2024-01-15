@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <functional>
+#include <utility>
 
 #include "psu-util/alignment.h"
 #include "psu-ds/BloomFilter.h"
@@ -39,7 +40,8 @@ public:
         , m_tail(std::exchange(other.m_tail, 0))
         , m_cap(std::exchange(other.m_cap, 0))
         , m_approx_ts_cnt(std::exchange(other.m_approx_ts_cnt, 0))
-        , m_tombstone_filter(std::exchange(other.m_tombstone_filter, nullptr)) {}
+        , m_tombstone_filter(std::exchange(other.m_tombstone_filter, nullptr))
+        , m_active(std::exchange(other.m_active, false)) {}
 
     BufferView &operator=(BufferView &&other) = delete;
 
@@ -52,10 +54,13 @@ public:
         , m_tail(tail)
         , m_cap(cap)
         , m_approx_ts_cnt(tombstone_cnt)
-        , m_tombstone_filter(filter) {}
+        , m_tombstone_filter(filter)
+        , m_active(true) {}
 
     ~BufferView() {
-        m_release();
+        if (m_active) {
+            m_release();
+        }
     }
 
     bool check_tombstone(const R& rec) {
@@ -100,11 +105,15 @@ public:
     }
 
     void copy_to_buffer(psudb::byte *buffer) {
-        memcpy(buffer, (std::byte*) (m_data + m_head), get_record_count() * sizeof(Wrapped<R>));
+        memcpy(buffer, (std::byte*) (m_data + (m_head % m_cap)), get_record_count() * sizeof(Wrapped<R>));
     }
 
     size_t get_tail() {
         return m_tail;
+    }
+
+    size_t get_head() {
+        return m_head;
     }
 
 private:
@@ -115,6 +124,7 @@ private:
     size_t m_cap;
     size_t m_approx_ts_cnt;
     psudb::BloomFilter<R> *m_tombstone_filter;
+    bool m_active;
 
     size_t to_idx(size_t i) {
         return (m_head + i) % m_cap;
