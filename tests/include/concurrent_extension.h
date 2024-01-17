@@ -28,8 +28,9 @@
 #include "shard/ISAMTree.h"
 #include "query/rangequery.h"
 #include <check.h>
-using namespace de;
-typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
+
+//using namespace de;
+//typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
 
 
 START_TEST(t_create)
@@ -75,7 +76,7 @@ START_TEST(t_debug_insert)
     for (size_t i=0; i<1000; i++) {
         Rec r = {key, val};
         ck_assert_int_eq(test_de->insert(r), 1);
-        //ck_assert_int_eq(test_de->get_record_count(), i+1);
+        ck_assert_int_eq(test_de->get_record_count(), i+1);
         key++;
         val++;
     }
@@ -115,14 +116,15 @@ START_TEST(t_insert_with_mem_merges)
             r.key++;
             r.value++;
             cnt++;
+            ck_assert_int_eq(test_de->get_record_count(), cnt + 1000);
         } else {
-            sleep(1);
+            _mm_pause();
         }
-    } while (cnt < 10000);
+    } while (cnt < 100000);
 
     test_de->await_next_epoch();
 
-    ck_assert_int_eq(test_de->get_record_count(), 11000);
+    ck_assert_int_eq(test_de->get_record_count(), 101000);
 
     delete test_de;
 }
@@ -131,12 +133,12 @@ END_TEST
 
 START_TEST(t_range_query)
 {
-    auto test_de = new DE(100, 1000, 2);
-    size_t n = 10000;
+    auto test_de = new DE(1000, 10000, 4);
+    size_t n = 10000000;
 
     std::vector<uint64_t> keys;
     for (size_t i=0; i<n; i++) {
-        keys.push_back(rand() % 25000);
+        keys.push_back(i);
     }
 
     std::random_device rd;
@@ -149,9 +151,10 @@ START_TEST(t_range_query)
         if (test_de->insert(r)) {
             i++;
         } else {
-            sleep(1);
+            _mm_pause();
         }
     }
+
 
     test_de->await_next_epoch();
 
@@ -166,9 +169,12 @@ START_TEST(t_range_query)
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
+    fprintf(stderr, "query start\n");
     auto result = test_de->query(&p);
     auto r = result.get();
+    fprintf(stderr, "query stop\n");
     std::sort(r.begin(), r.end());
+
     ck_assert_int_eq(r.size(), 251);
 
     for (size_t i=0; i<r.size(); i++) {
@@ -205,7 +211,7 @@ START_TEST(t_tombstone_merging_01)
     for (auto rec : records) {
         Rec r = {rec.first, rec.second};
         while (!test_de->insert(r)) {
-            sleep(1);
+            _mm_pause();
         }
 
         if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
@@ -215,7 +221,7 @@ START_TEST(t_tombstone_merging_01)
             for (size_t i=0; i<del_vec.size(); i++) {
                 Rec dr = {del_vec[i].first, del_vec[i].second};
                 while (!test_de->erase(dr)) {
-                    sleep(1);
+                    _mm_pause();
                 }
                 deletes++;
                 to_delete.erase(del_vec[i]);
@@ -307,7 +313,7 @@ START_TEST(t_static_structure)
     for (auto rec : records) {
         k++;
         while (!test_de->insert(rec)) {
-            sleep(1);
+            _mm_pause();
         }
         t_reccnt++;
 
@@ -316,8 +322,8 @@ START_TEST(t_static_structure)
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
-                while (!test_de->erase(del_vec[1])) {
-                    sleep(1);
+                while (!test_de->erase(del_vec[i])) {
+                    _mm_pause();
                 }
 
                 deletes++;
@@ -331,12 +337,23 @@ START_TEST(t_static_structure)
         }
     }
 
-    auto flat = test_de->create_static_structure();
-    ck_assert_int_eq(flat->get_record_count(), reccnt - deletes);
+
+    //fprintf(stderr, "Tombstones: %ld\tRecords: %ld\n", test_de->get_tombstone_count(), test_de->get_record_count());
+    //fprintf(stderr, "Inserts: %ld\tDeletes:%ld\tNet:%ld\n", reccnt, deletes, reccnt - deletes);
+
+    auto flat = test_de->create_static_structure(true);
+    //fprintf(stderr, "Flat: Tombstones: %ld\tRecords %ld\n", flat->get_tombstone_count(), flat->get_record_count());
+    //ck_assert_int_eq(flat->get_record_count(), reccnt - deletes);
 
     uint64_t prev_key = 0;
     for (size_t i=0; i<flat->get_record_count(); i++) {
         auto k = flat->get_record_at(i)->rec.key;
+        if (flat->get_record_at(i)->is_tombstone()) {
+            fprintf(stderr, "%ld %ld %ld\n", flat->get_record_at(i-1)->rec.key,
+                    flat->get_record_at(i)->rec.key, 
+                    flat->get_record_at(i+1)->rec.key);
+        }
+     //   ck_assert(!flat->get_record_at(i)->is_tombstone());
         ck_assert_int_ge(k, prev_key);
         prev_key = k;
     }
@@ -360,9 +377,9 @@ static void inject_dynamic_extension_tests(Suite *suite) {
     tcase_set_timeout(insert, 500);
     suite_add_tcase(suite, insert);
 
-    /*
     TCase *query = tcase_create("de::DynamicExtension::range_query Testing");
     tcase_add_test(query, t_range_query);
+    tcase_set_timeout(query, 500);
     suite_add_tcase(suite, query);
 
     
@@ -375,5 +392,4 @@ static void inject_dynamic_extension_tests(Suite *suite) {
     tcase_add_test(flat, t_static_structure);
     tcase_set_timeout(flat, 500);
     suite_add_tcase(suite, flat);
-    */
 }

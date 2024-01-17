@@ -51,11 +51,10 @@ public:
         assert(base_level->m_level_no > new_level->m_level_no || (base_level->m_level_no == 0 && new_level->m_level_no == 0));
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
-        Shard* shards[2];
-        shards[0] = base_level->m_shards[0].get();
-        shards[1] = new_level->m_shards[0].get();
+        std::vector<Shard *> shards = {base_level->m_shards[0].get(),
+                                       new_level->m_shards[0].get()};
 
-        res->m_shards[0] = std::make_shared<S>(shards, 2);
+        res->m_shards[0] = std::make_shared<S>(shards);
         return std::shared_ptr<InternalLevel>(res);
     }
 
@@ -75,17 +74,17 @@ public:
             return;
         }
 
-        Shard *shards[level->m_shard_cnt];
-        for (size_t i=0; i<level->m_shard_cnt; i++) {
-            shards[i] = level->m_shards[i].get();
+        std::vector<S*> shards;
+        for (auto shard : level->m_shards) {
+            if (shard) shards.emplace_back(shard.get());
         }
 
         if (m_shard_cnt == m_shards.size()) {
-            m_pending_shard = new S(shards, level->m_shard_cnt);
+            m_pending_shard = new S(shards);
             return;
         }
 
-        auto tmp = new S(shards, level->m_shard_cnt);
+        auto tmp = new S(shards);
         m_shards[m_shard_cnt] = std::shared_ptr<S>(tmp);
 
         ++m_shard_cnt;
@@ -131,13 +130,12 @@ public:
             return nullptr;
         }
 
-        Shard *shards[m_shard_cnt];
-
-        for (size_t i=0; i<m_shard_cnt; i++) {
-            shards[i] = m_shards[i].get();
+        std::vector<Shard *> shards;
+        for (auto shard : m_shards) {
+            if (shard) shards.emplace_back(shard.get());
         }
 
-        return new S(shards, m_shard_cnt);
+        return new S(shards);
     }
 
     void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {

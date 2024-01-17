@@ -125,15 +125,12 @@ START_TEST(t_lower_bound)
     auto buffer1 = create_sequential_mbuffer<Rec>(100, 200);
     auto buffer2 = create_sequential_mbuffer<Rec>(400, 1000);
 
-    Shard *shards[2];
-
     auto shard1 = Shard(buffer1->get_buffer_view());
     auto shard2 = Shard(buffer2->get_buffer_view());
 
-    shards[0] = &shard1;
-    shards[1] = &shard2;
+    std::vector<Shard *> shards = {&shard1, &shard2};
 
-    auto merged = Shard(shards, 2);
+    auto merged = Shard(shards);
 
     for (size_t i=100; i<1000; i++) {
         Rec r;

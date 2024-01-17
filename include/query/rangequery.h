@@ -84,11 +84,11 @@ public:
          * roll the pointer forward to the first record that is
          * greater than or equal to the lower bound.
          */
-        while(ptr->rec.key < p->lower_bound) {
+        while(ptr < shard->get_data() + s->stop_idx && ptr->rec.key < p->lower_bound) {
             ptr++;
         }
 
-        while (ptr->rec.key <= p->upper_bound && ptr < shard->get_data() + s->stop_idx) {
+        while (ptr < shard->get_data() + s->stop_idx && ptr->rec.key <= p->upper_bound) {
             records.emplace_back(*ptr);
             ptr++;
         }
@@ -152,6 +152,7 @@ public:
             } else {
                 auto& cursor = cursors[tmp_n - now.version - 1];
                 if (!now.data->is_tombstone()) output.push_back(cursor.ptr->rec);
+
                 pq.pop();
                 
                 if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);

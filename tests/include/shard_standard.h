@@ -65,8 +65,8 @@ START_TEST(t_shard_init)
     auto shard2 = new Shard(mbuffer2->get_buffer_view());
     auto shard3 = new Shard(mbuffer3->get_buffer_view());
 
-    Shard* shards[3] = {shard1, shard2, shard3};
-    auto shard4 = new Shard(shards, 3);
+    std::vector<Shard*> shards = {shard1, shard2, shard3};
+    auto shard4 = new Shard(shards);
 
     ck_assert_int_eq(shard4->get_record_count(), n * 3);
     ck_assert_int_eq(shard4->get_tombstone_count(), 0);
@@ -119,9 +119,9 @@ START_TEST(t_full_cancelation)
     ck_assert_int_eq(shard_ts->get_record_count(), n);
     ck_assert_int_eq(shard_ts->get_tombstone_count(), n);
 
-    Shard* shards[] = {shard, shard_ts};
+    std::vector<Shard *> shards = {shard, shard_ts};
 
-    Shard* merged = new Shard(shards, 2);
+    Shard* merged = new Shard(shards);
 
     ck_assert_int_eq(merged->get_tombstone_count(), 0);
     ck_assert_int_eq(merged->get_record_count(), 0);

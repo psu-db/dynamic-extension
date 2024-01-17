@@ -62,10 +62,13 @@ public:
     {
         TIMER_INIT();
 
-        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, buffer.get_record_count() * sizeof(Wrapped<R>), (byte**) &m_data);
+        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
+                                               buffer.get_record_count() * 
+                                                 sizeof(Wrapped<R>), 
+                                               (byte**) &m_data);
 
         TIMER_START();
-        auto temp_buffer = (Wrapped<R> *) psudb::sf_aligned_alloc(CACHELINE_SIZE, buffer.get_record_count() * sizeof(Wrapped<R>));
+        auto temp_buffer = (Wrapped<R> *) psudb::sf_aligned_calloc(CACHELINE_SIZE, buffer.get_record_count(), sizeof(Wrapped<R>));
         buffer.copy_to_buffer((byte *) temp_buffer);
 
         auto base = temp_buffer;
@@ -99,6 +102,7 @@ public:
 
             base++;
         }
+
         TIMER_STOP();
         auto copy_time = TIMER_RESULT();
 
@@ -112,7 +116,7 @@ public:
         free(temp_buffer);
     }
 
-    ISAMTree(ISAMTree** runs, size_t len)
+    ISAMTree(std::vector<ISAMTree*> &shards)
         : m_bf(nullptr) 
         , m_isam_nodes(nullptr)
         , m_root(nullptr)
@@ -124,19 +128,19 @@ public:
         , m_data(nullptr)
     {
         std::vector<Cursor<Wrapped<R>>> cursors;
-        cursors.reserve(len);
+        cursors.reserve(shards.size());
 
-        PriorityQueue<Wrapped<R>> pq(len);
+        PriorityQueue<Wrapped<R>> pq(shards.size());
 
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
         
-        for (size_t i = 0; i < len; ++i) {
-            if (runs[i]) {
-                auto base = runs[i]->get_data();
-                cursors.emplace_back(Cursor{base, base + runs[i]->get_record_count(), 0, runs[i]->get_record_count()});
-                attemp_reccnt += runs[i]->get_record_count();
-                tombstone_count += runs[i]->get_tombstone_count();
+        for (size_t i = 0; i < shards.size(); ++i) {
+            if (shards[i]) {
+                auto base = shards[i]->get_data();
+                cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
+                attemp_reccnt += shards[i]->get_record_count();
+                tombstone_count += shards[i]->get_tombstone_count();
                 pq.push(cursors[i].ptr, i);
             } else {
                 cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
@@ -144,10 +148,9 @@ public:
         }
 
         m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
-
-        m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(m_alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
+        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
+                                               attemp_reccnt * sizeof(Wrapped<R>),
+                                               (byte **) &m_data);
 
         while (pq.size()) {
             auto now = pq.peek();
@@ -165,6 +168,8 @@ public:
                 if (!cursor.ptr->is_deleted()) {
                     m_data[m_reccnt++] = *cursor.ptr;
                     if (cursor.ptr->is_tombstone()) {
+                        //fprintf(stderr, "ISAM: Tombstone from shard %ld next record from shard %ld\n",
+                                //now.version, next.version);
                         ++m_tombstone_cnt;
                         m_bf->insert(cursor.ptr->rec);
                     }

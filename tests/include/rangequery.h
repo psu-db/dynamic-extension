@@ -24,12 +24,12 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-//#include "shard/ISAMTree.h"
-//#include "query/rangequery.h"
-//#include "testing.h"
-//#include <check.h>
-//using namespace de;
-//typedef ISAMTree<Rec> Shard;
+#include "shard/ISAMTree.h"
+#include "query/rangequery.h"
+#include "testing.h"
+#include <check.h>
+using namespace de;
+typedef ISAMTree<Rec> Shard;
 
 
 START_TEST(t_range_query)
@@ -137,15 +137,12 @@ START_TEST(t_lower_bound)
     auto buffer1 = create_sequential_mbuffer<Rec>(100, 200);
     auto buffer2 = create_sequential_mbuffer<Rec>(400, 1000);
 
-    Shard *shards[2];
+    auto shard1 = new Shard(buffer1->get_buffer_view());
+    auto shard2 = new Shard(buffer2->get_buffer_view());
 
-    auto shard1 = Shard(buffer1->get_buffer_view());
-    auto shard2 = Shard(buffer2->get_buffer_view());
+    std::vector<Shard*> shards = {shard1, shard2};
 
-    shards[0] = &shard1;
-    shards[1] = &shard2;
-
-    auto merged = Shard(shards, 2);
+    auto merged = Shard(shards);
 
     for (size_t i=100; i<1000; i++) {
         Rec r;
@@ -167,6 +164,8 @@ START_TEST(t_lower_bound)
 
     delete buffer1;
     delete buffer2;
+    delete shard1;
+    delete shard2;
 }
 END_TEST
 

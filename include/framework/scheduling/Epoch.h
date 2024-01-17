@@ -32,15 +32,17 @@ public:
         , m_active_jobs(0) 
         , m_active(true)
         , m_epoch_number(number)
+        , m_buffer_head(0)
     {}
 
-    Epoch(size_t number, Structure *structure, Buffer *buff)
+    Epoch(size_t number, Structure *structure, Buffer *buff, size_t head)
         : m_buffer(buff)
         , m_structure(structure)
         , m_active_jobs(0) 
         , m_active_merge(false)
         , m_active(true)
         , m_epoch_number(number)
+        , m_buffer_head(head)
     {
         structure->take_reference();
     }
@@ -48,22 +50,21 @@ public:
     ~Epoch() {
         assert(m_active_jobs.load() == 0);
 
-        /* FIXME: this is needed to keep the destructor from
-         * sometimes locking up here. But there *shouldn't* be
-         * any threads waiting on this signal at object destruction,
-         * so something else is going on here that needs looked into
+        /* FIXME: this is needed to keep the destructor from sometimes locking
+         * up here. But there *shouldn't* be any threads waiting on this signal
+         * at object destruction, so something else is going on here that needs
+         * looked into
          */
-        //m_active_cv.notify_all();
+        // m_active_cv.notify_all();
 
         if (m_structure) {
             m_structure->release_reference();
         }
     }
 
-
-    /* 
-     * Epochs are *not* copyable or movable. Only one can exist, and all users of
-     * it work with pointers 
+    /*
+     * Epochs are *not* copyable or movable. Only one can exist, and all users
+     * of it work with pointers
      */
     Epoch(const Epoch&) = delete;
     Epoch(Epoch&&) = delete;
@@ -97,23 +98,20 @@ public:
     }
 
     BufView get_buffer() {
-        return m_buffer->get_buffer_view();
+        return m_buffer->get_buffer_view(m_buffer_head);
     }
-
-    BufView get_flush_buffer() {
-        return m_buffer->get_flush_buffer_view();
-    }
-
 
     /*
-     * Returns a new Epoch object that is a copy of this one. The new object will also contain
-     * a copy of the m_structure, rather than a reference to the same one. The epoch number of
-     * the new epoch will be set to the provided argument.
+     * Returns a new Epoch object that is a copy of this one. The new object
+     * will also contain a copy of the m_structure, rather than a reference to
+     * the same one. The epoch number of the new epoch will be set to the
+     * provided argument.
      */
     Epoch *clone(size_t number) {
         std::unique_lock<std::mutex> m_buffer_lock;
         auto epoch = new Epoch(number);
         epoch->m_buffer = m_buffer;
+        epoch->m_buffer_head = m_buffer_head;
 
         if (m_structure) {
             epoch->m_structure = m_structure->copy();
@@ -125,12 +123,10 @@ public:
     }
 
     /*
-     * Check if a merge can be started from this Epoch.
-     * At present, without concurrent merging, this simply
-     * checks if there is currently a scheduled merge based
-     * on this Epoch. If there is, returns false. If there
-     * isn't, return true and set a flag indicating that
-     * there is an active merge.
+     * Check if a merge can be started from this Epoch. At present, without
+     * concurrent merging, this simply checks if there is currently a scheduled
+     * merge based on this Epoch. If there is, returns false. If there isn't,
+     * return true and set a flag indicating that there is an active merge.
      */
     bool prepare_reconstruction() {
         auto old = m_active_merge.load();
@@ -176,7 +172,8 @@ public:
     }
 
     bool advance_buffer_head(size_t head) {
-        return m_buffer->advance_head(head);
+        m_buffer_head = head;
+        return m_buffer->advance_head(m_buffer_head);
     }
 
 private:
@@ -187,7 +184,6 @@ private:
     std::mutex m_cv_lock;
 
     std::mutex m_buffer_lock;
-
     std::atomic<bool> m_active_merge;
 
     /*
@@ -199,5 +195,6 @@ private:
     std::atomic<size_t> m_active_jobs;
     bool m_active;
     size_t m_epoch_number;
+    size_t m_buffer_head;
 };
 }

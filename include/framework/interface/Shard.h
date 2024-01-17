@@ -12,6 +12,7 @@
 
 #include "util/types.h"
 #include "framework/interface/Record.h"
+#include <vector>
 
 namespace de {
 
@@ -19,8 +20,8 @@ namespace de {
 //        determining a good way to handle additional template arguments 
 //        to get the Record type into play
 template <typename S>
-concept ShardInterface = requires(S s, S **spp, void *p, bool b, size_t i) {
-    {S(spp, i)};
+concept ShardInterface = requires(S s, std::vector<S*> spp, void *p, bool b, size_t i) {
+    {S(spp)};
     /*
     {S(mutable buffer)}
     {s.point_lookup(r, b) } -> std::convertible_to<void*>
