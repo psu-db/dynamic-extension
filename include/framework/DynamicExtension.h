@@ -40,6 +40,10 @@ class DynamicExtension {
     typedef Epoch<R, S, Q, L> _Epoch;
     typedef BufferView<R> BufView;
 
+    static constexpr size_t QUERY = 1;
+    static constexpr size_t RECONSTRUCTION = 2;
+
+
 public:
     DynamicExtension(size_t buffer_lwm, size_t buffer_hwm, size_t scale_factor, size_t memory_budget=0, 
                      size_t thread_cnt=16)
@@ -226,6 +230,11 @@ public:
         return t;
     }
 
+
+    void print_scheduler_statistics() {
+        m_sched.print_statistics();
+    }
+
 private:
     SCHED m_sched;
 
@@ -271,7 +280,7 @@ private:
              */
             epoch->start_job();
 
-            m_sched.schedule_job(reconstruction, 0, args);
+            m_sched.schedule_job(reconstruction, 0, args, RECONSTRUCTION);
 
             /* wait for compaction completion */
             wait.get();
@@ -511,7 +520,7 @@ private:
         args->compaction = false;
         /* NOTE: args is deleted by the reconstruction job, so shouldn't be freed here */
 
-        m_sched.schedule_job(reconstruction, 0, args);
+        m_sched.schedule_job(reconstruction, 0, args, RECONSTRUCTION);
     }
 
     std::future<std::vector<R>> schedule_query(void *query_parms) {
@@ -522,7 +531,7 @@ private:
         args->query_parms = query_parms;
         auto result = args->result_set.get_future();
 
-        m_sched.schedule_job(async_query, 0, args);
+        m_sched.schedule_job(async_query, 0, args, QUERY);
 
         return result;
     }

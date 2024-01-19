@@ -101,6 +101,8 @@ int main(int argc, char **argv) {
     auto s = extension->create_static_structure();
     fprintf(stderr, "Construction complete\n");
     q_thrd.join();
+
+    extension->print_scheduler_statistics();
     
     delete extension;
     delete s;

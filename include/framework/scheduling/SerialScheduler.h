@@ -14,21 +14,8 @@
  */
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <queue>
-#include <thread>
-#include <condition_variable>
-#include <future>
-
-#include "util/types.h"
-#include "framework/interface/Shard.h"
-#include "framework/interface/Query.h"
-#include "framework/interface/Record.h"
-#include "framework/structure/MutableBuffer.h"
-#include "framework/util/Configuration.h"
-#include "framework/structure/ExtensionStructure.h"
 #include "framework/scheduling/Task.h"
+#include "framework/scheduling/statistics.h"
 
 namespace de {
 
@@ -44,14 +31,20 @@ public:
 
     ~SerialScheduler() = default;
 
-    void schedule_job(std::function<void(void*)> job, size_t size, void *args) {
+    void schedule_job(std::function<void(void*)> job, size_t size, void *args, size_t type=0) {
         size_t ts = m_counter++;
-        auto t = Task(size, ts, job, args);
+        m_stats.job_queued(ts, type, size);
+        m_stats.job_scheduled(ts);
+        auto t = Task(size, ts, job, args, type, &m_stats);
         t(0);
     }
 
     void shutdown() {
         /* intentionally left blank */
+    }
+
+    void print_statistics() {
+        m_stats.print_statistics();
     }
 
 private:
@@ -62,6 +55,8 @@ private:
     size_t m_used_memory;
 
     size_t m_counter;
+
+    SchedulerStatistics m_stats;
 };
 
 }
