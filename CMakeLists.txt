@@ -52,6 +52,13 @@ if (tests)
     target_link_options(rangequery_tests PUBLIC -mcx16)
     target_include_directories(rangequery_tests PRIVATE include external/psudb-common/cpp/include)
 
+
+    add_executable(rangecount_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/rangecount_tests.cpp)
+    target_link_libraries(rangecount_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(rangecount_tests PUBLIC -mcx16)
+    target_include_directories(rangecount_tests PRIVATE include external/psudb-common/cpp/include)
+
+
     #add_executable(vptree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/vptree_tests.cpp)
     #target_link_libraries(vptree_tests PUBLIC gsl check subunit pthread)
     #target_include_directories(vptree_tests PRIVATE include external/vptree external/psudb-common/cpp/include)
