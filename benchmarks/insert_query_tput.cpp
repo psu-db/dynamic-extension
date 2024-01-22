@@ -11,6 +11,8 @@
 #include "query/rangecount.h"
 #include "framework/interface/Record.h"
 
+#include <gsl/gsl_rng.h>
+
 #include "psu-util/timer.h"
 
 
@@ -40,18 +42,23 @@ void insert_thread(Ext *extension, size_t n, size_t k) {
     inserts_done.store(true);
 }
 
-void query_thread(Ext *extension, double selectivity, size_t k) {
+void query_thread(Ext *extension, double selectivity, size_t k, gsl_rng *rng) {
     TIMER_INIT();
 
     while (!inserts_done.load()) {
         size_t reccnt = extension->get_record_count();
+        if (reccnt == 0) {
+            continue; // don't start querying until there is data
+        }
+
         size_t range = reccnt * selectivity;
 
         auto q = new de::rc::Parms<Rec>();
 
         TIMER_START();
         for (int64_t i=0; i<k; i++) {
-            size_t start = rand() % (reccnt - range);
+            size_t start = gsl_rng_uniform_int(rng, reccnt - range);
+
             q->lower_bound = start;
             q->upper_bound = start + range;
             auto res = extension->query(q);
@@ -72,11 +79,15 @@ int main(int argc, char **argv) {
     size_t per_trial = 1000;
     double selectivity = .001;
 
+    gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
+
     std::thread i_thrd(insert_thread, extension, n, per_trial);
-    std::thread q_thrd(query_thread, extension, selectivity, 1);
+    std::thread q_thrd(query_thread, extension, selectivity, 1, rng);
 
     q_thrd.join();
     i_thrd.join();
+
+    gsl_rng_free(rng);
     fflush(stderr);
 }
 
