@@ -19,6 +19,8 @@ typedef de::ISAMTree<Rec> ISAM;
 typedef de::rc::Query<ISAM, Rec> Q;
 typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 
+volatile std::atomic<bool> queries_done;
+
 void query_thread(Ext *extension, double selectivity, size_t k) {
     TIMER_INIT();
 
@@ -60,10 +62,9 @@ Ext *build_structure(size_t n) {
     return extension;
 }
 
-void query_benchmark(double selectivity, size_t k, Ext *extension) {
+void query_benchmark(double selectivity, size_t k, Ext *extension, size_t query_thrd_cnt) {
     TIMER_INIT();
 
-    size_t query_thrd_cnt = 4;
     std::vector<std::thread> thrds(query_thrd_cnt);
 
     TIMER_START();
@@ -78,6 +79,8 @@ void query_benchmark(double selectivity, size_t k, Ext *extension) {
 
     auto query_lat = TIMER_RESULT();
     fprintf(stdout, "Q\t%ld\t%ld\t%ld\t%ld\n", extension->get_record_count(), query_lat, k, query_thrd_cnt);
+
+    queries_done.store(true);
 }
 
 int main(int argc, char **argv) {
@@ -91,21 +94,30 @@ int main(int argc, char **argv) {
     /* build initial structure */
     auto extension = build_structure(n);
 
-    /* benchmark queries w/o any interference from reconstructions */
-    query_benchmark(selectivity, per_trial, extension);
+    std::vector<size_t> thread_counts = {8, 16, 32, 64, 128};
 
-    fprintf(stderr, "Running interference test...\n");
+    for (auto &threads : thread_counts) {
+        /* benchmark queries w/o any interference from reconstructions */
+        query_benchmark(selectivity, per_trial, extension, threads);
 
-    /* trigger a worst-case reconstruction and benchmark the queries */
-    std::thread q_thrd(query_benchmark, selectivity, per_trial, extension);
-    auto s = extension->create_static_structure();
-    fprintf(stderr, "Construction complete\n");
-    q_thrd.join();
+        fprintf(stderr, "Running interference test...\n");
+
+        queries_done.store(false);
+        /* trigger a worst-case reconstruction and benchmark the queries */
+
+        std::thread q_thrd(query_benchmark, selectivity, per_trial, extension, threads);
+        
+        while (!queries_done.load()) {
+            auto s = extension->create_static_structure();
+            delete s;
+        }
+
+        fprintf(stderr, "Construction complete\n");
+        q_thrd.join();
+    }
 
     extension->print_scheduler_statistics();
-    
     delete extension;
-    delete s;
 
     fflush(stderr);
 }

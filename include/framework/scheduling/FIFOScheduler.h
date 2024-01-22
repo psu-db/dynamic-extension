@@ -45,6 +45,7 @@ public:
         }
 
         m_sched_thrd.join();
+        m_sched_wakeup_thrd.join();
     }
 
     void schedule_job(std::function<void(void*)> job, size_t size, void *args, size_t type=0) {
