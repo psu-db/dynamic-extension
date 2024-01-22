@@ -10,7 +10,7 @@
 
 #include <thread>
 #include <condition_variable>
-
+#include <chrono>
 #include "framework/scheduling/Task.h"
 #include "framework/scheduling/statistics.h"
 
@@ -18,6 +18,8 @@
 #include "psu-ds/LockedPriorityQueue.h"
 
 namespace de {
+
+using namespace std::literals::chrono_literals;
 
 
 class FIFOScheduler {
@@ -33,6 +35,7 @@ public:
       , m_shutdown(false)
     {
         m_sched_thrd = std::thread(&FIFOScheduler::run, this);
+        m_sched_wakeup_thrd = std::thread(&FIFOScheduler::periodic_wakeup, this);
         m_thrd_pool.resize(m_thrd_cnt);
     }
 
@@ -77,12 +80,20 @@ private:
     std::condition_variable m_cv;
 
     std::thread m_sched_thrd;
+    std::thread m_sched_wakeup_thrd;
     ctpl::thread_pool m_thrd_pool;
 
     std::atomic<size_t> m_used_thrds;
     std::atomic<size_t> m_used_memory;
 
     SchedulerStatistics m_stats;
+
+    void periodic_wakeup() {
+        do {
+            std::this_thread::sleep_for(10us);
+            m_cv.notify_all();
+        } while (!m_shutdown.load());
+    }
 
     void schedule_next() {
         assert(m_task_queue.size() > 0);
