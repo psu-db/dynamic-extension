@@ -130,6 +130,12 @@ if (bench)
     target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(insert_query_tput PUBLIC -mcx16)
 
+    add_executable(watermark_testing ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/watermark_testing.cpp)
+    target_link_libraries(watermark_testing PUBLIC gsl pthread gomp atomic)
+    target_include_directories(watermark_testing PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(watermark_testing PUBLIC -mcx16)
+
+
 endif()
 
 if (old_bench)
