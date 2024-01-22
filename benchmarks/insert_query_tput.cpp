@@ -8,7 +8,7 @@
 
 #include "framework/DynamicExtension.h"
 #include "shard/ISAMTree.h"
-#include "query/rangequery.h"
+#include "query/rangecount.h"
 #include "framework/interface/Record.h"
 
 #include "psu-util/timer.h"
@@ -16,7 +16,7 @@
 
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
-typedef de::rq::Query<ISAM, Rec> Q;
+typedef de::rc::Query<ISAM, Rec> Q;
 typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 
 std::atomic<bool> inserts_done = false;
@@ -47,7 +47,7 @@ void query_thread(Ext *extension, double selectivity, size_t k) {
         size_t reccnt = extension->get_record_count();
         size_t range = reccnt * selectivity;
 
-        auto q = new de::rq::Parms<Rec>();
+        auto q = new de::rc::Parms<Rec>();
 
         TIMER_START();
         for (int64_t i=0; i<k; i++) {
