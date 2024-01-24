@@ -451,7 +451,7 @@ private:
             ((DynamicExtension *) args->extension)->advance_epoch(new_head);
         }
 
-        ((DynamicExtension *) args->extension)->m_reconstruction_scheduled = false;
+        ((DynamicExtension *) args->extension)->m_reconstruction_scheduled.store(false);
         
         delete args;
     }
@@ -537,9 +537,12 @@ private:
     }
 
     int internal_append(const R &rec, bool ts) {
-        if (!m_reconstruction_scheduled.load() && m_buffer->is_at_low_watermark()) {
-            m_reconstruction_scheduled.store(true);
-            schedule_reconstruction();
+        if (m_buffer->is_at_low_watermark()) {
+            auto old = false;
+
+            if (m_reconstruction_scheduled.compare_exchange_strong(old, true)) {
+                schedule_reconstruction();
+            }
         }
 
         /* this will fail if the HWM is reached and return 0 */
