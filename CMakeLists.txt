@@ -98,6 +98,11 @@ if (tests)
     target_link_options(memisam_tests PUBLIC -mcx16)
     target_include_directories(memisam_tests PRIVATE include external/psudb-common/cpp/include)
 
+    add_executable(triespline_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_tests.cpp)
+    target_link_libraries(triespline_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(triespline_tests PUBLIC -mcx16)
+    target_include_directories(triespline_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include)
+
     #add_executable(alias_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/alias_tests.cpp)
     #target_link_libraries(alias_tests PUBLIC gsl check subunit pthread)
     #target_include_directories(alias_tests PRIVATE include external/psudb-common/cpp/include)
@@ -135,7 +140,15 @@ if (bench)
     target_include_directories(watermark_testing PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(watermark_testing PUBLIC -mcx16)
 
+    add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
+    target_link_libraries(static_dynamic_comp PUBLIC gsl pthread gomp atomic)
+    target_include_directories(static_dynamic_comp PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(static_dynamic_comp PUBLIC -mcx16)
 
+    add_executable(insert_tail_latency ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_tail_latency.cpp)
+    target_link_libraries(insert_tail_latency PUBLIC gsl pthread gomp atomic)
+    target_include_directories(insert_tail_latency PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(insert_tail_latency PUBLIC -mcx16)
 endif()
 
 if (old_bench)

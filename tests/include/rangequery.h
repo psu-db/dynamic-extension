@@ -24,12 +24,12 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-#include "shard/ISAMTree.h"
-#include "query/rangequery.h"
-#include "testing.h"
-#include <check.h>
-using namespace de;
-typedef ISAMTree<Rec> Shard;
+//#include "shard/ISAMTree.h"
+//#include "query/rangequery.h"
+//#include "testing.h"
+//#include <check.h>
+//using namespace de;
+//typedef ISAMTree<Rec> Shard;
 
 
 START_TEST(t_range_query)
