@@ -1,18 +1,12 @@
 #include <cstdlib>
 #include <cstdio>
-#include <chrono>
-#include <algorithm>
-#include <numeric>
-#include <memory>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <unordered_set>
-#include <set>
 #include <string>
-#include <random>
 #include <gsl/gsl_rng.h>
 #include <cstring>
+#include <vector>
 
 typedef uint64_t key_type;
 typedef uint64_t value_type;
@@ -243,20 +237,4 @@ static bool build_delete_vec(std::vector<R> &to_delete, std::vector<R> &vec, siz
     }
 td:
     return true;
-}
-
-/*
- * helper routines for displaying progress bars to stderr
- */
-static const char *g_prog_bar = "======================================================================";
-static const size_t g_prog_width = 50;
-
-static void progress_update(double percentage, std::string prompt) {
-    int val = (int) (percentage * 100);
-    int lpad = (int) (percentage * g_prog_width);
-    int rpad = (int) (g_prog_width - lpad);
-    fprintf(stderr, "\r(%3d%%) %20s [%.*s%*s]", val, prompt.c_str(), lpad, g_prog_bar, rpad, "");
-    fflush(stderr);   
-
-    if (percentage >= 1) fprintf(stderr, "\n");
 }

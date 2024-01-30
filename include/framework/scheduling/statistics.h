@@ -67,19 +67,33 @@ public:
         if (type == 1) {
             m_type_1_cnt.fetch_add(1);
             m_type_1_total_time.fetch_add(length);
+            
+            if (length > m_type_1_largest_time) {
+                m_type_1_largest_time.store(length);
+            }
         } else {
             m_type_2_cnt.fetch_add(1);
             m_type_2_total_time.fetch_add(length);
+
+            if (length > m_type_2_largest_time) {
+                m_type_2_largest_time.store(length);
+            }
         }
     }
 
     void print_statistics() {
-        fprintf(stdout, "Query Count: %ld\tQuery Avg. Latency: %ld\n", 
-                m_type_1_cnt.load(), 
-                m_type_1_total_time.load() / m_type_1_cnt.load());
-        fprintf(stdout, "Reconstruction Count: %ld\tReconstruction Avg. Latency: %ld\n",
-                m_type_2_cnt.load(),
-                m_type_2_total_time.load() / m_type_2_cnt.load());
+        if (m_type_1_cnt > 0) {
+            fprintf(stdout, "Query Count: %ld\tQuery Avg. Latency: %ld\tMax Query Latency: %ld\n", 
+                    m_type_1_cnt.load(), 
+                    m_type_1_total_time.load() / m_type_1_cnt.load(),
+                    m_type_1_largest_time.load());
+        }
+        if (m_type_2_cnt > 0) {
+            fprintf(stdout, "Reconstruction Count: %ld\tReconstruction Avg. Latency: %ld\tMax Recon. Latency:%ld\n",
+                    m_type_2_cnt.load(),
+                    m_type_2_total_time.load() / m_type_2_cnt.load(),
+                    m_type_2_largest_time.load());
+        }
     }
 
 private:
@@ -92,5 +106,8 @@ private:
 
     std::atomic<size_t> m_type_2_cnt;
     std::atomic<size_t> m_type_2_total_time;
+
+    std::atomic<size_t> m_type_1_largest_time;
+    std::atomic<size_t> m_type_2_largest_time;
 };
 }
