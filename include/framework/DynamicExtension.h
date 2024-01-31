@@ -384,11 +384,15 @@ private:
 
         do {
             if (epoch->retirable()) {
+                m_epoch_retire_lk.lock();
+                if (!epoch->retirable()) {
+                    m_epoch_retire_lk.unlock();
+                    continue;
+                }
                 break;
             }
         } while (true);
 
-        m_epoch_retire_lk.lock();
         /* remove epoch from the framework's map */
         m_epochs.erase(epoch->get_epoch_number());
 
