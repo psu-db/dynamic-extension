@@ -27,6 +27,8 @@ void query_thread(Ext *extension, size_t n) {
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
     size_t range = n*.0001;
 
+    size_t total = 0;
+
     de::rc::Parms<Rec> *q = new de::rc::Parms<Rec>();
     while (!inserts_done.load()) {
         size_t start = gsl_rng_uniform_int(rng, n - range);
@@ -34,8 +36,11 @@ void query_thread(Ext *extension, size_t n) {
         q->upper_bound = start + range;
         auto res = extension->query(q);
         auto r = res.get();
-        usleep(100);
+	total += r[0].key;
+	usleep(1);
     }
+
+    fprintf(stderr, "%ld\n", total);
 
     gsl_rng_free(rng);
     delete q;
@@ -66,7 +71,7 @@ int main(int argc, char **argv) {
     size_t n = atol(argv[1]);
     size_t qthread_cnt = atol(argv[2]);
 
-    auto extension = new Ext(1000, 12000, 8);
+    auto extension = new Ext(1000, 12000, 8, 0, 64);
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     /* warmup structure w/ 10% of records */
