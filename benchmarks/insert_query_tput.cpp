@@ -8,7 +8,7 @@
 
 #include "framework/DynamicExtension.h"
 #include "shard/ISAMTree.h"
-#include "query/rangecount.h"
+#include "query/irs.h"
 #include "framework/interface/Record.h"
 
 #include <gsl/gsl_rng.h>
@@ -18,7 +18,7 @@
 
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
-typedef de::rc::Query<ISAM, Rec> Q;
+typedef de::irs::Query<ISAM, Rec> Q;
 typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 
 std::atomic<bool> inserts_done = false;
@@ -27,17 +27,19 @@ void query_thread(Ext *extension, size_t n) {
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
     size_t range = n*.0001;
 
-    size_t total = 0;
+    int64_t total = 0;
 
-    de::rc::Parms<Rec> *q = new de::rc::Parms<Rec>();
+    de::irs::Parms<Rec> *q = new de::irs::Parms<Rec>();
     while (!inserts_done.load()) {
         size_t start = gsl_rng_uniform_int(rng, n - range);
         q->lower_bound = start;
         q->upper_bound = start + range;
+        q->sample_size = 100;
+        q->rng = rng;
         auto res = extension->query(q);
         auto r = res.get();
-	total += r[0].key;
-	usleep(1);
+        total += r.size();
+        usleep(1);
     }
 
     fprintf(stderr, "%ld\n", total);

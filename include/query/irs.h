@@ -13,6 +13,7 @@
 #pragma once
 
 #include "framework/QueryRequirements.h"
+#include "psu-ds/Alias.h"
 
 namespace de { namespace irs {
 
@@ -38,6 +39,9 @@ struct BufferState {
     size_t cutoff;
     std::vector<Wrapped<R>> records;
     size_t sample_size;
+    BufferView<R> buffer;
+
+    BufferState(BufferView<R> buffer) : buffer(std::move(buffer)) {}
 };
 
 template <ShardInterface S, RecordInterface R, bool Rejection=true>
@@ -64,10 +68,10 @@ public:
         return res;
     }
 
-    static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
-        auto res = new BufferState<R>();
+    static void* get_buffer_query_state(BufferView<R> buffer, void *parms) {
+        auto res = new BufferState<R>(std::move(buffer));
 
-        res->cutoff = buffer->get_record_count();
+        res->cutoff = res->buffer.get_record_count();
         res->sample_size = 0;
 
         if constexpr (Rejection) {
@@ -78,8 +82,8 @@ public:
         auto upper_key = ((Parms<R> *) parms)->upper_bound;
 
         for (size_t i=0; i<res->cutoff; i++) {
-            if (((buffer->get_data() + i)->rec.key >= lower_key) && ((buffer->get_data() + i)->rec.key <= upper_key)) { 
-                res->records.emplace_back(*(buffer->get_data() + i));
+            if ((res->buffer.get(i)->rec.key >= lower_key) && (buffer.get(i)->rec.key <= upper_key)) { 
+                res->records.emplace_back(*(res->buffer.get(i)));
             }
         }
 
@@ -167,7 +171,7 @@ public:
         return result_set;
     }
 
-    static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
+    static std::vector<Wrapped<R>> buffer_query(void *state, void *parms) {
         auto st = (BufferState<R> *) state;
         auto p = (Parms<R> *) parms;
 
@@ -177,7 +181,7 @@ public:
         if constexpr (Rejection) {
             for (size_t i=0; i<st->sample_size; i++) {
                 auto idx = gsl_rng_uniform_int(p->rng, st->cutoff);
-                auto rec = buffer->get_data() + idx;
+                auto rec = st->buffer.get(idx);
 
                 if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
                     result.emplace_back(*rec);
