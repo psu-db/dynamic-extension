@@ -301,8 +301,10 @@ private:
 
     _Epoch *get_active_epoch_protected() {
         m_epoch_retire_lk.lock_shared();
+        m_struct_lock.lock();
         auto cur_epoch = m_current_epoch.load();
         m_epochs[cur_epoch]->start_job();
+        m_struct_lock.unlock();
         m_epoch_retire_lk.unlock_shared();
 
         return m_epochs[cur_epoch];
