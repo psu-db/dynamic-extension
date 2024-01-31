@@ -19,7 +19,7 @@
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
 typedef de::rc::Query<ISAM, Rec> Q;
-typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::FIFOScheduler> Ext;
+typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 
 std::atomic<size_t> total_latency = 0;
 
@@ -53,8 +53,8 @@ void insert_thread(Ext *extension, size_t n, size_t k, size_t rate) {
 int main(int argc, char **argv) {
 
     /* the closeout routine takes _forever_ ... so we'll just leak the memory */
-    auto extension = new Ext(100, 1000000, 3);
-    size_t n = 100000000;
+    auto extension = new Ext(12000, 12001, 3);
+    size_t n = 10000000;
     size_t per_trial = 1000;
     double selectivity = .001;
     size_t rate = 1000000;
@@ -63,11 +63,12 @@ int main(int argc, char **argv) {
 
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
 
-    std::thread i_thrd1(insert_thread, extension, n/2, per_trial, rate);
-    std::thread i_thrd2(insert_thread, extension, n/2, per_trial, rate);
+    std::thread i_thrd1(insert_thread, extension, n, per_trial, rate);
+    //std::thread i_thrd2(insert_thread, extension, n/2, per_trial, rate);
+
 
     i_thrd1.join();
-    i_thrd2.join();
+    //i_thrd2.join();
 
     auto avg_latency = total_latency.load() / n;
     auto throughput = (int64_t) ((double) n / (double) total_latency * 1e9);

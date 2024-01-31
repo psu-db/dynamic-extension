@@ -114,6 +114,7 @@ private:
             }
         } while(!m_shutdown.load());
     }
+
 };
 
 }
