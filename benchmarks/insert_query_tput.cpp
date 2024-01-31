@@ -23,79 +23,85 @@ typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 
 std::atomic<bool> inserts_done = false;
 
+void query_thread(Ext *extension, size_t n) {
+    gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
+    size_t range = n*.0001;
 
-void query_thread(Ext *extension, double selectivity, size_t k, gsl_rng *rng) {
-    TIMER_INIT();
-
-    size_t reccnt = extension->get_record_count();
-
-    size_t range = reccnt * selectivity;
-
-    auto q = new de::rc::Parms<Rec>();
-
-    TIMER_START();
-    for (int64_t i=0; i<k; i++) {
-        size_t start = gsl_rng_uniform_int(rng, reccnt - range);
-
+    de::rc::Parms<Rec> *q = new de::rc::Parms<Rec>();
+    while (!inserts_done.load()) {
+        size_t start = gsl_rng_uniform_int(rng, n - range);
         q->lower_bound = start;
         q->upper_bound = start + range;
         auto res = extension->query(q);
         auto r = res.get();
+        usleep(100);
     }
-    TIMER_STOP();
-    auto query_lat = TIMER_RESULT();
-    fprintf(stdout, "Q\t%ld\t%ld\t%ld\n", reccnt, query_lat, k);
+
+    gsl_rng_free(rng);
     delete q;
 }
 
-void insert_thread(Ext *extension, size_t n, size_t k, gsl_rng *rng) {
-    TIMER_INIT();
-
+void insert_thread(Ext *extension, size_t n, gsl_rng *rng) {
     size_t reccnt = 0;
     Rec r;
-    while (reccnt < n) {
-        auto old_reccnt = reccnt;
+    for (size_t i=0; i<n; i++) {
+        r.key = gsl_rng_uniform_int(rng, n);
+        r.value = gsl_rng_uniform_int(rng, n);
 
-        TIMER_START();
-        for (size_t i=0; i<k; i++) {
-            r.key = reccnt;
-            r.value = reccnt;
-
-            if (extension->insert(r)) {
-                reccnt++;
-            }
-        }
-        TIMER_STOP();
-        auto insert_lat = TIMER_RESULT();
-
-        fprintf(stdout, "I\t%ld\t%ld\t%ld\n", reccnt, insert_lat, reccnt - old_reccnt);
-
-        if (reccnt % 100000 == 0 && reccnt != n)  {
-            auto a = std::thread(query_thread, extension, .01, 20, rng);
-            a.detach();
+        while (!extension->insert(r)) {
+            usleep(1);
         }
     }
+
+    inserts_done.store(true);
 }
 
 int main(int argc, char **argv) {
 
-    /* the closeout routine takes _forever_ ... so we'll just leak the memory */
+    if (argc < 3) {
+        fprintf(stderr, "insert_query_tput reccnt query_threads\n");
+        exit(EXIT_FAILURE);
+    }
+
+    size_t n = atol(argv[1]);
+    size_t qthread_cnt = atol(argv[2]);
+
     auto extension = new Ext(1000, 12000, 8);
-    size_t n = 10000000;
-    size_t per_trial = 1000;
-    double selectivity = .001;
+    gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
+
+    /* warmup structure w/ 10% of records */
+    size_t warmup = .1 * n;
+    Rec r;
+    for (size_t i=0; i<warmup; i++) {
+        r.key = gsl_rng_uniform_int(rng, n);
+        r.value = gsl_rng_uniform_int(rng, n);
+
+        while (!extension->insert(r)) {
+            usleep(1);
+        }
+    }
+
+    extension->await_next_epoch();
 
     TIMER_INIT();
 
-    gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
+    std::vector<std::thread> qthreads(qthread_cnt);
 
     TIMER_START();
-    std::thread i_thrd(insert_thread, extension, n, per_trial, rng);
+    std::thread i_thrd(insert_thread, extension, n - warmup, rng);
+    for (size_t i=0; i<qthread_cnt; i++) {
+        qthreads[i] = std::thread(query_thread, extension, n);
+    }
     i_thrd.join();
     TIMER_STOP();
 
+    for (size_t i=0; i<qthread_cnt; i++) {
+        qthreads[i].join();
+    }
+
     auto total_latency = TIMER_RESULT();
-    fprintf(stdout, "T\t%ld\n", total_latency);
+    size_t throughput = (size_t) ((double) (n - warmup) / (double) total_latency * 1e9);
+    fprintf(stdout, "T\t%ld\t%ld\n", total_latency, throughput);
 
     gsl_rng_free(rng);
     delete extension;

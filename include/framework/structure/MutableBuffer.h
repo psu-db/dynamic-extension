@@ -158,7 +158,7 @@ public:
 
         /* refuse to advance head while there is an old with one references */
         if (m_old_head.load().refcnt > 0) {
-            fprintf(stderr, "[W]: Refusing to advance head due to remaining reference counts");
+            //fprintf(stderr, "[W]: Refusing to advance head due to remaining reference counts\n");
             return false;
         }
 
