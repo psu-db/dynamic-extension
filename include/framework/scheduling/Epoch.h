@@ -29,8 +29,6 @@ public:
         : m_buffer(nullptr)
         , m_structure(nullptr)
         , m_active_merge(false)
-        , m_active_jobs(0) 
-        , m_active(true)
         , m_epoch_number(number)
         , m_buffer_head(0)
     {}
@@ -38,9 +36,7 @@ public:
     Epoch(size_t number, Structure *structure, Buffer *buff, size_t head)
         : m_buffer(buff)
         , m_structure(structure)
-        , m_active_jobs(0) 
         , m_active_merge(false)
-        , m_active(true)
         , m_epoch_number(number)
         , m_buffer_head(head)
     {
@@ -48,8 +44,6 @@ public:
     }
 
     ~Epoch() {
-        assert(m_active_jobs.load() == 0);
-
         /* FIXME: this is needed to keep the destructor from sometimes locking
          * up here. But there *shouldn't* be any threads waiting on this signal
          * at object destruction, so something else is going on here that needs
@@ -70,24 +64,6 @@ public:
     Epoch(Epoch&&) = delete;
     Epoch &operator=(const Epoch&) = delete;
     Epoch &operator=(Epoch&&) = delete;
-
-    void start_job() {
-        m_active_jobs.fetch_add(1);
-    }
-
-    void end_job() {
-        assert(m_active_jobs.load() > 0);
-        m_active_jobs.fetch_add(-1);
-
-        if (m_active_jobs.load() == 0) {
-            std::unique_lock<std::mutex> lk(m_cv_lock);
-            m_active_cv.notify_all();  
-        }
-    }
-
-    size_t get_active_job_num() {
-        return m_active_jobs.load();
-    }
 
     size_t get_epoch_number() {
         return m_epoch_number;
@@ -145,32 +121,6 @@ public:
         return true;
     }
 
-    void set_inactive() {
-        m_active = false;
-    }
-
-    /*
-     * 
-     */
-    bool retirable() {
-        /* if epoch is currently active, then it cannot be retired */
-        if (m_active) {
-            return false;
-        }
-
-        /* 
-         * if the epoch has active jobs but is not itself active, 
-         * wait for them to finish and return true. If there are 
-         * not active jobs, return true immediately 
-         */
-        std::unique_lock<std::mutex> lk(m_cv_lock);
-        while (m_active_jobs.load() > 0) {
-            m_active_cv.wait(lk);
-        }
-
-        return true;
-    }
-
     bool advance_buffer_head(size_t head) {
         m_buffer_head = head;
         return m_buffer->advance_head(m_buffer_head);
@@ -179,9 +129,6 @@ public:
 private:
     Structure *m_structure;
     Buffer *m_buffer;
-
-    std::condition_variable m_active_cv;
-    std::mutex m_cv_lock;
 
     std::mutex m_buffer_lock;
     std::atomic<bool> m_active_merge;
@@ -192,8 +139,6 @@ private:
      * epoch. An epoch can only be retired
      * when this number is 0.
      */
-    std::atomic<size_t> m_active_jobs;
-    bool m_active;
     size_t m_epoch_number;
     size_t m_buffer_head;
 };

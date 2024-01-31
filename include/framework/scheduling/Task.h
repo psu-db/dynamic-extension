@@ -29,9 +29,9 @@ struct ReconstructionArgs {
 
 template <RecordInterface R, ShardInterface S, QueryInterface Q, LayoutPolicy L>
 struct QueryArgs {
-    Epoch<R, S, Q, L> *epoch;
     std::promise<std::vector<R>> result_set;
     void *query_parms;
+    void *extension;
 };
 
 typedef std::function<void(void*)> Job;
