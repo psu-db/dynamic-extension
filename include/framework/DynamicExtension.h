@@ -328,14 +328,15 @@ private:
          */
         enforce_delete_invariant(new_epoch);
 
-        // FIXME: this may currently fail because there isn't any
+        // FIXME: this may currently block because there isn't any
         // query preemption yet. At this point, we'd need to either
         // 1) wait for all queries on the old_head to finish
         // 2) kill all queries on the old_head
         // 3) somehow migrate all queries on the old_head to the new
         //    version
-        auto res = new_epoch->advance_buffer_head(buffer_head);
-        assert(res);
+        while (!new_epoch->advance_buffer_head(buffer_head)) {
+            _mm_pause();
+        }
 
         m_current_epoch.fetch_add(1);
         old_epoch->set_inactive();

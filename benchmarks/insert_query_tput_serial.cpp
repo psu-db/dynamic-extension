@@ -19,7 +19,7 @@
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
 typedef de::rc::Query<ISAM, Rec> Q;
-typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
+typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 
 std::atomic<bool> inserts_done = false;
 
@@ -72,7 +72,7 @@ void insert_thread(Ext *extension, size_t n, size_t k, gsl_rng *rng) {
 
         if (reccnt % 100000 == 0 && reccnt != n)  {
             auto a = std::thread(query_thread, extension, .01, 20, rng);
-            a.detach();
+            a.join();
         }
     }
 }
