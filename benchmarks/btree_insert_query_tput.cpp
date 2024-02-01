@@ -56,6 +56,10 @@ void insert_thread(BenchBTree *tree, size_t start, std::vector<int64_t> *records
         g_btree_lock.lock();
         tree->insert(r);
         g_btree_lock.unlock();
+
+        if (i % 100000 == 0) {
+            fprintf(stderr, "Inserted %ld records\n", i);
+        }
     }
 
     inserts_done.store(true);
