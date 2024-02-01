@@ -140,15 +140,21 @@ if (bench)
     target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(insert_query_tput PUBLIC -mcx16)
 
+
+    add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
+    target_link_libraries(btree_insert_query_tput PUBLIC gsl pthread gomp atomic)
+    target_include_directories(btree_insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(btree_insert_query_tput PUBLIC -mcx16)
+
     add_executable(watermark_testing ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/watermark_testing.cpp)
     target_link_libraries(watermark_testing PUBLIC gsl pthread gomp atomic)
     target_include_directories(watermark_testing PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(watermark_testing PUBLIC -mcx16)
 
-    add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
-    target_link_libraries(static_dynamic_comp PUBLIC gsl pthread gomp atomic)
-    target_include_directories(static_dynamic_comp PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(static_dynamic_comp PUBLIC -mcx16)
+    #add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
+    #target_link_libraries(static_dynamic_comp PUBLIC gsl pthread gomp atomic)
+    #target_include_directories(static_dynamic_comp PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    #target_link_options(static_dynamic_comp PUBLIC -mcx16)
 
     add_executable(insert_tail_latency ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_tail_latency.cpp)
     target_link_libraries(insert_tail_latency PUBLIC gsl pthread gomp atomic)

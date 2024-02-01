@@ -12,8 +12,8 @@
 
 #pragma once
 
-typedef uint64_t key_type;
-typedef uint64_t value_type;
+typedef int64_t key_type;
+typedef int64_t value_type;
 typedef uint64_t weight_type;
 
 static gsl_rng *g_rng;
