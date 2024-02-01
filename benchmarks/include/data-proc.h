@@ -10,6 +10,8 @@
 
 #include "psu-ds/BTree.h"
 
+#pragma once
+
 typedef uint64_t key_type;
 typedef uint64_t value_type;
 typedef uint64_t weight_type;
@@ -241,4 +243,16 @@ static bool build_delete_vec(std::vector<R> &to_delete, std::vector<R> &vec, siz
     }
 td:
     return true;
+}
+
+static std::vector<int64_t> read_sosd_file(std::string &fname, size_t n) {
+    std::fstream file;
+    file.open(fname, std::ios::in | std::ios::binary);
+
+    std::vector<int64_t> records(n);
+    for (size_t i=0; i<n; i++) {
+        file.read((char*) &(records[i]), sizeof(int64_t));
+    }
+
+    return records;
 }
