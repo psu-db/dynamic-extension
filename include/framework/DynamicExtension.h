@@ -388,6 +388,7 @@ private:
 
         epoch_ptr old, new_ptr;
         new_ptr = {nullptr, 0};
+	size_t i=0;
         do {
             old = m_previous_epoch.load();
 
@@ -396,9 +397,10 @@ private:
                 break;
             }
             usleep(1);
+	    i++;
+	    
+	    if (i > 600) break;
         } while(true);
-
-        //fprintf(stderr, "Epoch %ld retired [%p]\n", epoch->get_epoch_number(), epoch);
 
         delete epoch;
 
@@ -472,8 +474,6 @@ private:
         auto ptr1 = ((DynamicExtension *) args->extension)->m_previous_epoch.load().epoch;
         auto ptr2 = ((DynamicExtension *) args->extension)->m_current_epoch.load().epoch;
         auto ptr3 = ((DynamicExtension *) args->extension)->m_next_epoch.load().epoch;
-
-        //fprintf(stderr, "(%ld, %p)\t%p\t%p\t%p\n", epoch->get_epoch_number(), epoch, ptr1, ptr2, ptr3);
 
 
         auto buffer = epoch->get_buffer();
@@ -650,14 +650,20 @@ private:
         do {
             if (m_previous_epoch.load().epoch == epoch) {
                 old = m_previous_epoch;
-                assert(old.refcnt > 0);
+		if (old.refcnt <= 0) {
+			return;
+		}
+
                 new_ptr = {old.epoch, old.refcnt - 1};
                 if (m_previous_epoch.compare_exchange_strong(old, new_ptr)) {
                     break;
                 }
             } else {
                 old = m_current_epoch;
-                assert(old.refcnt > 0);
+		if (old.refcnt <= 0) {
+			return;
+		}
+                //assert(old.refcnt > 0);
                 new_ptr = {old.epoch, old.refcnt - 1};
                 if (m_current_epoch.compare_exchange_strong(old, new_ptr)) {
                     break;
