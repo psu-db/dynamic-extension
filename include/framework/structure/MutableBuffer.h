@@ -230,13 +230,16 @@ public:
     /*
      * Note: this returns the available physical storage capacity,
      * *not* now many more records can be inserted before the
-     * HWM is reached.
-     *
-     * FIXME: this logic is incorrect for the buffer prior to the
-     * first call to advance_head, and will under-report the available
-     * space.
+     * HWM is reached. It considers the old_head to be "free"
+     * when it has no remaining references. This should be true,
+     * but a buggy framework implementation may violate the
+     * assumption.
      */
     size_t get_available_capacity() {
+        if (m_old_head.load().refcnt == 0) {
+            return m_cap - (m_tail.load() - m_head.load().head_idx);
+        }
+
         return m_cap - (m_tail.load() - m_old_head.load().head_idx);
     }
 

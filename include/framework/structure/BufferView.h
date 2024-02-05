@@ -38,6 +38,8 @@ public:
         , m_release(std::move(other.m_release))
         , m_head(std::exchange(other.m_head, 0))
         , m_tail(std::exchange(other.m_tail, 0))
+        , m_start(std::exchange(other.m_start, 0))
+        , m_stop(std::exchange(other.m_stop, 0))
         , m_cap(std::exchange(other.m_cap, 0))
         , m_approx_ts_cnt(std::exchange(other.m_approx_ts_cnt, 0))
         , m_tombstone_filter(std::exchange(other.m_tombstone_filter, nullptr))
@@ -52,6 +54,8 @@ public:
         , m_release(release)
         , m_head(head)
         , m_tail(tail)
+        , m_start(m_head % cap)
+        , m_stop(m_tail % cap)
         , m_cap(cap)
         , m_approx_ts_cnt(tombstone_cnt)
         , m_tombstone_filter(filter)
@@ -76,11 +80,29 @@ public:
     }
 
     bool delete_record(const R& rec) {
-        for (size_t i=0; i<get_record_count(); i++) {
-            if (m_data[to_idx(i)].rec == rec) {
-                m_data[to_idx(i)].set_delete();
-                return true;
+        if (m_start < m_stop) {
+            for (size_t i=m_start; i<m_stop; i++) {
+                if (m_data[i].rec == rec) {
+                    m_data[i].set_delete();
+                    return true;
+                }
             }
+        } else {
+            for (size_t i=m_start; i<m_cap; i++) {
+                if (m_data[i].rec == rec) {
+                    m_data[i].set_delete();
+                    return true;
+                }
+            }
+
+            for (size_t i=0; i<m_stop; i++) {
+                if (m_data[i].rec == rec) {
+                    m_data[i].set_delete();
+                    return true;
+                }
+
+            }
+
         }
 
         return false;
@@ -101,18 +123,19 @@ public:
 
     Wrapped<R> *get(size_t i) {
         assert(i < get_record_count());
+        m_total += (m_data + to_idx(i))->rec.key;
         return m_data + to_idx(i);
     }
 
     void copy_to_buffer(psudb::byte *buffer) {
         /* check if the region to be copied circles back to start. If so, do it in two steps */
-        if ((m_head % m_cap) + get_record_count() > m_cap) {
-            size_t split_idx = m_cap - (m_head % m_cap);
+        if (m_start > m_stop) { 
+            size_t split_idx = m_cap - m_start;
 
-            memcpy(buffer, (std::byte*) (m_data + (m_head % m_cap)), split_idx* sizeof(Wrapped<R>));
-            memcpy(buffer + (split_idx * sizeof(Wrapped<R>)), (std::byte*) m_data, (get_record_count() - split_idx) * sizeof(Wrapped<R>));
+            memcpy(buffer, (std::byte*) (m_data + m_start), split_idx* sizeof(Wrapped<R>));
+            memcpy(buffer + (split_idx * sizeof(Wrapped<R>)), (std::byte*) m_data, m_stop * sizeof(Wrapped<R>));
         } else {
-            memcpy(buffer, (std::byte*) (m_data + (m_head % m_cap)), get_record_count() * sizeof(Wrapped<R>));
+            memcpy(buffer, (std::byte*) (m_data + m_start), get_record_count() * sizeof(Wrapped<R>));
         }
     }
 
@@ -129,13 +152,20 @@ private:
     ReleaseFunction m_release;
     size_t m_head;
     size_t m_tail;
+    size_t m_start;
+    size_t m_stop;
     size_t m_cap;
     size_t m_approx_ts_cnt;
     psudb::BloomFilter<R> *m_tombstone_filter;
     bool m_active;
 
+    size_t m_total;
+
     size_t to_idx(size_t i) {
-        return (m_head + i) % m_cap;
+        size_t idx = (m_start + i >= m_cap) ? i = (m_cap - m_start) 
+                                            : m_start + i;
+        assert(idx < m_cap);
+        return idx;
     }
 };
 

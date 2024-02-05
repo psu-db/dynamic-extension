@@ -238,6 +238,143 @@ START_TEST(t_truncate)
 }
 END_TEST
 
+START_TEST(t_bview_get)
+{
+    auto buffer = new MutableBuffer<Rec>(50, 100);
+
+    /* insert 75 records and get tail when LWM is exceeded */
+    size_t new_head = 0;
+    Rec rec = {1, 1};
+    size_t cnt = 0;
+    for (size_t i=0; i<75; i++) {
+        ck_assert_int_eq(buffer->append(rec), 1);
+
+        rec.key++;
+        rec.value++;
+        cnt++;
+
+        if (buffer->is_at_low_watermark() && new_head == 0) {
+            new_head = buffer->get_tail();
+        }
+    }
+
+    ck_assert_int_eq(buffer->get_available_capacity(), 200 - cnt);
+
+    {
+        /* get a view of the pre-advanced state */
+        auto view = buffer->get_buffer_view();
+        auto reccnt = view.get_record_count();
+
+        /* scan the records in the view */
+        for (size_t i=0; i<reccnt; i++) {
+            ck_assert_int_eq(view.get(i)->rec.key, i+1);
+        }
+
+        /* advance the head */
+        buffer->advance_head(new_head);
+
+        /* scan the records in the view again -- should be unchanged */
+        for (size_t i=0; i<reccnt; i++) {
+            ck_assert_int_eq(view.get(i)->rec.key, i+1);
+        }
+    }
+
+    {
+        /* get a new view (should have fewer records) */
+        auto view = buffer->get_buffer_view();
+        auto reccnt = view.get_record_count();
+
+        /* verify the scan again */
+        for (size_t i=0; i<reccnt; i++) {
+            ck_assert_int_eq(view.get(i)->rec.key, i + 51);
+        }
+    }
+
+    /* insert more records (to trigger a wrap-around) */
+    for (size_t i=0; i<75; i++) {
+        ck_assert_int_eq(buffer->append(rec), 1);
+
+        rec.key++;
+        rec.value++;
+        cnt++;
+    }
+
+    {
+        /* get a new view (should have fewer records) */
+        auto view = buffer->get_buffer_view();
+        auto reccnt = view.get_record_count();
+
+        /* verify the scan again */
+        for (size_t i=0; i<reccnt; i++) {
+            ck_assert_int_eq(view.get(i)->rec.key, i + 51);
+        }
+    }
+
+    delete buffer;
+}
+END_TEST
+
+
+START_TEST(t_bview_delete)
+{
+
+    auto buffer = new MutableBuffer<Rec>(50, 100);
+
+    /* insert 75 records and get tail when LWM is exceeded */
+    size_t new_head = 0;
+    Rec rec = {1, 1};
+    size_t cnt = 0;
+    for (size_t i=0; i<75; i++) {
+        ck_assert_int_eq(buffer->append(rec), 1);
+
+        rec.key++;
+        rec.value++;
+        cnt++;
+
+        if (buffer->is_at_low_watermark() && new_head == 0) {
+            new_head = buffer->get_tail();
+        }
+    }
+
+    buffer->advance_head(new_head);
+
+    for (size_t i=0; i<75; i++) {
+        ck_assert_int_eq(buffer->append(rec), 1);
+
+        rec.key++;
+        rec.value++;
+        cnt++;
+    }
+
+    Rec dr1 = {67, 67};
+    Rec dr2 = {89, 89};
+    Rec dr3 = {103, 103};
+
+    Rec fdr1 = {5, 5};
+    Rec fdr2 = {300, 300};
+    {
+        /* get a new view (should have fewer records) */
+        auto view = buffer->get_buffer_view();
+        ck_assert_int_eq(view.delete_record(dr1), 1);
+        ck_assert_int_eq(view.delete_record(dr2), 1);
+        ck_assert_int_eq(view.delete_record(dr3), 1);
+        ck_assert_int_eq(view.delete_record(fdr1), 0);
+        ck_assert_int_eq(view.delete_record(fdr2), 0);
+
+        for (size_t i=0; i<view.get_record_count(); i++) {
+            if (view.get(i)->rec == dr1 || view.get(i)->rec == dr2 
+              || view.get(i)->rec == dr3) {
+                ck_assert_int_eq(view.get(i)->is_deleted(), 1);
+            } else {
+                ck_assert_int_eq(view.get(i)->is_deleted(), 0);
+            }
+        }
+    }
+
+    delete buffer;
+}
+END_TEST
+
 
 Suite *unit_testing()
 {
@@ -255,6 +392,11 @@ Suite *unit_testing()
 
     suite_add_tcase(unit, append);
 
+    TCase *view = tcase_create("de::BufferView Testing");
+    tcase_add_test(view, t_bview_get);
+    tcase_add_test(view, t_bview_delete);
+
+    suite_add_tcase(unit, view);
 
     TCase *truncate = tcase_create("de::MutableBuffer::truncate Testing");
     tcase_add_test(truncate, t_truncate);
