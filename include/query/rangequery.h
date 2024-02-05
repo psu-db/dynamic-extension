@@ -32,10 +32,10 @@ struct State {
 
 template <RecordInterface R>
 struct BufferState {
-    BufferView<R> buffer;
+    BufferView<R> *buffer;
 
-    BufferState(BufferView<R> buffer) 
-        : buffer(std::move(buffer)) {}
+    BufferState(BufferView<R> *buffer) 
+        : buffer(buffer) {}
 };
 
 template <ShardInterface S, RecordInterface R>
@@ -54,8 +54,8 @@ public:
         return res;
     }
 
-    static void* get_buffer_query_state(BufferView<R> buffer, void *parms) {
-        auto res = new BufferState<R>(std::move(buffer));
+    static void* get_buffer_query_state(BufferView<R> *buffer, void *parms) {
+        auto res = new BufferState<R>(buffer);
 
         return res;
     }
@@ -101,8 +101,8 @@ public:
         auto s = (BufferState<R> *) state;
 
         std::vector<Wrapped<R>> records;
-        for (size_t i=0; i<s->buffer.get_record_count(); i++) {
-            auto rec = s->buffer.get(i);
+        for (size_t i=0; i<s->buffer->get_record_count(); i++) {
+            auto rec = s->buffer->get(i);
             if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
                 records.emplace_back(*rec);
             }

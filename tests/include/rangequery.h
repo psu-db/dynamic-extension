@@ -64,14 +64,17 @@ START_TEST(t_buffer_range_query)
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = rq::Query<Shard, Rec>::get_buffer_query_state(buffer->get_buffer_view(), &parms);
-    auto result = rq::Query<Shard, Rec>::buffer_query(state, &parms);
-    rq::Query<Shard, Rec>::delete_buffer_query_state(state);
+    {
+        auto view = buffer->get_buffer_view();
+        auto state = rq::Query<Shard, Rec>::get_buffer_query_state(&view, &parms);
+        auto result = rq::Query<Shard, Rec>::buffer_query(state, &parms);
+        rq::Query<Shard, Rec>::delete_buffer_query_state(state);
 
-    ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
-    for (size_t i=0; i<result.size(); i++) {
-        ck_assert_int_le(result[i].rec.key, parms.upper_bound);
-        ck_assert_int_ge(result[i].rec.key, parms.lower_bound);
+        ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
+        for (size_t i=0; i<result.size(); i++) {
+            ck_assert_int_le(result[i].rec.key, parms.upper_bound);
+            ck_assert_int_ge(result[i].rec.key, parms.lower_bound);
+        }
     }
 
     delete buffer;

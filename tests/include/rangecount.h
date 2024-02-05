@@ -33,6 +33,7 @@
 
 START_TEST(t_range_count)
 {
+    
     auto buffer = create_sequential_mbuffer<Rec>(100, 1000);
     auto shard = Shard(buffer->get_buffer_view());
 
@@ -60,12 +61,15 @@ START_TEST(t_buffer_range_count)
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = rc::Query<Shard, Rec>::get_buffer_query_state(buffer->get_buffer_view(), &parms);
-    auto result = rc::Query<Shard, Rec>::buffer_query(state, &parms);
-    rc::Query<Shard, Rec>::delete_buffer_query_state(state);
+    {
+        auto view = buffer->get_buffer_view();
+        auto state = rc::Query<Shard, Rec>::get_buffer_query_state(&view, &parms);
+        auto result = rc::Query<Shard, Rec>::buffer_query(state, &parms);
+        rc::Query<Shard, Rec>::delete_buffer_query_state(state);
 
-    ck_assert_int_eq(result.size(), 1);
-    ck_assert_int_eq(result[0].rec.key, parms.upper_bound - parms.lower_bound + 1);
+        ck_assert_int_eq(result.size(), 1);
+        ck_assert_int_eq(result[0].rec.key, parms.upper_bound - parms.lower_bound + 1);
+    }
 
     delete buffer;
 }

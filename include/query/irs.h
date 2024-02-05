@@ -39,9 +39,9 @@ struct BufferState {
     size_t cutoff;
     std::vector<Wrapped<R>> records;
     size_t sample_size;
-    BufferView<R> buffer;
+    BufferView<R> *buffer;
 
-    BufferState(BufferView<R> buffer) : buffer(std::move(buffer)) {}
+    BufferState(BufferView<R> *buffer) : buffer(buffer) {}
 };
 
 template <ShardInterface S, RecordInterface R, bool Rejection=true>
@@ -68,10 +68,10 @@ public:
         return res;
     }
 
-    static void* get_buffer_query_state(BufferView<R> buffer, void *parms) {
-        auto res = new BufferState<R>(std::move(buffer));
+    static void* get_buffer_query_state(BufferView<R> *buffer, void *parms) {
+        auto res = new BufferState<R>(buffer);
 
-        res->cutoff = res->buffer.get_record_count();
+        res->cutoff = res->buffer->get_record_count();
         res->sample_size = 0;
 
         if constexpr (Rejection) {
@@ -82,8 +82,8 @@ public:
         auto upper_key = ((Parms<R> *) parms)->upper_bound;
 
         for (size_t i=0; i<res->cutoff; i++) {
-            if ((res->buffer.get(i)->rec.key >= lower_key) && (buffer.get(i)->rec.key <= upper_key)) { 
-                res->records.emplace_back(*(res->buffer.get(i)));
+            if ((res->buffer->get(i)->rec.key >= lower_key) && (buffer->get(i)->rec.key <= upper_key)) { 
+                res->records.emplace_back(*(res->buffer->get(i)));
             }
         }
 
@@ -181,7 +181,7 @@ public:
         if constexpr (Rejection) {
             for (size_t i=0; i<st->sample_size; i++) {
                 auto idx = gsl_rng_uniform_int(p->rng, st->cutoff);
-                auto rec = st->buffer.get(idx);
+                auto rec = st->buffer->get(idx);
 
                 if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
                     result.emplace_back(*rec);

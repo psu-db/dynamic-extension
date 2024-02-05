@@ -20,7 +20,7 @@
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
 typedef de::irs::Query<ISAM, Rec> Q;
-typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
+typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
 typedef de::irs::Parms<Rec> QP;
 
 void run_queries(Ext *extension, std::vector<QP> &queries, gsl_rng *rng) {
@@ -30,7 +30,7 @@ void run_queries(Ext *extension, std::vector<QP> &queries, gsl_rng *rng) {
         q->rng = rng;
         q->sample_size = 1000;
 
-        auto res = extension->query(&q);
+        auto res = extension->query(q);
         auto r = res.get();
         total += r.size();
     }
@@ -39,14 +39,14 @@ void run_queries(Ext *extension, std::vector<QP> &queries, gsl_rng *rng) {
 }
 
 size_t g_deleted_records = 0;
-
-double delete_proportion = 0;
+double delete_proportion = 0.05;
 
 void insert_records(Ext *extension, size_t start, 
                     size_t stop,
                     std::vector<int64_t> &records,
                     std::vector<size_t> &to_delete,
                     size_t &delete_idx,
+                    bool delete_records,
                     gsl_rng *rng) {
     size_t reccnt = 0;
     Rec r;
@@ -58,7 +58,7 @@ void insert_records(Ext *extension, size_t start,
             usleep(1);
         }
 
-        if (gsl_rng_uniform(rng) <= delete_proportion && to_delete[delete_idx] <= i) {
+        if (delete_records && gsl_rng_uniform(rng) <= delete_proportion && to_delete[delete_idx] <= i) {
             r.key = records[to_delete[delete_idx]];
             r.value = (int64_t) (to_delete[delete_idx]);
             while (!extension->erase(r)) {
@@ -95,16 +95,16 @@ int main(int argc, char **argv) {
     auto queries = read_range_queries<QP>(q_fname, .001);
 
     /* warmup structure w/ 10% of records */
-    size_t warmup = .1 * n;
+    size_t warmup = .3 * n;
     size_t delete_idx = 0;
-    insert_records(extension, 0, warmup, data, to_delete, delete_idx, rng);
+    insert_records(extension, 0, warmup, data, to_delete, delete_idx, false, rng);
 
     extension->await_next_epoch();
 
     TIMER_INIT();
 
     TIMER_START();
-    insert_records(extension, warmup, data.size(), data, to_delete, delete_idx, rng);
+    insert_records(extension, warmup, data.size(), data, to_delete, delete_idx, true, rng);
     TIMER_STOP();
 
     auto insert_latency = TIMER_RESULT();
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 
     auto query_latency = TIMER_RESULT() / queries.size();
 
-    fprintf(stdout, "T\t%ld\t%ld\n", insert_throughput, query_latency);
+    fprintf(stdout, "T\t%ld\t%ld\t%ld\n", insert_throughput, query_latency, g_deleted_records);
 
     gsl_rng_free(rng);
     delete extension;

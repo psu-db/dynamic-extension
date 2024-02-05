@@ -481,7 +481,7 @@ private:
         void *parms = args->query_parms;
 
         /* Get the buffer query states */
-        void *buffer_state = Q::get_buffer_query_state(std::move(buffer), parms);
+        void *buffer_state = Q::get_buffer_query_state(&buffer, parms);
 
         /* Get the shard query states */
         std::vector<std::pair<ShardID, Shard*>> shards;
@@ -502,7 +502,7 @@ private:
                 shid = shards[i - 1].first; 
             }
 
-            query_results[i] = std::move(filter_deletes(local_results, shid, vers)); 
+            query_results[i] = std::move(filter_deletes(local_results, shid, vers, &buffer)); 
 
             if constexpr (Q::EARLY_ABORT) {
                 if (query_results[i].size() > 0) break;
@@ -563,8 +563,8 @@ private:
         return m_buffer->append(rec, ts);
     }
 
-    static std::vector<Wrapped<R>> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, Structure *vers) {
-        if constexpr (!Q::SKIP_DELETE_FILTER) {
+    static std::vector<Wrapped<R>> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, Structure *vers, BufView *bview) {
+        if constexpr (Q::SKIP_DELETE_FILTER) {
             return records;
         }
 
@@ -601,6 +601,12 @@ private:
             //if (buffview.check_tombstone(rec.rec)) {
                 //continue;
             //}
+
+            for (size_t i=0; i<bview->get_record_count(); i++) {
+                if (bview->get(i)->is_tombstone() && bview->get(i)->rec == rec.rec) {
+                    continue;
+                }
+            }
 
             if (shid != INVALID_SHID) {
                 for (size_t lvl=0; lvl<=shid.level_idx; lvl++) {
