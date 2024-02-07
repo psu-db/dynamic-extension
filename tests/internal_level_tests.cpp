@@ -22,7 +22,7 @@
 
 using namespace de;
 
-typedef InternalLevel<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>> ILevel;
+typedef InternalLevel<Rec, ISAMTree<Rec>, rq::Query<Rec, ISAMTree<Rec>>> ILevel;
 
 START_TEST(t_memlevel_merge)
 {

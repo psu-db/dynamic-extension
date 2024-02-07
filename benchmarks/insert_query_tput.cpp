@@ -19,7 +19,7 @@
 
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
-typedef de::irs::Query<ISAM, Rec> Q;
+typedef de::irs::Query<Rec, ISAM> Q;
 typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 typedef de::irs::Parms<Rec> QP;
 

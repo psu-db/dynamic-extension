@@ -36,7 +36,7 @@ struct BufferState {
         : buffer(buffer) {}
 };
 
-template <ShardInterface S, RecordInterface R>
+template <RecordInterface R, ShardInterface<R> S>
 class Query {
 public:
     constexpr static bool EARLY_ABORT=false;

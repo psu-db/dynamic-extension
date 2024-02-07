@@ -22,7 +22,7 @@
 
 namespace de {
 
-template <RecordInterface R, ShardInterface S, QueryInterface<R, S> Q, LayoutPolicy L=LayoutPolicy::TEIRING>
+template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L=LayoutPolicy::TEIRING>
 class ExtensionStructure {
     typedef S Shard;
     typedef BufferView<R> BuffView;

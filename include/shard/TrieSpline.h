@@ -25,6 +25,7 @@ using psudb::CACHELINE_SIZE;
 using psudb::BloomFilter;
 using psudb::PriorityQueue;
 using psudb::queue_record;
+using psudb::byte;
 
 namespace de {
 

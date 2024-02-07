@@ -25,6 +25,7 @@ using psudb::CACHELINE_SIZE;
 using psudb::BloomFilter;
 using psudb::PriorityQueue;
 using psudb::queue_record;
+using psudb::byte;
 
 namespace de {
 
@@ -222,9 +223,6 @@ public:
         return m_tombstone_cnt;
     }
 
-    const Wrapped<R>* get_record_at(size_t idx) const {
-        return (idx < m_reccnt) ? m_data + idx : nullptr;
-    }
 
     size_t get_memory_usage() {
         return m_alloc_size;
@@ -234,6 +232,7 @@ public:
         return m_bf->memory_usage();
     }
 
+    /* SortedShardInterface methods */
     size_t get_lower_bound(const K& key) const {
         const InternalNode* now = m_root;
         while (!is_leaf(reinterpret_cast<const byte*>(now))) {
@@ -274,6 +273,9 @@ public:
         return pos - m_data;
     }
 
+    const Wrapped<R>* get_record_at(size_t idx) const {
+        return (idx < m_reccnt) ? m_data + idx : nullptr;
+    }
 
 private:
     void build_internal_levels() {

@@ -8,25 +8,17 @@
  */
 #pragma once
 
-#include <concepts>
-
-#include "util/types.h"
-#include "framework/interface/Record.h"
-#include <vector>
+#include "framework/ShardRequirements.h"
 
 namespace de {
 
-// FIXME: The interface is not completely specified yet, as it is pending
-//        determining a good way to handle additional template arguments 
-//        to get the Record type into play
-template <typename S>
-concept ShardInterface = requires(S s, std::vector<S*> spp, void *p, bool b, size_t i) {
+template <typename S, typename R>
+concept ShardInterface = RecordInterface<R> && requires(S s, std::vector<S*> spp, void *p, bool b, size_t i, BufferView<R> bv, R r) {
     {S(spp)};
-    /*
-    {S(mutable buffer)}
-    {s.point_lookup(r, b) } -> std::convertible_to<void*>
-    */
-    {s.get_data()} -> std::convertible_to<void*>;
+    {S(std::move(bv))};
+
+    {s.point_lookup(r, b) } -> std::same_as<Wrapped<R>*>;
+    {s.get_data()} -> std::same_as<Wrapped<R>*>;
 
     {s.get_record_count()} -> std::convertible_to<size_t>;
     {s.get_tombstone_count()} -> std::convertible_to<size_t>;
@@ -35,9 +27,10 @@ concept ShardInterface = requires(S s, std::vector<S*> spp, void *p, bool b, siz
 };
 
 template <typename S, typename R>
-concept SortedShardInterface = ShardInterface<S> && requires(S s, R r, R *rp) {
+concept SortedShardInterface = ShardInterface<S, R> && requires(S s, R r, R *rp, size_t i) {
     {s.lower_bound(r)} -> std::convertible_to<size_t>;
     {s.upper_bound(r)} -> std::convertible_to<size_t>;
+    {s.get_record_at(i)} -> std::same_as<Wrapped<R>*>;
 };
 
 }

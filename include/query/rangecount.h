@@ -35,7 +35,7 @@ struct BufferState {
         : buffer(buffer) {}
 };
 
-template <ShardInterface S, KVPInterface R>
+template <KVPInterface R, ShardInterface<R> S>
 class Query {
 public:
     constexpr static bool EARLY_ABORT=false;

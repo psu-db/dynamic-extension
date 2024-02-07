@@ -15,9 +15,6 @@
 
 #include <vector>
 #include <cassert>
-#include <queue>
-#include <memory>
-#include <concepts>
 
 #include "framework/ShardRequirements.h"
 
@@ -34,7 +31,7 @@ using psudb::queue_record;
 
 namespace de {
 
-thread_local size_t wss_cancelations = 0;
+static thread_local size_t wss_cancelations = 0;
 
 template <WeightedRecordInterface R>
 class Alias {
@@ -44,7 +41,7 @@ private:
     typedef decltype(R::weight) W;
 
 public:
-    Alias(MutableBuffer<R>* buffer)
+    Alias(BufferView<R>* buffer)
     : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_alias(nullptr), m_bf(nullptr) {
 
         m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
@@ -96,17 +93,17 @@ public:
         }
     }
 
-    Alias(Alias** shards, size_t len)
+    Alias(std::vector<Alias*> &shards)
     : m_reccnt(0), m_tombstone_cnt(0), m_total_weight(0), m_alias(nullptr), m_bf(nullptr) {
         std::vector<Cursor<Wrapped<R>>> cursors;
-        cursors.reserve(len);
+        cursors.reserve(shards.size());
 
-        PriorityQueue<Wrapped<R>> pq(len);
+        PriorityQueue<Wrapped<R>> pq(shards.size());
 
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
         
-        for (size_t i = 0; i < len; ++i) {
+        for (size_t i = 0; i < shards.size(); ++i) {
             if (shards[i]) {
                 auto base = shards[i]->get_data();
                 cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});

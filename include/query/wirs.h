@@ -57,7 +57,7 @@ struct BufferState {
     }
 };
 
-template <ShardInterface S, RecordInterface R, bool Rejection=true>
+template <RecordInterface R, ShardInterface<R> S, bool Rejection=true>
 class Query {
 public:
     constexpr static bool EARLY_ABORT=false;

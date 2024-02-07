@@ -21,7 +21,7 @@ typedef de::Record<key_type, value_type> Rec;
 typedef de::ISAMTree<Rec> ISAM;
 typedef de::TrieSpline<Rec> TS;
 
-typedef de::rc::Query<ISAM, Rec> Q;
+typedef de::rc::Query<Rec, ISAM> Q;
 typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 
 typedef de::MutableBuffer<Rec> Buffer;

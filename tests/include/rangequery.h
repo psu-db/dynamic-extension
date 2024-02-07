@@ -41,9 +41,9 @@ START_TEST(t_range_query)
     parms.lower_bound = 300;
     parms.upper_bound = 500;
 
-    auto state = rq::Query<Shard, Rec>::get_query_state(&shard, &parms);
-    auto result = rq::Query<Shard, Rec>::query(&shard, state, &parms);
-    rq::Query<Shard, Rec>::delete_query_state(state);
+    auto state = rq::Query<Rec, Shard>::get_query_state(&shard, &parms);
+    auto result = rq::Query<Rec, Shard>::query(&shard, state, &parms);
+    rq::Query<Rec, Shard>::delete_query_state(state);
 
     ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
     for (size_t i=0; i<result.size(); i++) {
@@ -66,9 +66,9 @@ START_TEST(t_buffer_range_query)
 
     {
         auto view = buffer->get_buffer_view();
-        auto state = rq::Query<Shard, Rec>::get_buffer_query_state(&view, &parms);
-        auto result = rq::Query<Shard, Rec>::buffer_query(state, &parms);
-        rq::Query<Shard, Rec>::delete_buffer_query_state(state);
+        auto state = rq::Query<Rec, Shard>::get_buffer_query_state(&view, &parms);
+        auto result = rq::Query<Rec, Shard>::buffer_query(state, &parms);
+        rq::Query<Rec, Shard>::delete_buffer_query_state(state);
 
         ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
         for (size_t i=0; i<result.size(); i++) {
@@ -96,15 +96,15 @@ START_TEST(t_range_query_merge)
 
     size_t result_size = parms.upper_bound - parms.lower_bound + 1 - 200;
 
-    auto state1 = rq::Query<Shard, Rec>::get_query_state(&shard1, &parms);
-    auto state2 = rq::Query<Shard, Rec>::get_query_state(&shard2, &parms);
+    auto state1 = rq::Query<Rec, Shard>::get_query_state(&shard1, &parms);
+    auto state2 = rq::Query<Rec, Shard>::get_query_state(&shard2, &parms);
 
     std::vector<std::vector<de::Wrapped<Rec>>> results(2);
-    results[0] = rq::Query<Shard, Rec>::query(&shard1, state1, &parms);
-    results[1] = rq::Query<Shard, Rec>::query(&shard2, state2, &parms);
+    results[0] = rq::Query<Rec, Shard>::query(&shard1, state1, &parms);
+    results[1] = rq::Query<Rec, Shard>::query(&shard2, state2, &parms);
 
-    rq::Query<Shard, Rec>::delete_query_state(state1);
-    rq::Query<Shard, Rec>::delete_query_state(state2);
+    rq::Query<Rec, Shard>::delete_query_state(state1);
+    rq::Query<Rec, Shard>::delete_query_state(state2);
 
     ck_assert_int_eq(results[0].size() + results[1].size(), result_size);
 
@@ -117,7 +117,7 @@ START_TEST(t_range_query_merge)
         }
     }
 
-    auto result = rq::Query<Shard, Rec>::merge(proc_results, nullptr);
+    auto result = rq::Query<Rec, Shard>::merge(proc_results, nullptr);
     std::sort(result.begin(), result.end());
 
     ck_assert_int_eq(result.size(), result_size);

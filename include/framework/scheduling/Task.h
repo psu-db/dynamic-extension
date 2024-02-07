@@ -18,7 +18,7 @@
 
 namespace de {
 
-template <RecordInterface R, ShardInterface S, QueryInterface<R, S> Q, LayoutPolicy L>
+template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
 struct ReconstructionArgs {
     Epoch<R, S, Q, L> *epoch;
     std::vector<ReconstructionTask> merges;
@@ -27,7 +27,7 @@ struct ReconstructionArgs {
     void *extension;
 };
 
-template <RecordInterface R, ShardInterface S, QueryInterface<R, S> Q, LayoutPolicy L>
+template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
 struct QueryArgs {
     std::promise<std::vector<R>> result_set;
     void *query_parms;

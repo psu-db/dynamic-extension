@@ -18,7 +18,7 @@
 
 typedef de::Record<int64_t, int64_t> Rec;
 typedef de::ISAMTree<Rec> ISAM;
-typedef de::rc::Query<ISAM, Rec> Q;
+typedef de::rc::Query<Rec, ISAM> Q;
 typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 
 std::atomic<size_t> total_latency = 0;

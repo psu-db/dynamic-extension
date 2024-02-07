@@ -18,7 +18,7 @@
 namespace de {
 
 
-template <RecordInterface R, ShardInterface S, QueryInterface<R, S> Q, LayoutPolicy L>
+template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
 class Epoch {
 private:
     typedef MutableBuffer<R> Buffer;
