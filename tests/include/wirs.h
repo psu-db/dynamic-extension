@@ -31,8 +31,6 @@
 //using namespace de;
 //typedef ISAMTree<R> Shard;
 
-#include "query/rangequery.h"
-
 
 START_TEST(t_range_query)
 {

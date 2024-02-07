@@ -60,7 +60,7 @@ public:
         return res;
     }
 
-    static void* get_buffer_query_state(BufferState<R> *buffer, void *parms) {
+    static void* get_buffer_query_state(BufferView<R> *buffer, void *parms) {
         BufferState<R> *state = new BufferState<R>();
         auto parameters = (Parms<R>*) parms;
         if constexpr (Rejection) {

@@ -8,8 +8,8 @@
  * Distributed under the Modified BSD License.
  *
  * WARNING: This file must be included in the main unit test set
- *          after the definition of an appropriate Shard, Query, and Rec
- *          type. In particular, Rec needs to implement the key-value
+ *          after the definition of an appropriate Shard, Query, and R
+ *          type. In particular, R needs to implement the key-value
  *          pair interface. For other types of record, you'll need to
  *          use a different set of unit tests.
  */
@@ -30,7 +30,7 @@
 #include <check.h>
 
 //using namespace de;
-//typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
+//typedef DynamicExtension<R, ISAMTree<R>, rq::Query<ISAMTree<R>, R>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
 */
 
 
@@ -54,7 +54,7 @@ START_TEST(t_insert)
     uint64_t key = 0;
     uint32_t val = 0;
     for (size_t i=0; i<100; i++) {
-        Rec r = {key, val};
+        R r = {key, val};
         ck_assert_int_eq(test_de->insert(r), 1);
         key++;
         val++;
@@ -75,7 +75,7 @@ START_TEST(t_debug_insert)
     uint64_t key = 0;
     uint32_t val = 0;
     for (size_t i=0; i<1000; i++) {
-        Rec r = {key, val};
+        R r = {key, val};
         ck_assert_int_eq(test_de->insert(r), 1);
         ck_assert_int_eq(test_de->get_record_count(), i+1);
         key++;
@@ -94,7 +94,7 @@ START_TEST(t_insert_with_mem_merges)
     uint64_t key = 0;
     uint32_t val = 0;
 
-    Rec r = {key, val};
+    R r = {key, val};
     for (size_t i=0; i<1000; i++) {
         ck_assert_int_eq(test_de->insert(r), 1);
         r.key++;
@@ -148,7 +148,7 @@ START_TEST(t_range_query)
 
     size_t i=0;
     while ( i < keys.size()) {
-        Rec r = {keys[i], (uint32_t) i};
+        R r = {keys[i], (uint32_t) i};
         if (test_de->insert(r)) {
             i++;
         } else {
@@ -166,7 +166,7 @@ START_TEST(t_range_query)
     uint64_t lower_key = keys[idx];
     uint64_t upper_key = keys[idx + 250];
 
-    rq::Parms<Rec> p;
+    rq::Parms<R> p;
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
@@ -210,7 +210,7 @@ START_TEST(t_tombstone_merging_01)
     size_t deletes = 0;
     size_t cnt=0;
     for (auto rec : records) {
-        Rec r = {rec.first, rec.second};
+        R r = {rec.first, rec.second};
         while (!test_de->insert(r)) {
             _mm_pause();
         }
@@ -220,7 +220,7 @@ START_TEST(t_tombstone_merging_01)
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
-                Rec dr = {del_vec[i].first, del_vec[i].second};
+                R dr = {del_vec[i].first, del_vec[i].second};
                 while (!test_de->erase(dr)) {
                     _mm_pause();
                 }
@@ -249,9 +249,9 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
 
     auto test_de = new DE(1000, 10000, 2);
 
-    std::set<Rec> records; 
-    std::set<Rec> to_delete;
-    std::set<Rec> deleted;
+    std::set<R> records; 
+    std::set<R> to_delete;
+    std::set<R> deleted;
 
     while (records.size() < reccnt) {
         uint64_t key = rand();
@@ -267,7 +267,7 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
         ck_assert_int_eq(test_de->insert(rec), 1);
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
-            std::vector<Rec> del_vec;
+            std::vector<R> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
@@ -295,9 +295,9 @@ START_TEST(t_static_structure)
     size_t reccnt = 100000;
     auto test_de = new DE(100, 1000, 2);
 
-    std::set<Rec> records; 
-    std::set<Rec> to_delete;
-    std::set<Rec> deleted;
+    std::set<R> records; 
+    std::set<R> to_delete;
+    std::set<R> deleted;
 
     while (records.size() < reccnt) {
         uint64_t key = rand();
@@ -319,7 +319,7 @@ START_TEST(t_static_structure)
         t_reccnt++;
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
-            std::vector<Rec> del_vec;
+            std::vector<R> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
@@ -339,11 +339,11 @@ START_TEST(t_static_structure)
     }
 
 
-    //fprintf(stderr, "Tombstones: %ld\tRecords: %ld\n", test_de->get_tombstone_count(), test_de->get_record_count());
+    //fprintf(stderr, "Tombstones: %ld\tRords: %ld\n", test_de->get_tombstone_count(), test_de->get_record_count());
     //fprintf(stderr, "Inserts: %ld\tDeletes:%ld\tNet:%ld\n", reccnt, deletes, reccnt - deletes);
 
     auto flat = test_de->create_static_structure(true);
-    //fprintf(stderr, "Flat: Tombstones: %ld\tRecords %ld\n", flat->get_tombstone_count(), flat->get_record_count());
+    //fprintf(stderr, "Flat: Tombstones: %ld\tRords %ld\n", flat->get_tombstone_count(), flat->get_record_count());
     //ck_assert_int_eq(flat->get_record_count(), reccnt - deletes);
 
     uint64_t prev_key = 0;

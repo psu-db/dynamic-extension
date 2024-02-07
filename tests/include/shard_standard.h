@@ -8,8 +8,8 @@
  * Distributed under the Modified BSD License.
  *
  * WARNING: This file must be included in the main unit test set
- *          after the definition of an appropriate Shard and Rec
- *          type. In particular, Rec needs to implement the key-value
+ *          after the definition of an appropriate Shard and R
+ *          type. In particular, R needs to implement the key-value
  *          pair interface. For other types of record, you'll need to
  *          use a different set of unit tests.
  */
@@ -26,11 +26,11 @@
 //#include "testing.h"
 //#include <check.h>
 //using namespace de;
-//typedef ISAMTree<Rec> Shard;
+//typedef ISAMTree<R> Shard;
 
 START_TEST(t_mbuffer_init)
 {
-    auto buffer = new MutableBuffer<Rec>(512, 1024);
+    auto buffer = new MutableBuffer<R>(512, 1024);
     for (uint64_t i = 512; i > 0; i--) {
         uint32_t v = i;
         buffer->append({i,v, 1});
@@ -57,9 +57,9 @@ START_TEST(t_mbuffer_init)
 START_TEST(t_shard_init)
 {
     size_t n = 512;
-    auto mbuffer1 = create_test_mbuffer<Rec>(n);
-    auto mbuffer2 = create_test_mbuffer<Rec>(n);
-    auto mbuffer3 = create_test_mbuffer<Rec>(n);
+    auto mbuffer1 = create_test_mbuffer<R>(n);
+    auto mbuffer2 = create_test_mbuffer<R>(n);
+    auto mbuffer3 = create_test_mbuffer<R>(n);
 
     auto shard1 = new Shard(mbuffer1->get_buffer_view());
     auto shard2 = new Shard(mbuffer2->get_buffer_view());
@@ -108,8 +108,8 @@ START_TEST(t_shard_init)
 START_TEST(t_full_cancelation)
 {
     size_t n = 100;
-    auto buffer = create_double_seq_mbuffer<Rec>(n, false);
-    auto buffer_ts = create_double_seq_mbuffer<Rec>(n, true);
+    auto buffer = create_double_seq_mbuffer<R>(n, false);
+    auto buffer_ts = create_double_seq_mbuffer<R>(n, true);
 
     Shard* shard = new Shard(buffer->get_buffer_view());
     Shard* shard_ts = new Shard(buffer_ts->get_buffer_view());
@@ -139,14 +139,14 @@ START_TEST(t_point_lookup)
 {
     size_t n = 10000;
 
-    auto buffer = create_double_seq_mbuffer<Rec>(n, false);
+    auto buffer = create_double_seq_mbuffer<R>(n, false);
     auto isam = Shard(buffer->get_buffer_view());
 
     {
         auto view = buffer->get_buffer_view();
 
         for (size_t i=0; i<n; i++) {
-            Rec r;
+            R r;
             auto rec = view.get(i);
             r.key = rec->rec.key;
             r.value = rec->rec.value;
@@ -167,11 +167,11 @@ START_TEST(t_point_lookup_miss)
 {
     size_t n = 10000;
 
-    auto buffer = create_double_seq_mbuffer<Rec>(n, false);
+    auto buffer = create_double_seq_mbuffer<R>(n, false);
     auto isam = Shard(buffer->get_buffer_view());
 
     for (size_t i=n + 100; i<2*n; i++) {
-        Rec r;
+        R r;
         r.key = i;
         r.value = i;
 

@@ -19,7 +19,8 @@
 
 using namespace de;
 
-typedef ISAMTree<Rec> Shard;
+typedef Rec R;
+typedef ISAMTree<R> Shard;
 
 #include "include/rangequery.h"
 

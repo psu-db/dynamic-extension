@@ -12,21 +12,19 @@
 
 #include "shard/ISAMTree.h"
 #include "include/testing.h"
-#include "query/rangequery.h"
 #include <check.h>
-
-
 
 using namespace de;
 
-typedef ISAMTree<Rec> Shard;
+typedef Rec R;
+typedef ISAMTree<R> Shard;
 
 #include "include/shard_standard.h"
 #include "include/rangequery.h"
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("ISAMTree Shard Unit Testing");
+    Suite *unit = suite_create("Alias-augmented B+Tree Shard Unit Testing");
 
     inject_rangequery_tests(unit);
     inject_shard_tests(unit);

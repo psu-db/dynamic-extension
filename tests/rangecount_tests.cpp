@@ -19,6 +19,7 @@
 
 using namespace de;
 
+typedef Rec R;
 typedef ISAMTree<Rec> Shard;
 
 #include "include/rangecount.h"
