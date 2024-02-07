@@ -90,9 +90,9 @@ public:
         return res;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buffer_state) {
         auto p = (Parms<R> *) query_parms;
-        auto bs = (buff_state) ? (BufferState<R> *) buff_state : nullptr;
+        auto bs = (buffer_state) ? (BufferState<R> *) buffer_state : nullptr;
 
         std::vector<size_t> shard_sample_sizes(shard_states.size()+1, 0);
         size_t buffer_sz = 0;

@@ -22,7 +22,7 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-#include "testing.h"
+/*#include "testing.h"
 #include "framework/DynamicExtension.h"
 #include "framework/scheduling/FIFOScheduler.h"
 #include "shard/ISAMTree.h"
@@ -31,6 +31,7 @@
 
 //using namespace de;
 //typedef DynamicExtension<Rec, ISAMTree<Rec>, rq::Query<ISAMTree<Rec>, Rec>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
+*/
 
 
 START_TEST(t_create)
@@ -169,10 +170,10 @@ START_TEST(t_range_query)
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
-    fprintf(stderr, "query start\n");
+    //fprintf(stderr, "query start\n");
     auto result = test_de->query(&p);
     auto r = result.get();
-    fprintf(stderr, "query stop\n");
+    //fprintf(stderr, "query stop\n");
     std::sort(r.begin(), r.end());
 
     ck_assert_int_eq(r.size(), 251);

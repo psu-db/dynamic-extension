@@ -8,31 +8,26 @@
  */
 #pragma once
 
-#include <vector>
+#include "framework/QueryRequirements.h"
 #include <concepts>
 
-#include "util/types.h"
-
+namespace de{
 // FIXME: The interface is not completely specified yet, as it is pending
 //        determining a good way to handle additional template arguments 
 //        to get the Shard and Record types into play
-template <typename Q>
-concept QueryInterface = requires(Q q, void *p, std::vector<void*> &s) {
-
-    /*
-    {Q::get_query_state(p, p)} -> std::convertible_to<void*>;
-    {Q::get_buffer_query_state(p, p)} -> std::convertible_to<void *>;
-    */
+template <typename Q, typename R, typename S>
+concept QueryInterface = requires(void *p, S *sh, std::vector<void*> &s, std::vector<std::vector<Wrapped<R>>> &rv, BufferView<R> *bv) {
+    {Q::get_query_state(sh, p)} -> std::convertible_to<void*>;
+    {Q::get_buffer_query_state(bv, p)} -> std::convertible_to<void *>;
     {Q::process_query_states(p, s, p)};
-    /*
-    {Q::query(s, p, p)} -> std::convertible_to<std::vector<Wrapped<R>>>;
+    {Q::query(sh, p, p)} -> std::convertible_to<std::vector<Wrapped<R>>>;
     {Q::buffer_query(p, p)} -> std::convertible_to<std::vector<Wrapped<R>>>;
     {Q::merge(rv, p)} -> std::convertible_to<std::vector<R>>;
-    */
 
-    {Q::delete_query_state(std::declval<void*>())} -> std::same_as<void>;
-    {Q::delete_buffer_query_state(std::declval<void*>())} -> std::same_as<void>;
+    {Q::delete_query_state(p)} -> std::same_as<void>;
+    {Q::delete_buffer_query_state(p)} -> std::same_as<void>;
 
     {Q::EARLY_ABORT} -> std::convertible_to<bool>;
     {Q::SKIP_DELETE_FILTER} -> std::convertible_to<bool>;
 };
+}

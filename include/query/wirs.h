@@ -12,9 +12,7 @@
  */
 #pragma once
 
-#include "framework/interface/Record.h"
-#include "framework/interface/Shard.h"
-#include "framework/structure/MutableBuffer.h"
+#include "framework/QueryRequirements.h"
 #include "psu-ds/Alias.h"
 
 namespace de { namespace wirs {
@@ -52,6 +50,7 @@ struct BufferState {
     decltype(R::weight) max_weight;
     size_t sample_size;
     decltype(R::weight) total_weight;
+    BufferView<R> *buffer;
 
     ~BufferState() {
         delete alias;
@@ -83,7 +82,7 @@ public:
         return res;
     }
 
-    static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
+    static void* get_buffer_query_state(BufferView<R> *buffer, void *parms) {
         BufferState<R> *state = new BufferState<R>();
         auto parameters = (Parms<R>*) parms;
 
@@ -92,16 +91,17 @@ public:
             state->max_weight = buffer->get_max_weight();
             state->total_weight = buffer->get_total_weight();
             state->sample_size = 0;
+            state->buffer = buffer;
             return state;
         }
 
         std::vector<decltype(R::weight)> weights;
 
-        state->cutoff = buffer->get_record_count() - 1;
+        state->buffer = buffer;
         decltype(R::weight) total_weight = 0;
 
-        for (size_t i = 0; i <= state->cutoff; i++) {
-            auto rec = buffer->get_data() + i;
+        for (size_t i = 0; i <= buffer->get_record_count(); i++) {
+            auto rec = buffer->get(i);
 
             if (rec->rec.key >= parameters->lower_bound && rec->rec.key <= parameters->upper_bound && !rec->is_tombstone() && !rec->is_deleted()) {
               weights.push_back(rec->rec.weight);
@@ -190,9 +190,10 @@ public:
         return result_set;
     }
 
-    static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
+    static std::vector<Wrapped<R>> buffer_query(void *state, void *parms) {
         auto st = (BufferState<R> *) state;
         auto p = (Parms<R> *) parms;
+        auto buffer = st->buffer;
 
         std::vector<Wrapped<R>> result;
         result.reserve(st->sample_size);
@@ -200,7 +201,7 @@ public:
         if constexpr (Rejection) {
             for (size_t i=0; i<st->sample_size; i++) {
                 auto idx = gsl_rng_uniform_int(p->rng, st->cutoff);
-                auto rec = buffer->get_data() + idx;
+                auto rec = buffer->get(idx);
 
                 auto test = gsl_rng_uniform(p->rng) * st->max_weight;
 

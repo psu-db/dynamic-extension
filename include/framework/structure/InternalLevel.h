@@ -19,12 +19,12 @@
 #include "framework/structure/BufferView.h"
 
 namespace de {
-template <RecordInterface R, ShardInterface S, QueryInterface Q>
+template <RecordInterface R, ShardInterface S, QueryInterface<R, S> Q>
 class InternalLevel;
 
 
 
-template <RecordInterface R, ShardInterface S, QueryInterface Q>
+template <RecordInterface R, ShardInterface S, QueryInterface<R, S> Q>
 class InternalLevel {
     typedef S Shard;
     typedef BufferView<R> BuffView;

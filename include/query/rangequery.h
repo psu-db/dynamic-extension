@@ -10,9 +10,7 @@
  */
 #pragma once
 
-#include "framework/interface/Record.h"
-#include "framework/interface/Shard.h"
-#include "framework/structure/BufferView.h"
+#include "framework/QueryRequirements.h"
 #include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"
 
@@ -60,7 +58,7 @@ public:
         return res;
     }
 
-    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void* buffer_states) {
+    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void* buffer_state) {
         return;
     }
 

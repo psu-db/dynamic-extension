@@ -16,7 +16,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_CXX_FLAGS=-latomic -mcx16)
 
-add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal -mcx16)
+add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal -mcx16 -fconcepts-diagnostics-depth=3)
 
 if (debug) 
     add_compile_options(-g -O0)
@@ -150,6 +150,11 @@ if (bench)
     target_link_libraries(watermark_testing PUBLIC gsl pthread gomp atomic)
     target_include_directories(watermark_testing PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(watermark_testing PUBLIC -mcx16)
+
+    add_executable(irs_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/irs_bench.cpp)
+    target_link_libraries(irs_bench PUBLIC gsl pthread gomp atomic)
+    target_include_directories(irs_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(irs_bench PUBLIC -mcx16)
 
     #add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
     #target_link_libraries(static_dynamic_comp PUBLIC gsl pthread gomp atomic)
