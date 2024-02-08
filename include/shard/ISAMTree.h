@@ -65,6 +65,8 @@ public:
                                                  sizeof(Wrapped<R>), 
                                                (byte**) &m_data);
 
+        asm volatile ("" ::: "memory");
+
         auto res = sorted_array_from_bufferview(std::move(buffer), m_data, m_bf);
         m_reccnt = res.record_count;
         m_tombstone_cnt = res.tombstone_count;

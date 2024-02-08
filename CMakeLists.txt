@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug true)
+set(debug false)
 set(tests True)
 set(bench true)
 set(old_bench False)
@@ -25,7 +25,7 @@ if (debug)
     add_compile_options(-fsanitize=undefined)
     add_link_options(-fsanitize=undefined)
 else()
-    add_compile_options(-g -O3)
+    add_compile_options(-O3)
 endif()
 
 # Test build instructions
