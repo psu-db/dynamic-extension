@@ -293,6 +293,12 @@ private:
         epoch_ptr old, new_ptr;
 
         do {
+            /* 
+             * during an epoch transition, a nullptr will installed in the
+             * current_epoch. At this moment, the "new" current epoch will
+             * soon be installed, but the "current" current epoch has been
+             * moved back to m_previous_epoch.
+             */
             if (m_current_epoch.load().epoch == nullptr) {
                 old = m_previous_epoch;
                 new_ptr = {old.epoch, old.refcnt+1};
@@ -307,6 +313,8 @@ private:
                 }
             }
         } while (true);
+
+        assert(new_ptr.refcnt > 0);
 
         return new_ptr.epoch;
     }
@@ -388,7 +396,6 @@ private:
 
         epoch_ptr old, new_ptr;
         new_ptr = {nullptr, 0};
-	size_t i=0;
         do {
             old = m_previous_epoch.load();
 
@@ -397,9 +404,7 @@ private:
                 break;
             }
             usleep(1);
-	    i++;
 	    
-	    if (i > 600) break;
         } while(true);
 
         delete epoch;
@@ -656,9 +661,15 @@ private:
         do {
             if (m_previous_epoch.load().epoch == epoch) {
                 old = m_previous_epoch;
-		if (old.refcnt <= 0) {
-			return;
-		}
+                /* 
+                 * This could happen if we get into the system during a
+                 * transition. In this case, we can just back out and retry
+                 */
+                if (old.epoch == nullptr) {
+                    continue;
+                }
+
+                assert(old.refcnt > 0);
 
                 new_ptr = {old.epoch, old.refcnt - 1};
                 if (m_previous_epoch.compare_exchange_strong(old, new_ptr)) {
@@ -666,10 +677,16 @@ private:
                 }
             } else {
                 old = m_current_epoch;
-		if (old.refcnt <= 0) {
-			return;
-		}
-                //assert(old.refcnt > 0);
+                /* 
+                 * This could happen if we get into the system during a
+                 * transition. In this case, we can just back out and retry
+                 */
+                if (old.epoch == nullptr) {
+                    continue;
+                }
+
+                assert(old.refcnt > 0);
+
                 new_ptr = {old.epoch, old.refcnt - 1};
                 if (m_current_epoch.compare_exchange_strong(old, new_ptr)) {
                     break;
