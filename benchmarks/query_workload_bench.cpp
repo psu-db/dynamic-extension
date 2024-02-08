@@ -86,6 +86,8 @@ void insert_thread(Ext *extension, size_t n) {
         auto insert_lat = TIMER_RESULT();
         fprintf(stdout, "I\t%ld\t%ld\t%ld\n", extension->get_record_count(), insert_lat, k);
     }
+
+    gsl_rng_free(rng);
 }
 
 void parallel_bench(Ext *extension, gsl_rng *rng, size_t n) {
