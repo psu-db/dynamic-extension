@@ -123,7 +123,6 @@ public:
 
     Wrapped<R> *get(size_t i) {
         assert(i < get_record_count());
-        m_total += (m_data + to_idx(i))->rec.key;
         return m_data + to_idx(i);
     }
 
@@ -158,8 +157,6 @@ private:
     size_t m_approx_ts_cnt;
     psudb::BloomFilter<R> *m_tombstone_filter;
     bool m_active;
-
-    size_t m_total;
 
     size_t to_idx(size_t i) {
         size_t idx = (m_start + i >= m_cap) ? i = (m_cap - m_start) 

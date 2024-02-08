@@ -23,7 +23,7 @@
 
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
-typedef de::EuclidPoint<int64_t> PRec;
+typedef de::EuclidPoint<uint64_t> PRec;
 
 template <de::RecordInterface R> 
 std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {
@@ -76,55 +76,48 @@ static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
     return ((double) std::abs(n1 - n2) / (double) mag) < epsilon;
 }
 
-static de::MutableBuffer<PRec> *create_2d_mbuffer(size_t cnt) {
-    auto buffer = new de::MutableBuffer<PRec>(cnt/2, cnt);
-
-    for (int64_t i=0; i<cnt; i++) {
-        buffer->append({rand(), rand()});
-    }
-
-    return buffer;
-}
-
-static de::MutableBuffer<PRec> *create_2d_sequential_mbuffer(size_t cnt) {
-    auto buffer = new de::MutableBuffer<PRec>(cnt/2, cnt);
-    for (int64_t i=0; i<cnt; i++) {
-        buffer->append({i, i});
-    }
-
-    return buffer;
-}
-
-template <de::KVPInterface R>
+template <de::RecordInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
     auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     R rec;
-    for (size_t i = 0; i < cnt; i++) {
-        rec.key = rand();
-        rec.value = rand();
+    if constexpr (de::KVPInterface<R>) {
+        for (size_t i = 0; i < cnt; i++) {
+            rec.key = rand();
+            rec.value = rand();
 
-        if constexpr (de::WeightedRecordInterface<R>) {
-            rec.weight = 1;
+            if constexpr (de::WeightedRecordInterface<R>) {
+                rec.weight = 1;
+            }
+
+            buffer->append(rec);
         }
-
-        buffer->append(rec);
-    }
+    } else if constexpr (de::NDRecordInterface<R>) {
+        for (size_t i=0; i<cnt; i++) {
+            uint64_t a = rand();
+            uint64_t b = rand();
+            buffer->append({a, b});
+        }
+    } 
 
     return buffer;
 }
 
-template <de::KVPInterface R>
-static de::MutableBuffer<R> *create_sequential_mbuffer(decltype(R::key) start, decltype(R::key) stop)
+template <de::RecordInterface R>
+static de::MutableBuffer<R> *create_sequential_mbuffer(size_t start, size_t stop)
 {
     size_t cnt = stop - start;
     auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     for (size_t i=start; i<stop; i++) {
         R rec;
-        rec.key = i;
-        rec.value = i;
+        if constexpr (de::KVPInterface<R>) {
+            rec.key = i;
+            rec.value = i;
+        } else if constexpr (de::NDRecordInterface<R>) {
+            rec = {i, i};
+        }
 
         if constexpr (de::WeightedRecordInterface<R>) {
             rec.weight = 1;

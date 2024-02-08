@@ -22,18 +22,22 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-//#include "shard/ISAMTree.h"
-//#include "testing.h"
-//#include <check.h>
-//using namespace de;
-//typedef ISAMTree<R> Shard;
+/*
+#include "shard/ISAMTree.h"
+#include "shard/ISAMTree.h"
+#include "testing.h"
+#include <check.h>
+using namespace de;
+typedef Rec R;
+typedef ISAMTree<R> Shard;
+*/
 
 START_TEST(t_mbuffer_init)
 {
     auto buffer = new MutableBuffer<R>(512, 1024);
     for (uint64_t i = 512; i > 0; i--) {
         uint32_t v = i;
-        buffer->append({i,v, 1});
+        buffer->append({i, v, 1});
     }
     
     for (uint64_t i = 1; i <= 256; ++i) {

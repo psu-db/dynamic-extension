@@ -60,9 +60,10 @@ if (tests)
     target_include_directories(rangecount_tests PRIVATE include external/psudb-common/cpp/include)
 
 
-    #add_executable(vptree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/vptree_tests.cpp)
-    #target_link_libraries(vptree_tests PUBLIC gsl check subunit pthread)
-    #target_include_directories(vptree_tests PRIVATE include external/vptree external/psudb-common/cpp/include)
+    add_executable(vptree_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/vptree_tests.cpp)
+    target_link_libraries(vptree_tests PUBLIC gsl check subunit pthread atomic)
+    target_link_options(vptree_tests PUBLIC -mcx16)
+    target_include_directories(vptree_tests PRIVATE include external/vptree external/psudb-common/cpp/include)
     
     add_executable(de_tier_tag ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_tier_tag.cpp)
     target_link_libraries(de_tier_tag PUBLIC gsl check subunit pthread atomic)

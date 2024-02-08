@@ -212,4 +212,23 @@ struct RecordHash {
     }
 };
 
+template <typename R>
+class DistCmpMax {
+public:
+    DistCmpMax(R *baseline) : P(baseline) {}
+
+    inline bool operator()(const R *a, const R *b) requires WrappedInterface<R> {
+        return a->rec.calc_distance(P->rec) > b->rec.calc_distance(P->rec); 
+    }
+
+    inline bool operator()(const R *a, const R *b) requires (!WrappedInterface<R>){
+        return a->calc_distance(*P) > b->calc_distance(*P); 
+    }
+
+private:
+    R *P;
+};
+
+
+
 }
