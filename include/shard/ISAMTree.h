@@ -65,6 +65,10 @@ public:
                                                  sizeof(Wrapped<R>), 
                                                (byte**) &m_data);
 
+        /* 
+         * without this, gcc seems to hoist the building of the array
+         * _above_ its allocation under -O3, resulting in memfaults.
+         */
         asm volatile ("" ::: "memory");
 
         auto res = sorted_array_from_bufferview(std::move(buffer), m_data, m_bf);
