@@ -47,6 +47,11 @@ public:
         if (m_structure) {
             m_structure->release_reference();
         }
+
+        if (m_structure->get_reference_count() == 0) {
+            delete m_structure;
+        }
+
     }
 
     /*

@@ -12,8 +12,6 @@
 #include <atomic>
 #include <cstdio>
 #include <vector>
-#include <set>
-#include <mutex>
 
 #include "framework/interface/Scheduler.h"
 #include "framework/scheduling/FIFOScheduler.h"
@@ -26,12 +24,10 @@
 #include "framework/util/Configuration.h"
 #include "framework/scheduling/Epoch.h"
 
-
-
 namespace de {
 
 template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L=LayoutPolicy::TEIRING, 
-          DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SCHED=SerialScheduler>
+          DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SCHED=FIFOScheduler>
 class DynamicExtension {
     typedef S Shard;
     typedef MutableBuffer<R> Buffer;
@@ -62,8 +58,6 @@ public:
         m_current_epoch.store({new _Epoch(0, vers, m_buffer, 0), 0});
         m_previous_epoch.store({nullptr, 0});
         m_next_epoch.store({nullptr, 0});
-
-        m_versions.insert(vers);
     }
 
     ~DynamicExtension() {
@@ -80,10 +74,6 @@ public:
         delete m_previous_epoch.load().epoch;
 
         delete m_buffer;
-
-        for (auto e : m_versions) {
-            delete e;
-        }
     }
 
     /*
@@ -320,8 +310,8 @@ private:
 
     Buffer *m_buffer;
 
-    std::mutex m_struct_lock;
-    std::set<Structure *> m_versions;
+    //std::mutex m_struct_lock;
+    //std::set<Structure *> m_versions;
 
     alignas(64) std::atomic<bool> m_reconstruction_scheduled;
 
@@ -448,11 +438,6 @@ private:
 
         end_job(current_epoch);
 
-        std::unique_lock<std::mutex> m_struct_lock;
-        m_versions.insert(m_next_epoch.load().epoch->get_structure());
-        m_struct_lock.release();
-
-
         return m_next_epoch.load().epoch;
     }
 
@@ -494,23 +479,6 @@ private:
         } while(true);
 
         delete epoch;
-
-        /*
-         * Following the epoch's destruction, any buffers
-         * or structures with no remaining references can
-         * be safely freed.
-         */
-        std::unique_lock<std::mutex> lock(m_struct_lock);
-
-        for (auto itr = m_versions.begin(); itr != m_versions.end();) {
-            if ((*itr)->get_reference_count() == 0) {
-                auto tmp = *itr;
-                itr = m_versions.erase(itr);
-                delete tmp;
-            } else {
-                itr++;
-            }
-        }
     }
 
     static void reconstruction(void *arguments) {
