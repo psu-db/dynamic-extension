@@ -3,213 +3,107 @@
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
+ * A shard shim around the TrieSpline learned index.
+ *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 
 
 #include <vector>
-#include <cassert>
-#include <queue>
-#include <memory>
-#include <concepts>
 
+#include "framework/ShardRequirements.h"
 #include "ts/builder.h"
-#include "psu-ds/PriorityQueue.h"
-#include "util/Cursor.h"
 #include "psu-ds/BloomFilter.h"
 #include "util/bf_config.h"
-#include "framework/MutableBuffer.h"
-#include "framework/RecordInterface.h"
-#include "framework/ShardInterface.h"
-#include "framework/QueryInterface.h"
+#include "util/SortedMerge.h"
 
 using psudb::CACHELINE_SIZE;
 using psudb::BloomFilter;
 using psudb::PriorityQueue;
 using psudb::queue_record;
-using psudb::Alias;
+using psudb::byte;
 
 namespace de {
 
-template <RecordInterface R>
-struct ts_range_query_parms {
-    decltype(R::key) lower_bound;
-    decltype(R::key) upper_bound;
-};
-
-template <RecordInterface R>
-class TrieSplineRangeQuery;
-
-template <RecordInterface R>
-struct TrieSplineState {
-    size_t start_idx;
-    size_t stop_idx;
-};
-
-template <RecordInterface R>
-struct TrieSplineBufferState {
-    size_t cutoff;
-    Alias* alias;
-
-    ~TrieSplineBufferState() {
-        delete alias;
-    }
-
-};
-
-template <RecordInterface R, size_t E=1024>
+template <KVPInterface R, size_t E=1024>
 class TrieSpline {
 private:
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
 
 public:
+    TrieSpline(BufferView<R> buffer)
+        : m_data(nullptr)
+        , m_reccnt(0)
+        , m_tombstone_cnt(0)
+        , m_alloc_size(0)
+        , m_max_key(0)
+        , m_min_key(0)
+        , m_bf(new BloomFilter<R>(BF_FPR, buffer.get_tombstone_count(), BF_HASH_FUNCS))
+    {
+        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
+                                               buffer.get_record_count() * 
+                                                 sizeof(Wrapped<R>), 
+                                               (byte**) &m_data);
 
-    // FIXME: there has to be a better way to do this
-    friend class TrieSplineRangeQuery<R>;
-
-    TrieSpline(MutableBuffer<R>* buffer)
-    : m_reccnt(0), m_tombstone_cnt(0) {
-
-        m_alloc_size = (buffer->get_record_count() * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (buffer->get_record_count() * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(m_alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
-
-        m_bf = new BloomFilter<R>(BF_FPR, buffer->get_tombstone_count(), BF_HASH_FUNCS);
-
-        size_t offset = 0;
-        m_reccnt = 0;
-        auto base = buffer->get_data();
-        auto stop = base + buffer->get_record_count();
-
-        std::sort(base, stop, std::less<Wrapped<R>>());
-
-        K min_key = base->rec.key;
-        K max_key = (stop - 1)->rec.key;
-
-        auto bldr = ts::Builder<K>(min_key, max_key, E);
-
-        while (base < stop) {
-            if (!(base->is_tombstone()) && (base + 1) < stop) {
-                if (base->rec == (base + 1)->rec && (base + 1)->is_tombstone()) {
-                    base += 2;
-                    continue;
-                }
-            } else if (base->is_deleted()) {
-                base += 1;
-                continue;
-            }
-
-            if (m_reccnt == 0) {
-                m_max_key = m_min_key = base->rec.key;
-            } else if (base->rec.key > m_max_key) {
-                m_max_key = base->rec.key;
-            } else if (base->rec.key < m_min_key) {
-                m_min_key = base->rec.key;
-            }
-
-            // FIXME: this shouldn't be necessary, but the tagged record
-            // bypass doesn't seem to be working on this code-path, so this
-            // ensures that tagged records from the buffer are able to be
-            // dropped, eventually. It should only need to be &= 1
-            base->header &= 3;
-            m_data[m_reccnt++] = *base;
-            bldr.AddKey(base->rec.key);
-
-            if (m_bf && base->is_tombstone()) {
-                m_tombstone_cnt++;
-                m_bf->insert(base->rec);
-            }
-            
-            base++;
-        }
+        auto res = sorted_array_from_bufferview(std::move(buffer), m_data, m_bf);
+        m_reccnt = res.record_count;
+        m_tombstone_cnt = res.tombstone_count;
 
         if (m_reccnt > 0) {
+            m_min_key = m_data[0].rec.key;
+            m_max_key = m_data[m_reccnt-1].rec.key;
+
+            auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
+            for (size_t i=0; i<m_reccnt; i++) {
+                bldr.AddKey(m_data[i].rec.key);
+            }
+
             m_ts = bldr.Finalize();
         }
     }
 
-    TrieSpline(TrieSpline** shards, size_t len)
-    : m_reccnt(0), m_tombstone_cnt(0) {
-        std::vector<Cursor<Wrapped<R>>> cursors;
-        cursors.reserve(len);
-
-        PriorityQueue<Wrapped<R>> pq(len);
-
+    TrieSpline(std::vector<TrieSpline*> &shards) 
+        : m_data(nullptr)
+        , m_reccnt(0)
+        , m_tombstone_cnt(0)
+        , m_alloc_size(0)
+        , m_max_key(0)
+        , m_min_key(0)
+        , m_bf(nullptr)
+    {
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
-
-        // initialize m_max_key and m_min_key using the values from the
-        // first shard. These will later be updated when building
-        // the initial priority queue to their true values.
-        m_max_key = shards[0]->m_max_key;
-        m_min_key = shards[0]->m_min_key;
+        auto cursors = build_cursor_vec<R, TrieSpline>(shards, &attemp_reccnt, &tombstone_count);
         
-        for (size_t i = 0; i < len; ++i) {
-            if (shards[i]) {
-                auto base = shards[i]->get_data();
-                cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
-                attemp_reccnt += shards[i]->get_record_count();
-                tombstone_count += shards[i]->get_tombstone_count();
-                pq.push(cursors[i].ptr, i);
-
-                if (shards[i]->m_max_key > m_max_key) {
-                    m_max_key = shards[i]->m_max_key;
-                } 
-
-                if (shards[i]->m_min_key < m_min_key) {
-                    m_min_key = shards[i]->m_min_key;
-                }
-            } else {
-                cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
-            }
-        }
-
         m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
-        auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
+        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
+                                               attemp_reccnt * sizeof(Wrapped<R>),
+                                               (byte **) &m_data);
 
-        m_alloc_size = (attemp_reccnt * sizeof(Wrapped<R>)) + (CACHELINE_SIZE - (attemp_reccnt * sizeof(Wrapped<R>)) % CACHELINE_SIZE);
-        assert(m_alloc_size % CACHELINE_SIZE == 0);
-        m_data = (Wrapped<R>*)std::aligned_alloc(CACHELINE_SIZE, m_alloc_size);
-
-        while (pq.size()) {
-            auto now = pq.peek();
-            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
-            if (!now.data->is_tombstone() && next.data != nullptr &&
-                now.data->rec == next.data->rec && next.data->is_tombstone()) {
-                
-                pq.pop(); pq.pop();
-                auto& cursor1 = cursors[now.version];
-                auto& cursor2 = cursors[next.version];
-                if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
-                if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
-            } else {
-                auto& cursor = cursors[now.version];
-                if (!cursor.ptr->is_deleted()) {
-                    m_data[m_reccnt++] = *cursor.ptr;
-                    bldr.AddKey(cursor.ptr->rec.key);
-                    if (m_bf && cursor.ptr->is_tombstone()) {
-                        ++m_tombstone_cnt;
-                        if (m_bf) m_bf->insert(cursor.ptr->rec);
-                    }
-                }
-                pq.pop();
-                
-                if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);
-            }
-        }
+        auto res = sorted_array_merge<R>(cursors, m_data, m_bf);
+        m_reccnt = res.record_count;
+        m_tombstone_cnt = res.tombstone_count;
 
         if (m_reccnt > 0) {
+            m_min_key = m_data[0].rec.key;
+            m_max_key = m_data[m_reccnt-1].rec.key;
+
+            auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
+            for (size_t i=0; i<m_reccnt; i++) {
+                bldr.AddKey(m_data[i].rec.key);
+            }
+
             m_ts = bldr.Finalize();
         }
-   }
+    }
 
     ~TrieSpline() {
-        if (m_data) free(m_data);
-        if (m_bf) delete m_bf;
-
+        free(m_data);
+        delete m_bf;
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
@@ -253,7 +147,9 @@ public:
         return m_ts.GetSize() + m_alloc_size;
     }
 
-private:
+    size_t get_aux_memory_usage() {
+        return (m_bf) ? m_bf->memory_usage() : 0;
+    }
 
     size_t get_lower_bound(const K& key) const {
         auto bound = m_ts.GetSearchBound(key);
@@ -282,15 +178,20 @@ private:
                     max = mid;
                 }
             }
+        }
 
+        if (idx == m_reccnt) {
+            return m_reccnt;
         }
 
         if (m_data[idx].rec.key > key && idx > 0 && m_data[idx-1].rec.key <= key) {
             return idx-1;
         }
 
-        return (m_data[idx].rec.key <= key) ? idx : m_reccnt;
+        return idx;
     }
+
+private:
 
     Wrapped<R>* m_data;
     size_t m_reccnt;
@@ -301,154 +202,4 @@ private:
     ts::TrieSpline<K> m_ts;
     BloomFilter<R> *m_bf;
 };
-
-
-template <RecordInterface R>
-class TrieSplineRangeQuery {
-public:
-    constexpr static bool EARLY_ABORT=false;
-    constexpr static bool SKIP_DELETE_FILTER=true;
-
-    static void *get_query_state(TrieSpline<R> *ts, void *parms) {
-        auto res = new TrieSplineState<R>();
-        auto p = (ts_range_query_parms<R> *) parms;
-
-        res->start_idx = ts->get_lower_bound(p->lower_bound);
-        res->stop_idx = ts->get_record_count();
-
-        return res;
-    }
-
-    static void* get_buffer_query_state(MutableBuffer<R> *buffer, void *parms) {
-        auto res = new TrieSplineBufferState<R>();
-        res->cutoff = buffer->get_record_count();
-
-        return res;
-    }
-
-    static void process_query_states(void *query_parms, std::vector<void*> &shard_states, void *buff_state) {
-        return;
-    }
-
-    static std::vector<Wrapped<R>> query(TrieSpline<R> *ts, void *q_state, void *parms) {
-        //std::vector<Wrapped<R>> records;
-		size_t tot = 0;
-        auto p = (ts_range_query_parms<R> *) parms;
-        auto s = (TrieSplineState<R> *) q_state;
-
-        // if the returned index is one past the end of the
-        // records for the TrieSpline, then there are not records
-        // in the index falling into the specified range.
-        if (s->start_idx == ts->get_record_count()) {
-            return {};
-        }
-
-        auto ptr = ts->get_record_at(s->start_idx);
-
-        // roll the pointer forward to the first record that is
-        // greater than or equal to the lower bound.
-        while(ptr->rec.key < p->lower_bound) {
-            ptr++;
-        }
-
-
-        while (ptr->rec.key <= p->upper_bound && ptr < ts->m_data + s->stop_idx) {
-            if (ptr->is_tombstone()) --tot;
-			else if (!ptr->is_deleted()) ++tot;
-            //records.emplace_back(*ptr);
-            ptr++;
-        }
-
-		return {Wrapped<R>{0, {tot, 0}}};
-        //return records;
-    }
-
-    static std::vector<Wrapped<R>> buffer_query(MutableBuffer<R> *buffer, void *state, void *parms) {
-		size_t tot = 0;
-        auto p = (ts_range_query_parms<R> *) parms;
-        auto s = (TrieSplineBufferState<R> *) state;
-
-        //std::vector<Wrapped<R>> records;
-        for (size_t i=0; i<s->cutoff; i++) {
-            auto rec = buffer->get_data() + i;
-            if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound) {
-				if (rec->is_tombstone()) --tot;
-				else if (!rec->is_deleted()) ++tot;
-                //records.emplace_back(*rec);
-            }
-
-        }
-
-		return {Wrapped<R>{0, {tot, 0}}};
-        //return records;
-    }
-
-    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
-/*
-		std::vector<Cursor<Wrapped<R>>> cursors;
-        cursors.reserve(results.size());
-
-        PriorityQueue<Wrapped<R>> pq(results.size());
-        size_t total = 0;
-        size_t tmp_n = results.size();
-
-
-        for (size_t i = 0; i < tmp_n; ++i)
-            if (results[i].size() > 0){
-                auto base = results[i].data();
-                cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
-                assert(i == cursors.size() - 1);
-                total += results[i].size();
-                pq.push(cursors[i].ptr, tmp_n - i - 1);
-            } else {
-                cursors.emplace_back(Cursor<Wrapped<R>>{nullptr, nullptr, 0, 0});
-            }
-
-        if (total == 0) {
-            return std::vector<R>();
-        }
-
-        std::vector<R> output;
-        output.reserve(total);
-
-        while (pq.size()) {
-            auto now = pq.peek();
-            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
-            if (!now.data->is_tombstone() && next.data != nullptr &&
-                now.data->rec == next.data->rec && next.data->is_tombstone()) {
-                
-                pq.pop(); pq.pop();
-                auto& cursor1 = cursors[tmp_n - now.version - 1];
-                auto& cursor2 = cursors[tmp_n - next.version - 1];
-                if (advance_cursor<Wrapped<R>>(cursor1)) pq.push(cursor1.ptr, now.version);
-                if (advance_cursor<Wrapped<R>>(cursor2)) pq.push(cursor2.ptr, next.version);
-            } else {
-                auto& cursor = cursors[tmp_n - now.version - 1];
-                if (!now.data->is_tombstone()) output.push_back(cursor.ptr->rec);
-                pq.pop();
-                
-                if (advance_cursor<Wrapped<R>>(cursor)) pq.push(cursor.ptr, now.version);
-            }
-        }
-
-        return output;*/
-
-		size_t tot = 0;
-		for (auto& result: results)
-			if (result.size() > 0) tot += result[0].rec.key;
-
-        return {{tot, 0}};
-    }
-
-    static void delete_query_state(void *state) {
-        auto s = (TrieSplineState<R> *) state;
-        delete s;
-    }
-
-    static void delete_buffer_query_state(void *state) {
-        auto s = (TrieSplineBufferState<R> *) state;
-        delete s;
-    }
-};
-
 }

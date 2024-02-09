@@ -15,4 +15,7 @@
 	url = https://github.com/microsoft/ALEX
 [submodule "external/psudb-common"]
 	path = external/psudb-common
-	url = git@github.com:PSU-Database-Systems-Group/psudb-common
+	url = git@github.com/psu-db/psudb-common
+[submodule "external/ctpl"]
+	path = external/ctpl
+	url = git@github.com:vit-vit/CTPL.git

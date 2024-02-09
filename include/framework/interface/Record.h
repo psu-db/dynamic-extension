@@ -1,11 +1,12 @@
 /*
- * include/framework/RecordInterface.h
+ * include/framework/interface/Record.h
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu>
- *                    Dong Xie <dongx@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
+ * FIXME: the record implementations could probably be broken out into 
+ *        different files, leaving only the interface here
  */
 #pragma once
 
@@ -137,7 +138,7 @@ struct CosinePoint{
         return true;
     }
 
-    // lexicographic order
+    /* lexicographic order */
     inline bool operator<(const CosinePoint& other) const {
         for (size_t i=0; i<D; i++) {
             if (data[i] < other.data[i]) {
@@ -181,7 +182,7 @@ struct EuclidPoint{
         return true;
     }
 
-    // lexicographic order
+    /* lexicographic order */
     inline bool operator<(const EuclidPoint& other) const {
         for (size_t i=0; i<D; i++) {
             if (data[i] < other.data[i]) {
@@ -207,8 +208,24 @@ struct EuclidPoint{
 template<RecordInterface R>
 struct RecordHash {
     size_t operator()(R const &rec) const {
-        return psudb::hash_bytes((char *) &rec, sizeof(R));
+        return psudb::hash_bytes((std::byte *) &rec, sizeof(R));
     }
 };
 
+template <typename R>
+class DistCmpMax {
+public:
+    DistCmpMax(R *baseline) : P(baseline) {}
+
+    inline bool operator()(const R *a, const R *b) requires WrappedInterface<R> {
+        return a->rec.calc_distance(P->rec) > b->rec.calc_distance(P->rec); 
+    }
+
+    inline bool operator()(const R *a, const R *b) requires (!WrappedInterface<R>){
+        return a->calc_distance(*P) > b->calc_distance(*P); 
+    }
+
+private:
+    R *P;
+};
 }

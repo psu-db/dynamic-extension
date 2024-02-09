@@ -1,21 +1,19 @@
 #include <cstdlib>
 #include <cstdio>
-#include <chrono>
-#include <algorithm>
-#include <numeric>
-#include <memory>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <unordered_set>
-#include <set>
 #include <string>
-#include <random>
 #include <gsl/gsl_rng.h>
 #include <cstring>
+#include <vector>
 
-typedef uint64_t key_type;
-typedef uint64_t value_type;
+#include "psu-ds/BTree.h"
+
+#pragma once
+
+typedef int64_t key_type;
+typedef int64_t value_type;
 typedef uint64_t weight_type;
 
 static gsl_rng *g_rng;
@@ -39,6 +37,8 @@ struct btree_key_extract {
         return v.key;
     }
 };
+
+typedef psudb::BTree<int64_t, btree_record, btree_key_extract> BenchBTree;
 
 static key_type g_min_key = UINT64_MAX;
 static key_type g_max_key = 0;
@@ -105,7 +105,7 @@ static std::vector<QP> read_lookup_queries(std::string fname, double selectivity
 }
 
 template <typename QP>
-static std::vector<QP> read_range_queries(std::string fname, double selectivity) {
+static std::vector<QP> read_range_queries(std::string &fname, double selectivity) {
     std::vector<QP> queries;
 
     FILE *qf = fopen(fname.c_str(), "r");
@@ -245,18 +245,14 @@ td:
     return true;
 }
 
-/*
- * helper routines for displaying progress bars to stderr
- */
-static const char *g_prog_bar = "======================================================================";
-static const size_t g_prog_width = 50;
+static std::vector<int64_t> read_sosd_file(std::string &fname, size_t n) {
+    std::fstream file;
+    file.open(fname, std::ios::in | std::ios::binary);
 
-static void progress_update(double percentage, std::string prompt) {
-    int val = (int) (percentage * 100);
-    int lpad = (int) (percentage * g_prog_width);
-    int rpad = (int) (g_prog_width - lpad);
-    fprintf(stderr, "\r(%3d%%) %20s [%.*s%*s]", val, prompt.c_str(), lpad, g_prog_bar, rpad, "");
-    fflush(stderr);   
+    std::vector<int64_t> records(n);
+    for (size_t i=0; i<n; i++) {
+        file.read((char*) &(records[i]), sizeof(int64_t));
+    }
 
-    if (percentage >= 1) fprintf(stderr, "\n");
+    return records;
 }

@@ -1,19 +1,24 @@
 /*
  * include/util/Cursor.h
  *
- * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
  *
- * All rights reserved. Published under the Modified BSD License.
+ * Distributed under the Modified BSD License.
  *
+ * A simple record cursor type with associated methods for help in
+ * merging record sets when constructing shards. Iterates an array
+ * of records in order, and provides facilities to make sorted merges
+ * easier.
+ *
+ * TODO: Prior versions of this module included automatic support for
+ * working with data stored in PagedFiles as well. That should be
+ * reintroduced at some point.
  */
 #pragma once
 
-#include "framework/RecordInterface.h"
-
-#include "psu-ds/BloomFilter.h"
-#include "psu-ds/PriorityQueue.h"
-#include "psu-util/alignment.h"
+#include <cstdlib>
+#include <vector>
 
 namespace de {
 template<typename R>
@@ -62,6 +67,8 @@ template <typename R>
 inline static Cursor<R> *get_next(std::vector<Cursor<R>> &cursors, Cursor<R> *current=nullptr) {
     const R *min_rec = nullptr;
     Cursor<R> *result = nullptr;
+    // FIXME: for large cursor vectors, it may be worth it to use a
+    //        PriorityQueue here instead of scanning.
     for (size_t i=0; i< cursors.size(); i++) {
         if (cursors[i] == (Cursor<R>) {0} ) continue;
 
