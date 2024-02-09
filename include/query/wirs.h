@@ -8,7 +8,6 @@
  * A query class for weighted independent range sampling. This
  * class is tightly coupled with include/shard/AugBTree.h, and
  * so is probably of limited general utility.
- *
  */
 #pragma once
 

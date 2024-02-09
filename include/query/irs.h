@@ -8,7 +8,6 @@
  * A query class for independent range sampling. This query requires 
  * that the shard support get_lower_bound(key), get_upper_bound(key), 
  * and get_record_at(index).
- *
  */
 #pragma once
 

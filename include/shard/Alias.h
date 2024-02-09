@@ -10,6 +10,7 @@
  * structure. Designed to be used along side the WSS
  * query in include/query/wss.h
  *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 

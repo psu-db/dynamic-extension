@@ -10,6 +10,8 @@
  * used along side the WIRS query in include/query/wirs.h, but
  * also supports the necessary methods for other common query
  * types.
+ *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 

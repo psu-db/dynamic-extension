@@ -5,6 +5,11 @@
  *
  * Distributed under the Modified BSD License.
  *
+ * An abstraction to represent a job to be scheduled. Currently the
+ * supported task types are queries and merges. Based on the current plan,
+ * simple buffer inserts will likely also be made into a task at some
+ * point.
+ *
  */
 #pragma once
 

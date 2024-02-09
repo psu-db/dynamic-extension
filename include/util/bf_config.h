@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "psu-util/alignment.h"
+#include <cstdlib>
 
 namespace de {
 
@@ -30,7 +30,6 @@ static size_t BF_HASH_FUNCS = 7;
  * (0, 1), or the behavior of bloom filters is undefined.
  */
 static void BF_SET_FPR(double fpr) {
-
     BF_FPR = fpr;
 }
 

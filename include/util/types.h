@@ -10,17 +10,17 @@
  * that are defined within the header files that make direct use of them,
  * but all generally usable, simple types are defined here.
  *
+ * Many of these types were used in the Practical Dynamic Extension for
+ * Sampling Indexes work, particularly for external storage and buffer
+ * pool systems. They aren't used now, but we're leaving them here to use
+ * them in the future, when we add this functionality into this system too.
  */
 #pragma once
 
-#include <cstdlib>
 #include <cstdint>
-#include <cstddef>
-#include <string>
+#include <cstdlib>
 
 namespace de {
-
-using std::byte;
 
 /* Represents a page offset within a specific file (physical or virtual) */
 typedef uint32_t PageNum;

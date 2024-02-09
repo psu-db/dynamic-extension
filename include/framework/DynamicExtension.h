@@ -13,7 +13,6 @@
 #include <cstdio>
 #include <vector>
 #include <set>
-#include <shared_mutex>
 #include <mutex>
 
 #include "framework/interface/Scheduler.h"
@@ -87,10 +86,34 @@ public:
         }
     }
 
+    /*
+     * Insert the record `rec` into the index. If the buffer is full and
+     * the framework is blocking on an epoch transition, this call may fail
+     * and return 0. In this case, retry the call again later. If
+     * successful, 1 will be returned. The record will be immediately
+     * visible in the buffer upon the successful return of this function.
+     */
     int insert(const R &rec) {
         return internal_append(rec, false);
     }
 
+    /*
+     * Erase the record `rec` from the index. It is assumed that `rec`
+     * currently exists--no special checks are made for correctness here.
+     * The behavior if this function will differ depending on if tombstone
+     * or tagged deletes are used.
+     *
+     * Tombstone deletes - inserts a tombstone record for `rec`. This *may*
+     * return 0 and fail if the buffer is full and the framework is
+     * blocking on an epoch transition. In this case, repeat the call
+     * later. 1 will be returned when the tombstone is successfully
+     * inserted.
+     *
+     * Tagging deletes - Does a point lookup for the record across the
+     * entire structure, and sets its delete bit when found. Returns 1 if
+     * the record is found and marked, and 0 if it was not (i.e., if it
+     * isn't present in the index). 
+     */
     int erase(const R &rec) {
         // FIXME: delete tagging will require a lot of extra work to get
         //        operating "correctly" in a concurrent environment.
@@ -121,10 +144,23 @@ public:
         return internal_append(rec, true);
     }
 
+    /*
+     * Execute the query with parameters `parms` and return a future. This
+     * future can be used to access a vector containing the results of the
+     * query.
+     *
+     * The behavior of this function is undefined if `parms` is not a
+     * pointer to a valid query parameter object for the query type used as
+     * a template parameter to construct the framework.
+     */
     std::future<std::vector<R>> query(void *parms) {
         return schedule_query(parms);
     }
 
+    /*
+     * Returns the number of records (included tagged records and
+     * tombstones) currently within the framework.
+     */
     size_t get_record_count() {
         auto epoch = get_active_epoch();
         auto t =  epoch->get_buffer().get_record_count() + epoch->get_structure()->get_record_count();
@@ -133,6 +169,11 @@ public:
         return t;
     }
 
+    /*
+     * Returns the number of tombstone records currently within the
+     * framework. This function can be called when tagged deletes are used,
+     * but will always return 0 in that case.
+     */
     size_t get_tombstone_count() {
         auto epoch = get_active_epoch();
         auto t = epoch->get_buffer().get_tombstone_count() + epoch->get_structure()->get_tombstone_count();
@@ -141,6 +182,12 @@ public:
         return t;
     }
 
+    /*
+     * Get the number of levels within the framework. This count will
+     * include any empty levels, but will not include the buffer. Note that
+     * this is *not* the same as the number of shards when tiering is used,
+     * as each level can contain multiple shards in that case.
+     */
     size_t get_height() {
         auto epoch = get_active_epoch();
         auto t = epoch->get_structure()->get_height();
@@ -149,6 +196,13 @@ public:
         return t;
     }
 
+    /*
+     * Get the number of bytes of memory allocated across the framework for
+     * storing records and associated index information (i.e., internal
+     * ISAM tree nodes). This includes memory that is allocated but
+     * currently unused in the buffer, or in shards themselves
+     * (overallocation due to delete cancellation, etc.).
+     */
     size_t get_memory_usage() {
         auto epoch = get_active_epoch();
         auto t= epoch->get_buffer().get_memory_usage() + epoch->get_structure()->get_memory_usage();
@@ -157,6 +211,11 @@ public:
         return t;
     }
 
+    /*
+     * Get the number of bytes of memory allocated across the framework for
+     * auxiliary structures. This can include bloom filters, aux
+     * hashtables, etc. 
+     */
     size_t get_aux_memory_usage() {
         auto epoch = get_active_epoch();
         auto t = epoch->get_buffer().get_aux_memory_usage() + epoch->get_structure()->get_aux_memory_usage();
@@ -165,10 +224,22 @@ public:
         return t;
     }
 
+    /*
+     * Returns the maximum physical capacity of the buffer, measured in
+     * records.
+     */
     size_t get_buffer_capacity() {
         return m_buffer->get_capacity();
     }
     
+    /*
+     * Create a new single Shard object containing all of the records
+     * within the framework (buffer and shards). The optional parameter can
+     * be used to specify whether the Shard should be constructed with the
+     * currently active state of the framework (false), or if shard
+     * construction should wait until any ongoing reconstructions have
+     * finished and use that new version (true).
+     */
     Shard *create_static_structure(bool await_reconstruction_completion=false) {
         if (await_reconstruction_completion) {
             await_next_epoch();

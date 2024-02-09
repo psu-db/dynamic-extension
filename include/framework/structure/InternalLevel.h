@@ -6,6 +6,12 @@
  *
  * Distributed under the Modified BSD License.
  *
+ * The word `Internal` in this class's name refers to memory. The current
+ * model, inherited from the framework in Practical Dynamic Extension for
+ * Sampling Indexes, would use a different ExternalLevel for shards stored
+ * on external storage. This is a distinction that can probably be avoided
+ * with some more thought being put into interface design.
+ *
  */
 #pragma once
 

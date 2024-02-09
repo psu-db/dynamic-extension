@@ -5,6 +5,15 @@
  *
  * Distributed under the Modified BSD License.
  *
+ * This scheduler runs just concurrently, using a standard FIFO queue to
+ * determine which jobs to run next. If more jobs are scheduled than there
+ * are available threads, the excess will stall until a thread becomes
+ * available and then run in the order they were received by the scheduler.
+ *
+ * TODO: We need to set up a custom threadpool based on jthreads to support
+ * thread preemption for a later phase of this project. That will allow us
+ * to avoid blocking epoch transitions on long-running queries, or to pause
+ * reconstructions on demand.
  */
 #pragma once
 

@@ -2,7 +2,6 @@
  * include/util/SortedMerge.h
  *
  * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
- *                    Dong Xie <dongx@psu.edu>
  *
  * Distributed under the Modified BSD License.
  *
@@ -28,12 +27,26 @@ using psudb::queue_record;
 using psudb::byte;
 using psudb::CACHELINE_SIZE;
 
+/*
+ * A simple struct to return record_count and tombstone_count information 
+ * back to the caller. Could've been an std::pair, but I like the more 
+ * explicit names.
+ */
 struct merge_info {
     size_t record_count;
     size_t tombstone_count;
 };
 
-
+/*
+ * Build a vector of cursors corresponding to the records contained within
+ * a vector of shards. The cursor at index i in the output will correspond
+ * to the shard at index i in the input. 
+ *
+ * The values of reccnt and tscnt will be updated with the sum of the
+ * records contained within the shards. Note that these counts include deleted
+ * records that may be removed during shard construction, and so constitute
+ * upper bounds only.
+ */
 template <RecordInterface R, ShardInterface<R> S>
 static std::vector<Cursor<Wrapped<R>>> build_cursor_vec(std::vector<S*> &shards, size_t *reccnt, size_t *tscnt) {
     std::vector<Cursor<Wrapped<R>>> cursors;
@@ -57,7 +70,14 @@ static std::vector<Cursor<Wrapped<R>>> build_cursor_vec(std::vector<S*> &shards,
 }
 
 /*
- * 
+ * Build a sorted array of records based on the contents of a BufferView.
+ * This routine does not alter the buffer view, but rather copies the
+ * records out and then sorts them. The provided buffer must be large
+ * enough to store the records from the BufferView, or the behavior of the
+ * function is undefined.
+ *
+ * It allocates a temporary buffer for the sorting, and execution of the
+ * program will be aborted if the allocation fails.
  */
 template <RecordInterface R>
 static merge_info sorted_array_from_bufferview(BufferView<R> bv, 
@@ -94,10 +114,10 @@ static merge_info sorted_array_from_bufferview(BufferView<R> bv,
             continue;
         }
 
-        // fixme: this shouldn't be necessary, but the tagged record
+        // FIXME: this shouldn't be necessary, but the tagged record
         // bypass doesn't seem to be working on this code-path, so this
         // ensures that tagged records from the buffer are able to be
-        // dropped, eventually. it should only need to be &= 1
+        // dropped, eventually. It should only need to be &= 1
         base->header &= 3;
         buffer[info.record_count++] = *base;
 

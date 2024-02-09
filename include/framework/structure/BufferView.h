@@ -5,6 +5,7 @@
  *
  * Distributed under the Modified BSD License.
  *
+ * TODO: This file is very poorly commented.
  */
 #pragma once
 

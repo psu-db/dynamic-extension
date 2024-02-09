@@ -9,12 +9,9 @@
 #pragma once
 
 #include "framework/QueryRequirements.h"
-#include <concepts>
 
 namespace de{
-// FIXME: The interface is not completely specified yet, as it is pending
-//        determining a good way to handle additional template arguments 
-//        to get the Shard and Record types into play
+
 template <typename Q, typename R, typename S>
 concept QueryInterface = requires(void *p, S *sh, std::vector<void*> &s, std::vector<std::vector<Wrapped<R>>> &rv, BufferView<R> *bv) {
     {Q::get_query_state(sh, p)} -> std::convertible_to<void*>;

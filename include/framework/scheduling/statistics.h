@@ -5,6 +5,11 @@
  *
  * Distributed under the Modified BSD License.
  *
+ * This is a stub for a statistics tracker to be used in scheduling. It
+ * currently only tracks simple aggregated statistics, but should be
+ * updated in the future for more fine-grained statistics. These will be
+ * used for making scheduling decisions and predicting the runtime of a
+ * given job.
  */
 #pragma once
 

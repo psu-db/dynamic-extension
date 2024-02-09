@@ -9,7 +9,7 @@
  * search.
  *
  * FIXME: Does not yet support the tombstone delete policy.
- *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 
@@ -234,13 +234,15 @@ private:
     }
 
     vpnode *build_subtree(size_t start, size_t stop, gsl_rng *rng) {
-        // base-case: sometimes happens (probably because of the +1 and -1
-        // in the first recursive call)
+        /* 
+         * base-case: sometimes happens (probably because of the +1 and -1
+         * in the first recursive call)
+         */
         if (start > stop) {
             return nullptr;
         }
 
-        // base-case: create a leaf node
+        /* base-case: create a leaf node */
         if (stop - start <= LEAFSZ) {
             vpnode *node = new vpnode();
             node->start = start;
@@ -251,26 +253,30 @@ private:
             return node;
         }
 
-        // select a random element to be the root of the
-        // subtree
+        /* 
+         * select a random element to be the root of the
+         * subtree
+         */
         auto i = start + gsl_rng_uniform_int(rng, stop - start + 1);
         swap(start, i);
 
-        // partition elements based on their distance from the start,
-        // with those elements with distance falling below the median
-        // distance going into the left sub-array and those above 
-        // the median in the right. This is easily done using QuickSelect.
+        /* 
+         * partition elements based on their distance from the start,
+         * with those elements with distance falling below the median
+         * distance going into the left sub-array and those above 
+         * the median in the right. This is easily done using QuickSelect.
+         */
         auto mid = (start + 1 + stop) / 2;
         quickselect(start + 1, stop, mid, m_ptrs[start], rng);
 
-        // Create a new node based on this partitioning
+        /* Create a new node based on this partitioning */
         vpnode *node = new vpnode();
         node->start = start;
 
-        // store the radius of the circle used for partitioning the node.
+        /* store the radius of the circle used for partitioning the node. */
         node->radius = m_ptrs[start]->rec.calc_distance(m_ptrs[mid]->rec);
 
-        // recursively construct the left and right subtrees
+        /* recursively construct the left and right subtrees */
         node->inside = build_subtree(start + 1, mid-1, rng); 
         node->outside = build_subtree(mid, stop, rng);
 
@@ -279,6 +285,8 @@ private:
         return node;
     }
 
+    // TODO: The quickselect code can probably be generalized and moved out
+    //       to psudb-common instead.
     void quickselect(size_t start, size_t stop, size_t k, Wrapped<R> *p, gsl_rng *rng) {
         if (start == stop) return;
 
@@ -291,6 +299,8 @@ private:
         }
     }
 
+    // TODO: The quickselect code can probably be generalized and moved out
+    //       to psudb-common instead.
     size_t partition(size_t start, size_t stop, Wrapped<R> *p, gsl_rng *rng) {
         auto pivot = start + gsl_rng_uniform_int(rng, stop - start);
         double pivot_dist = p->rec.calc_distance(m_ptrs[pivot]->rec);
@@ -369,8 +379,5 @@ private:
             }
         }
     }
-
-
    };
-
 }

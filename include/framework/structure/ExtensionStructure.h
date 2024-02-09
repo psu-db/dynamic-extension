@@ -37,19 +37,23 @@ public:
     ~ExtensionStructure() = default;
 
     /*
-     * Create a shallow copy of this extension structure. The copy will share references to the
-     * same levels/shards as the original, but will have its own lists. As all of the shards are
-     * immutable (with the exception of deletes), the copy can be restructured with reconstructions
-     * and flushes without affecting the original. The copied structure will be returned with a reference
-     * count of 0; generally you will want to immediately call take_reference() on it.
+     * Create a shallow copy of this extension structure. The copy will share
+     * references to the same levels/shards as the original, but will have its
+     * own lists. As all of the shards are immutable (with the exception of
+     * deletes), the copy can be restructured with reconstructions and flushes
+     * without affecting the original. The copied structure will be returned
+     * with a reference count of 0; generally you will want to immediately call
+     * take_reference() on it.
      *
-     * NOTE: When using tagged deletes, a delete of a record in the original structure will affect
-     * the copy, so long as the copy retains a reference to the same shard as the original. This could
-     * cause synchronization problems under tagging with concurrency. Any deletes in this context will
+     * NOTE: When using tagged deletes, a delete of a record in the original
+     * structure will affect the copy, so long as the copy retains a reference
+     * to the same shard as the original. This could cause synchronization
+     * problems under tagging with concurrency. Any deletes in this context will
      * need to be forwarded to the appropriate structures manually.
      */
     ExtensionStructure<R, S, Q, L> *copy() {
-        auto new_struct = new ExtensionStructure<R, S, Q, L>(m_buffer_size, m_scale_factor, m_max_delete_prop);
+        auto new_struct = new ExtensionStructure<R, S, Q, L>(m_buffer_size, m_scale_factor, 
+                                                             m_max_delete_prop);
         for (size_t i=0; i<m_levels.size(); i++) {
             new_struct->m_levels.push_back(m_levels[i]->clone());
         }
@@ -64,9 +68,9 @@ public:
      * setting the delete bit in its wrapped header. Returns 1 if a matching
      * record was found and deleted, and 0 if a matching record was not found.
      *
-     * This function will stop after finding the first matching record. It is assumed
-     * that no duplicate records exist. In the case of duplicates, this function will
-     * still "work", but in the sense of "delete first match".
+     * This function will stop after finding the first matching record. It is
+     * assumed that no duplicate records exist. In the case of duplicates, this
+     * function will still "work", but in the sense of "delete first match".
      */
     int tagged_delete(const R &rec) {
         for (auto level : m_levels) {
@@ -77,7 +81,7 @@ public:
 
         /*
          * If the record to be erased wasn't found, return 0. The
-         * DynamicExtension itself will then search the active 
+         * DynamicExtension itself will then search the active
          * Buffers.
          */
         return 0;
@@ -164,21 +168,23 @@ public:
     }
 
     /*
-     * Validate that no level in the structure exceeds its maximum tombstone capacity. This is
-     * used to trigger preemptive compactions at the end of the reconstruction process.
+     * Validate that no level in the structure exceeds its maximum tombstone
+     * capacity. This is used to trigger preemptive compactions at the end of
+     * the reconstruction process.
      */
     bool validate_tombstone_proportion() {
-        long double ts_prop;
-        for (size_t i=0; i<m_levels.size(); i++) {
-            if (m_levels[i]) {
-                ts_prop = (long double) m_levels[i]->get_tombstone_count() / (long double) calc_level_record_capacity(i);
-                if (ts_prop > (long double) m_max_delete_prop) {
-                    return false;
-                }
-            }
+      long double ts_prop;
+      for (size_t i = 0; i < m_levels.size(); i++) {
+        if (m_levels[i]) {
+          ts_prop = (long double)m_levels[i]->get_tombstone_count() /
+                    (long double)calc_level_record_capacity(i);
+          if (ts_prop > (long double)m_max_delete_prop) {
+            return false;
+          }
         }
+      }
 
-        return true;
+      return true;
     }
 
     bool validate_tombstone_proportion(level_index level) {
@@ -224,14 +230,14 @@ public:
             /*
              * The amount of storage required for the reconstruction accounts
              * for the cost of storing the new records, along with the
-             * cost of retaining the old records during the process 
-             * (hence the 2x multiplier). 
+             * cost of retaining the old records during the process
+             * (hence the 2x multiplier).
              *
-             * FIXME: currently does not account for the *actual* size 
-             * of the shards, only the storage for the records 
+             * FIXME: currently does not account for the *actual* size
+             * of the shards, only the storage for the records
              * themselves.
              */
-            size_t reccnt = m_levels[i-1]->get_record_count();
+            size_t reccnt = m_levels[i - 1]->get_record_count();
             if constexpr (L == LayoutPolicy::LEVELING) {
                 if (can_reconstruct_with(i, reccnt)) {
                     reccnt += m_levels[i]->get_record_count();

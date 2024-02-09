@@ -9,6 +9,7 @@
  * A shard shim around the static version of the PGM learned
  * index.
  *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 

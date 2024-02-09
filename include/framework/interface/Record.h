@@ -138,7 +138,7 @@ struct CosinePoint{
         return true;
     }
 
-    // lexicographic order
+    /* lexicographic order */
     inline bool operator<(const CosinePoint& other) const {
         for (size_t i=0; i<D; i++) {
             if (data[i] < other.data[i]) {
@@ -182,7 +182,7 @@ struct EuclidPoint{
         return true;
     }
 
-    // lexicographic order
+    /* lexicographic order */
     inline bool operator<(const EuclidPoint& other) const {
         for (size_t i=0; i<D; i++) {
             if (data[i] < other.data[i]) {
@@ -228,7 +228,4 @@ public:
 private:
     R *P;
 };
-
-
-
 }

@@ -7,6 +7,7 @@
  *
  * A shard shim around the TrieSpline learned index.
  *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 

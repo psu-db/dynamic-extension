@@ -8,6 +8,7 @@
  *
  * A shard shim around an in-memory ISAM tree.
  *
+ * TODO: The code in this file is very poorly commented.
  */
 #pragma once
 

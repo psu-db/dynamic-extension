@@ -44,13 +44,6 @@ public:
     }
 
     ~Epoch() {
-        /* FIXME: this is needed to keep the destructor from sometimes locking
-         * up here. But there *shouldn't* be any threads waiting on this signal
-         * at object destruction, so something else is going on here that needs
-         * looked into
-         */
-        // m_active_cv.notify_all();
-
         if (m_structure) {
             m_structure->release_reference();
         }
