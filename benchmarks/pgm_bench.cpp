@@ -7,8 +7,8 @@
 #include <thread>
 
 #include "framework/DynamicExtension.h"
-#include "shard/ISAMTree.h"
-#include "query/irs.h"
+#include "shard/PGM.h"
+#include "query/rangecount.h"
 #include "framework/interface/Record.h"
 #include "include/data-proc.h"
 
@@ -18,17 +18,15 @@
 
 
 typedef de::Record<uint64_t, uint64_t> Rec;
-typedef de::ISAMTree<Rec> ISAM;
-typedef de::irs::Query<Rec, ISAM> Q;
-typedef de::DynamicExtension<Rec, ISAM, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
-typedef de::irs::Parms<Rec> QP;
+typedef de::PGM<Rec> S;
+typedef de::rc::Query<Rec, S> Q;
+typedef de::DynamicExtension<Rec, S, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
+typedef de::rc::Parms<Rec> QP;
 
 void run_queries(Ext *extension, std::vector<QP> &queries, gsl_rng *rng) {
     size_t total;
     for (size_t i=0; i<queries.size(); i++) {
         auto q = &queries[i];
-        q->rng = rng;
-        q->sample_size = 1000;
 
         auto res = extension->query(q);
         auto r = res.get();
@@ -73,7 +71,7 @@ void insert_records(Ext *extension, size_t start,
 int main(int argc, char **argv) {
 
     if (argc < 4) {
-        fprintf(stderr, "irs_bench reccnt datafile queryfile\n");
+        fprintf(stderr, "pgm_bench reccnt datafile queryfile\n");
         exit(EXIT_FAILURE);
     }
 
@@ -95,7 +93,7 @@ int main(int argc, char **argv) {
     auto queries = read_range_queries<QP>(q_fname, .001);
 
     /* warmup structure w/ 10% of records */
-    size_t warmup = .3 * n;
+    size_t warmup = .1 * n;
     size_t delete_idx = 0;
     insert_records(extension, 0, warmup, data, to_delete, delete_idx, false, rng);
 
