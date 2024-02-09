@@ -30,18 +30,18 @@ and then build the project using,
 ```
 
 The unit test binaries will appear in `bin/tests/` and the benchmarks in
-`bin/benchmarks`.
+`bin/benchmarks/`.
 
 ## Available Benchmarks
-At present there are several benchmarks available in `benchmarks`. Not every
+At present there are several benchmarks available in `benchmarks/`. Not every
 benchmark has been updated to build with the current version; these can be
-found in `benchmarks/old-bench`. Most of the benchmarks will display a help
+found in `benchmarks/old-bench/`. Most of the benchmarks will display a help
 message, showing what arguments they expect, if you run them without any
 arguments, or with the wrong number of arguments.
 
 ## Unit Tests
 While test coverage is not perfect yet, there are some basic unit tests in
-`tests`. These tests are built using the [check
+`tests/`. These tests are built using the [check
 unit](https://libcheck.github.io/check/) test framework.
 
 ## Documentation to Come
