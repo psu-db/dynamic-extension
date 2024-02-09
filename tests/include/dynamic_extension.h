@@ -22,14 +22,16 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-//#include "testing.h"
-//#include "framework/DynamicExtension.h"
-//#include "framework/scheduling/SerialScheduler.h"
-//#include "shard/ISAMTree.h"
-//#include "query/rangequery.h"
-//#include <check.h>
-//using namespace de;
-//typedef DynamicExtension<R, ISAMTree<R>, rq::Query<ISAMTree<R>, R>, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
+/*
+#include "testing.h"
+#include "framework/DynamicExtension.h"
+#include "framework/scheduling/SerialScheduler.h"
+#include "shard/ISAMTree.h"
+#include "query/rangequery.h"
+#include <check.h>
+using namespace de;
+typedef DynamicExtension<R, ISAMTree<R>, rq::Query<ISAMTree<R>, R>, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
+*/
 
 
 START_TEST(t_create)

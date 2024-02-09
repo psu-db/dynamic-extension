@@ -124,11 +124,17 @@ public:
          * not *strictly* necessary.
          */
         if constexpr (D == DeletePolicy::TAGGING) {
-            auto view = m_buffer->get_buffer_view();
             static_assert(std::same_as<SCHED, SerialScheduler>, "Tagging is only supported in single-threaded operation");
-            if (get_active_epoch()->get_structure()->tagged_delete(rec)) {
+
+            auto view = m_buffer->get_buffer_view();
+
+            auto epoch = get_active_epoch();
+            if (epoch->get_structure()->tagged_delete(rec)) {
+                end_job(epoch);
                 return 1;
             }
+
+            end_job(epoch);
 
             /*
              * the buffer will take the longest amount of time, and 
@@ -469,6 +475,15 @@ private:
         new_ptr = {nullptr, 0};
         do {
             old = m_previous_epoch.load();
+
+            /*
+             * If running in single threaded mode, the failure to retire
+             * an Epoch will result in the thread of execution blocking
+             * indefinitely. 
+             */
+            if constexpr (std::same_as<SCHED, SerialScheduler>) {
+                if (old.epoch == epoch) assert(old.refcnt == 0);
+            }
 
             if (old.epoch == epoch && old.refcnt == 0 &&
                 m_previous_epoch.compare_exchange_strong(old, new_ptr)) {
