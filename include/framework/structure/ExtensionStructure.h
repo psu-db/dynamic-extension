@@ -107,6 +107,11 @@ public:
      */
     inline bool flush_buffer(BuffView buffer) {
         state_vector tmp = m_current_state;
+
+        if (tmp.size() == 0) {
+            grow(tmp);
+        }
+
         assert(can_reconstruct_with(0, buffer.get_record_count(), tmp));
         flush_buffer_into_l0(std::move(buffer));
 
@@ -281,16 +286,34 @@ public:
             scratch_state = m_current_state;
         }
 
-        /*
-         * The buffer flush is not included so if that can be done without any
-         * other change, just return an empty list.
-         */
         ReconstructionVector reconstructions;
-        if (can_reconstruct_with(0, buffer_reccnt, scratch_state)) {
-            return std::move(reconstructions); 
+        size_t LOOKAHEAD = 2;
+        for (size_t i=0; i<LOOKAHEAD; i++) {
+            /*
+             * If L0 cannot support a direct buffer flush, figure out what 
+             * work must be done to free up space first. Otherwise, the
+             * reconstruction vector will be initially empty.
+             */
+            if (!can_reconstruct_with(0, buffer_reccnt, scratch_state)) {
+                auto local_recon = get_reconstruction_tasks_from_level(0, scratch_state);
+
+                /* 
+                 * for the first iteration, we need to do all of the
+                 * reconstructions, so use these to initially the returned 
+                 * reconstruction list
+                 */
+                if (i == 0) {
+                    reconstructions = local_recon;
+                }
+            }
+
+            /* simulate the buffer flush in the scratch state */
+            scratch_state[0].reccnt += buffer_reccnt;
+            if (L == LayoutPolicy::TEIRING || scratch_state[0].shardcnt == 0) {
+                scratch_state[0].shardcnt += 1;
+            }
         }
 
-        reconstructions = get_reconstruction_tasks_from_level(0, scratch_state);
         return std::move(reconstructions);
     }
 
@@ -301,29 +324,52 @@ public:
     ReconstructionVector get_reconstruction_tasks_from_level(level_index source_level, state_vector &scratch_state) {
         ReconstructionVector reconstructions;
 
+        /*
+         * Find the first level capable of sustaining a reconstruction from
+         * the level above it. If no such level exists, add a new one at
+         * the bottom of the structure.
+         */
         level_index base_level = find_reconstruction_target(source_level, scratch_state);
         if (base_level == -1) {
             base_level = grow(scratch_state);
         }
 
+        /*
+         * Determine the full set of reconstructions necessary to open up
+         * space in the source level.
+         */
         for (level_index i=base_level; i>source_level; i--) {
+            size_t recon_reccnt = scratch_state[i-1].reccnt;
+            size_t base_reccnt = recon_reccnt;
+
             /*
-             * The amount of storage required for the reconstruction accounts
-             * for the cost of storing the new records, along with the
-             * cost of retaining the old records during the process 
-             * (hence the 2x multiplier). 
-             *
-             * FIXME: currently does not account for the *actual* size 
-             * of the shards, only the storage for the records 
-             * themselves.
+             * If using Leveling, the total reconstruction size will be the
+             * records in *both* base and target, because they will need to
+             * be merged (assuming that target isn't empty).
              */
-            size_t reccnt = m_levels[i-1]->get_record_count();
             if constexpr (L == LayoutPolicy::LEVELING) {
-                if (can_reconstruct_with(i, reccnt, scratch_state)) {
-                    reccnt += m_levels[i]->get_record_count();
+                if (can_reconstruct_with(i, base_reccnt, scratch_state)) {
+                    recon_reccnt += scratch_state[i].reccnt;
                 }
             }
-            reconstructions.add_reconstruction(i-1, i, reccnt);
+            reconstructions.add_reconstruction(i-1, i, recon_reccnt);
+
+            /*
+             * The base level will be emptied and its records moved to
+             * the target.
+             */
+            scratch_state[i-1].reccnt = 0;
+            scratch_state[i-1].shardcnt = 0;
+
+            /*
+             * The target level will have the records from the base level
+             * added to it, and potentially gain a shard if the LayoutPolicy
+             * is tiering or the level currently lacks any shards at all.
+             */
+            scratch_state[i].reccnt += base_reccnt;
+            if (L == LayoutPolicy::TEIRING || scratch_state[i].shardcnt == 0) {
+                scratch_state[i].shardcnt += 1;
+            }
         }
 
         return std::move(reconstructions);
@@ -336,10 +382,16 @@ public:
      * tombstone ordering invariant may be violated.
      */
     inline void reconstruction(level_index base_level, level_index incoming_level) {
+        size_t shard_capacity = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
 
-        size_t shard_capacity;
+        if (base_level >= m_levels.size()) {
+            m_levels.emplace_back(std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(base_level, shard_capacity)));
+
+            m_current_state.push_back({0, calc_level_record_capacity(base_level), 
+                                       0, shard_capacity});
+        }
+
         if constexpr (L == LayoutPolicy::LEVELING) {
-            shard_capacity = 1;
             /* if the base level has a shard, merge the base and incoming together to make a new one */
             if (m_levels[base_level]->get_shard_count() > 0) {
                 m_levels[base_level] = InternalLevel<R, Shard, Q>::reconstruction(m_levels[base_level].get(), m_levels[incoming_level].get());
@@ -349,7 +401,6 @@ public:
             }
 
         } else {
-            shard_capacity = m_scale_factor;
             m_levels[base_level]->append_level(m_levels[incoming_level].get());
             m_levels[base_level]->finalize();
         }
@@ -408,16 +459,17 @@ private:
     state_vector m_current_state;
 
     /*
-     * Add a new level to the structure and return its index.
+     * Add a new level to the scratch state and return its index.
+     *
+     * IMPORTANT: This does _not_ add a level to the extension structure
+     * anymore. This is handled by the appropriate reconstruction and flush
+     * methods as needed. This function is for use in "simulated"
+     * reconstructions.
      */
     inline level_index grow(state_vector &scratch_state) {
         level_index new_idx = m_levels.size();
         size_t new_shard_cap = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
 
-        m_levels.emplace_back(std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(new_idx, new_shard_cap)));
-
-        m_current_state.push_back({0, calc_level_record_capacity(new_idx), 
-                                   0, new_shard_cap});
         scratch_state.push_back({0, calc_level_record_capacity(new_idx), 
                                    0, new_shard_cap});
         return new_idx;
@@ -451,7 +503,15 @@ private:
     }
 
     inline void flush_buffer_into_l0(BuffView buffer) {
-        assert(m_levels[0]);
+        size_t shard_capacity = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
+
+        if (m_levels.size() == 0) {
+            m_levels.emplace_back(std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(0, shard_capacity)));
+
+            m_current_state.push_back({0, calc_level_record_capacity(0), 
+                                       0, shard_capacity});
+        }
+
         if constexpr (L == LayoutPolicy::LEVELING) {
             // FIXME: Kludgey implementation due to interface constraints.
             auto old_level = m_levels[0].get();
