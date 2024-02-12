@@ -57,7 +57,7 @@ public:
         , m_active_head_advance(false) 
     {
         assert(m_cap > m_hwm);
-        assert(m_hwm > m_lwm);
+        assert(m_hwm >= m_lwm);
     }
 
     ~MutableBuffer() {
