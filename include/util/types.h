@@ -95,6 +95,10 @@ public:
         total_reccnt += reccnt;
     }
 
+    void add_reconstruction(ReconstructionTask task) {
+        m_tasks.push_back(task);
+    }
+
     ReconstructionTask remove_reconstruction(size_t idx) {
         assert(idx < m_tasks.size());
         auto task = m_tasks[idx];

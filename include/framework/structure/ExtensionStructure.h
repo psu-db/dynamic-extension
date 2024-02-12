@@ -275,7 +275,7 @@ public:
      *
      */
     ReconstructionVector get_reconstruction_tasks(size_t buffer_reccnt, 
-                                                             state_vector scratch_state={}) {
+                                                 state_vector scratch_state={}) {
         /* 
          * If no scratch state vector is provided, use a copy of the
          * current one. The only time an empty vector could be used as
@@ -304,6 +304,14 @@ public:
                  */
                 if (i == 0) {
                     reconstructions = local_recon;
+                    /*
+                     * Quick sanity test of idea: if the next reconstruction
+                     * would be larger than this one, steal the largest
+                     * task from it and run it now instead.
+                     */
+                } else if (local_recon.get_total_reccnt() > reconstructions.get_total_reccnt()) {
+                    auto t = local_recon.remove_reconstruction(0);
+                    reconstructions.add_reconstruction(t);
                 }
             }
 
@@ -312,6 +320,7 @@ public:
             if (L == LayoutPolicy::TEIRING || scratch_state[0].shardcnt == 0) {
                 scratch_state[0].shardcnt += 1;
             }
+
         }
 
         return std::move(reconstructions);
