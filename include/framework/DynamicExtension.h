@@ -488,7 +488,7 @@ private:
         Structure *vers = args->epoch->get_structure();
 
         for (ssize_t i=0; i<args->merges.size(); i++) {
-            vers->reconstruction(args->merges[i].second, args->merges[i].first);
+            vers->reconstruction(args->merges[i].target, args->merges[i].source);
         }
 
         /*

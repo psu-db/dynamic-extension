@@ -218,8 +218,8 @@ public:
      * major concern outside of sampling; at least for now. So I'm not
      * going to focus too much time on it at the moment.
      */
-    std::vector<ReconstructionTask> get_compaction_tasks() {
-        std::vector<ReconstructionTask> tasks;
+    ReconstructionVector get_compaction_tasks() {
+        ReconstructionVector tasks;
         state_vector scratch_state = m_current_state;
 
         /* if the tombstone/delete invariant is satisfied, no need for compactions */
@@ -244,8 +244,6 @@ public:
         }
 
         for (level_index i=base_level; i>0; i--) {
-            ReconstructionTask task = {i-1, i};
-
             /*
              * The amount of storage required for the reconstruction accounts
              * for the cost of storing the new records, along with the
@@ -262,9 +260,7 @@ public:
                     reccnt += m_levels[i]->get_record_count();
                 }
             }
-            //task.m_size = 2* reccnt * sizeof(R);
-
-            tasks.push_back(task);
+            tasks.add_reconstruction(i-i, i, reccnt);
         }
 
         return tasks;
@@ -273,7 +269,7 @@ public:
     /*
      *
      */
-    std::vector<ReconstructionTask> get_reconstruction_tasks(size_t buffer_reccnt, 
+    ReconstructionVector get_reconstruction_tasks(size_t buffer_reccnt, 
                                                              state_vector scratch_state={}) {
         /* 
          * If no scratch state vector is provided, use a copy of the
@@ -289,7 +285,7 @@ public:
          * The buffer flush is not included so if that can be done without any
          * other change, just return an empty list.
          */
-        std::vector<ReconstructionTask> reconstructions;
+        ReconstructionVector reconstructions;
         if (can_reconstruct_with(0, buffer_reccnt, scratch_state)) {
             return std::move(reconstructions); 
         }
@@ -302,8 +298,8 @@ public:
     /*
      *
      */
-    std::vector<ReconstructionTask> get_reconstruction_tasks_from_level(level_index source_level, state_vector &scratch_state) {
-        std::vector<ReconstructionTask> reconstructions;
+    ReconstructionVector get_reconstruction_tasks_from_level(level_index source_level, state_vector &scratch_state) {
+        ReconstructionVector reconstructions;
 
         level_index base_level = find_reconstruction_target(source_level, scratch_state);
         if (base_level == -1) {
@@ -311,7 +307,6 @@ public:
         }
 
         for (level_index i=base_level; i>source_level; i--) {
-            ReconstructionTask task = {i - 1, i};
             /*
              * The amount of storage required for the reconstruction accounts
              * for the cost of storing the new records, along with the
@@ -328,9 +323,7 @@ public:
                     reccnt += m_levels[i]->get_record_count();
                 }
             }
-//            task.m_size = 2* reccnt * sizeof(R);
-
-            reconstructions.push_back(task);
+            reconstructions.add_reconstruction(i-1, i, reccnt);
         }
 
         return std::move(reconstructions);

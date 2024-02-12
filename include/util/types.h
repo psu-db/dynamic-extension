@@ -19,6 +19,8 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <vector>
+#include <cassert>
 
 namespace de {
 
@@ -68,5 +70,70 @@ struct ShardID {
 
 /* A placeholder for an invalid shard--also used to indicate the mutable buffer */
 const ShardID INVALID_SHID = {-1, -1};
+
+typedef ssize_t level_index;
+
+typedef struct {
+    level_index source;
+    level_index target;
+    size_t reccnt;
+} ReconstructionTask;
+
+class ReconstructionVector {
+public:
+    ReconstructionVector() 
+    : total_reccnt(0) {}
+
+    ~ReconstructionVector() = default;
+
+    ReconstructionTask operator[](size_t idx) {
+        return m_tasks[idx];
+    }
+
+    void add_reconstruction(level_index source, level_index target, size_t reccnt) {
+        m_tasks.push_back({source, target, reccnt});
+        total_reccnt += reccnt;
+    }
+
+    ReconstructionTask remove_reconstruction(size_t idx) {
+        assert(idx < m_tasks.size());
+        auto task = m_tasks[idx];
+
+        m_tasks.erase(m_tasks.begin() + idx);
+        total_reccnt -= task.reccnt;
+
+        return task;
+    }
+
+    ReconstructionTask remove_smallest_reconstruction() {
+        size_t min_size = m_tasks[0].reccnt;
+        size_t idx = 0;
+        for (size_t i=1; i<m_tasks.size(); i++) {
+            if (m_tasks[i].reccnt < min_size) {
+                min_size = m_tasks[i].reccnt;
+                idx = i;
+            }
+        }
+
+        auto task = m_tasks[idx];
+        m_tasks.erase(m_tasks.begin() + idx);
+        total_reccnt -= task.reccnt;
+
+        return task;
+    }
+
+    size_t get_total_reccnt() {
+        return total_reccnt;
+    }
+
+    size_t size() {
+        return m_tasks.size();
+    }
+
+
+private:
+    std::vector<ReconstructionTask> m_tasks;
+    size_t total_reccnt;
+};
 
 }

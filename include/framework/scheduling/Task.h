@@ -26,7 +26,7 @@ namespace de {
 template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
 struct ReconstructionArgs {
     Epoch<R, S, Q, L> *epoch;
-    std::vector<ReconstructionTask> merges;
+    ReconstructionVector merges;
     std::promise<bool> result;
     bool compaction;
     void *extension;
