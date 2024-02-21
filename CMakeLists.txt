@@ -115,6 +115,12 @@ if (tests)
     target_include_directories(pgm_tests PRIVATE include external/PGM-index/include external/psudb-common/cpp/include)
     target_link_options(pgm_tests PUBLIC -mcx16)
     target_compile_options(pgm_tests PUBLIC -fopenmp)
+
+
+    add_executable(triespline_debug ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_debug.cpp)
+    target_link_libraries(triespline_debug PUBLIC gsl check subunit pthread atomic)
+    target_link_options(triespline_debug PUBLIC -mcx16)
+    target_include_directories(triespline_debug PRIVATE include external/psudb-common/cpp/include external/PLEX/include)
 endif()
 
 if (bench) 
