@@ -141,16 +141,16 @@ if (bench)
     target_include_directories(query_workload_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(query_workload_bench PUBLIC -mcx16)
 
-    add_executable(insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_query_tput.cpp)
-    target_link_libraries(insert_query_tput PUBLIC gsl pthread gomp atomic)
-    target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(insert_query_tput PUBLIC -mcx16)
+    #add_executable(insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_query_tput.cpp)
+    #target_link_libraries(insert_query_tput PUBLIC gsl pthread gomp atomic)
+    #target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    #target_link_options(insert_query_tput PUBLIC -mcx16)
 
 
-    add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
-    target_link_libraries(btree_insert_query_tput PUBLIC gsl pthread gomp atomic)
-    target_include_directories(btree_insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(btree_insert_query_tput PUBLIC -mcx16)
+    #add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
+    #target_link_libraries(btree_insert_query_tput PUBLIC gsl pthread gomp atomic)
+    #target_include_directories(btree_insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    #target_link_options(btree_insert_query_tput PUBLIC -mcx16)
 
     add_executable(watermark_testing ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/watermark_testing.cpp)
     target_link_libraries(watermark_testing PUBLIC gsl pthread gomp atomic)
@@ -161,6 +161,17 @@ if (bench)
     target_link_libraries(irs_bench PUBLIC gsl pthread gomp atomic)
     target_include_directories(irs_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(irs_bench PUBLIC -mcx16)
+
+    add_executable(vptree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vptree_bench.cpp)
+    target_link_libraries(vptree_bench PUBLIC gsl pthread gomp atomic)
+    target_include_directories(vptree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(vptree_bench PUBLIC -mcx16)
+
+
+    add_executable(ts_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/ts_bench.cpp)
+    target_link_libraries(ts_bench PUBLIC gsl pthread gomp atomic)
+    target_include_directories(ts_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(ts_bench PUBLIC -mcx16)
 
     #add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
     #target_link_libraries(static_dynamic_comp PUBLIC gsl pthread gomp atomic)
