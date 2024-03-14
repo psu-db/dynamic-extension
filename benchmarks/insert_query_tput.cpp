@@ -10,7 +10,8 @@
 #include "shard/ISAMTree.h"
 #include "query/irs.h"
 #include "framework/interface/Record.h"
-#include "include/data-proc.h"
+#include "include/file_util.h"
+#include <ctime>
 
 #include <gsl/gsl_rng.h>
 
@@ -24,6 +25,8 @@ typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
 typedef de::irs::Parms<Rec> QP;
 
 std::atomic<bool> inserts_done = false;
+
+struct timespec delay = {0, 500};
 
 void query_thread(Ext *extension, std::vector<QP> *queries) {
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
@@ -39,7 +42,7 @@ void query_thread(Ext *extension, std::vector<QP> *queries) {
         auto res = extension->query(&q);
         auto r = res.get();
         total += r.size();
-        usleep(1);
+        nanosleep(&delay, nullptr);
     }
 
     fprintf(stderr, "%ld\n", total);
@@ -47,47 +50,39 @@ void query_thread(Ext *extension, std::vector<QP> *queries) {
     gsl_rng_free(rng);
 }
 
-void insert_thread(Ext *extension, size_t start, std::vector<int64_t> *records) {
-    size_t reccnt = 0;
-    Rec r;
-    for (size_t i=start; i<records->size(); i++) {
-        r.key = (*records)[i];
-        r.value = i;
-
-        while (!extension->insert(r)) {
-            usleep(1);
+void insert_thread(Ext *extension, size_t start, size_t stop, std::vector<Rec> *records) {
+    fprintf(stderr, "%ld\t%ld\n", start, stop);
+    for (size_t i=start; i<stop; i++) {
+        while (!extension->insert((*records)[i])) {
+            nanosleep(&delay, nullptr);
         }
     }
-
-    inserts_done.store(true);
 }
 
 int main(int argc, char **argv) {
 
-    if (argc < 5) {
-        fprintf(stderr, "insert_query_tput reccnt query_threads datafile queryfile\n");
+    if (argc < 6) {
+        fprintf(stderr, "Usage:\n");
+        fprintf(stderr, "%s reccnt insert_threads query_threads datafile queryfile\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     size_t n = atol(argv[1]);
-    size_t qthread_cnt = atol(argv[2]);
-    std::string d_fname = std::string(argv[3]);
-    std::string q_fname = std::string(argv[4]);
+    size_t ithread_cnt = atol(argv[2]);
+    size_t qthread_cnt = atol(argv[3]);
+    std::string d_fname = std::string(argv[4]);
+    std::string q_fname = std::string(argv[5]);
 
     auto extension = new Ext(1000, 12000, 8, 0, 64);
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
-    auto data = read_sosd_file(d_fname, n);
+    auto data = read_sosd_file<Rec>(d_fname, n);
     auto queries = read_range_queries<QP>(q_fname, .001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
-    Rec r;
     for (size_t i=0; i<warmup; i++) {
-        r.key = data[i];
-        r.value = gsl_rng_uniform_int(rng, n);
-
-        while (!extension->insert(r)) {
+        while (!extension->insert(data[i])) {
             usleep(1);
         }
     }
@@ -96,14 +91,26 @@ int main(int argc, char **argv) {
 
     TIMER_INIT();
 
+    std::vector<std::thread> ithreads(ithread_cnt);
     std::vector<std::thread> qthreads(qthread_cnt);
 
     TIMER_START();
-    std::thread i_thrd(insert_thread, extension, warmup, &data);
+    size_t start = warmup;
+    size_t per_thread = (n - warmup) / ithread_cnt;
+    for (size_t i=0; i<ithread_cnt; i++) {
+        ithreads[i] = std::thread(insert_thread, extension, start, start + per_thread, &data);
+        start += per_thread;
+    }
+
     for (size_t i=0; i<qthread_cnt; i++) {
         qthreads[i] = std::thread(query_thread, extension, &queries);
     }
-    i_thrd.join();
+
+    for (size_t i=0; i<ithread_cnt; i++) {
+        ithreads[i].join();
+    }
+
+    inserts_done.store(true);
     TIMER_STOP();
 
     for (size_t i=0; i<qthread_cnt; i++) {
