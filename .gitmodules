@@ -19,3 +19,6 @@
 [submodule "external/ctpl"]
 	path = external/ctpl
 	url = git@github.com:vit-vit/CTPL.git
+[submodule "external/fast-succinct-trie"]
+	path = external/fast-succinct-trie
+	url = git@github.com:efficient/fast-succinct-trie.git
