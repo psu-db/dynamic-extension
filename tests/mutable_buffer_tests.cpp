@@ -52,7 +52,7 @@ START_TEST(t_insert)
 {
     auto buffer = new MutableBuffer<Rec>(50, 100);
 
-    Rec rec = {0, 5, 1};
+    Rec rec = {0, 5};
 
     /* insert records up to the low watermark */
     size_t cnt = 0;

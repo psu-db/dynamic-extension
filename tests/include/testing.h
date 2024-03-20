@@ -15,6 +15,8 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <fstream>
+#include <sstream>
 
 #include "util/types.h"
 #include "psu-util/alignment.h"
@@ -24,6 +26,38 @@
 typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
 typedef de::EuclidPoint<uint64_t> PRec;
+
+typedef de::Record<std::string, uint64_t> StringRec;
+
+std::string kjv_wordlist = "tests/data/kjv-wordlist.txt";
+std::string summa_wordlist = "tests/data/summa-wordlist.txt";
+
+static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
+    std::vector<StringRec> vec;
+    vec.reserve(n);
+
+    std::fstream file;
+    file.open(fname, std::ios::in);
+
+    for (size_t i=0; i<n; i++) {
+        std::string line;
+        if (!std::getline(file, line, '\n')) break;
+
+        std::stringstream ls(line);
+        StringRec r;
+        std::string field;
+
+        std::getline(ls, field, '\t');
+        r.value = atol(field.c_str());
+        std::getline(ls, field, '\n');
+        r.key = std::string(field);
+
+        vec.push_back(r);
+    }
+
+    return vec;
+}
+
 
 template <de::RecordInterface R> 
 std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {
@@ -83,15 +117,26 @@ static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 
     R rec;
     if constexpr (de::KVPInterface<R>) {
-        for (size_t i = 0; i < cnt; i++) {
-            rec.key = rand();
-            rec.value = rand();
+        if constexpr (std::is_same_v<R, StringRec>) {
+            auto records = read_string_data(kjv_wordlist, cnt);
+            for (size_t i=0; i<cnt; i++) {
+                if constexpr (de::WeightedRecordInterface<R>) {
+                    rec.weight = 1;
+                }
 
-            if constexpr (de::WeightedRecordInterface<R>) {
-                rec.weight = 1;
+                buffer->append(records[i]);
             }
+        } else {
+            for (size_t i = 0; i < cnt; i++) {
+                rec.key = rand();
+                rec.value = rand();
 
-            buffer->append(rec);
+                if constexpr (de::WeightedRecordInterface<R>) {
+                    rec.weight = 1;
+                }
+
+                buffer->append(rec);
+            }
         }
     } else if constexpr (de::NDRecordInterface<R>) {
         for (size_t i=0; i<cnt; i++) {

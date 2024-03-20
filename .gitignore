@@ -4,6 +4,7 @@ build/*
 lib/*
 bin/*
 data
+.cache
 
 tests/data
 

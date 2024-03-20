@@ -1,7 +1,7 @@
 /*
- * tests/include/shard_standard.h
+ * tests/include/shard_string.h
  *
- * Standardized unit tests for Shard objects
+ * Standardized unit tests for Shard objects with string keys
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *
@@ -22,32 +22,30 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-/*
-#include "shard/ISAMTree.h"
-#include "shard/ISAMTree.h"
+#include "shard/FSTrie.h"
 #include "testing.h"
 #include <check.h>
 using namespace de;
-typedef Rec R;
-typedef ISAMTree<R> Shard;
-*/
+typedef StringRec R;
+typedef FSTrie<R> Shard;
 
 START_TEST(t_mbuffer_init)
 {
+
+    auto recs = read_string_data(kjv_wordlist, 1024);
+
     auto buffer = new MutableBuffer<R>(512, 1024);
-    for (uint64_t i = 512; i > 0; i--) {
-        uint32_t v = i;
-        buffer->append({i, v});
+
+    for (uint64_t i = 0; i < 512; i++) {
+        buffer->append(recs[i]);
     }
     
-    for (uint64_t i = 1; i <= 256; ++i) {
-        uint32_t v = i;
-        buffer->append({i, v}, true);
+    for (uint64_t i = 0; i < 256; ++i) {
+        buffer->delete_record(recs[i]);
     }
 
-    for (uint64_t i = 257; i <= 512; ++i) {
-        uint32_t v = i + 1;
-        buffer->append({i, v});
+    for (uint64_t i = 512; i < 768; ++i) {
+        buffer->append(recs[i]);
     }
 
     Shard* shard = new Shard(buffer->get_buffer_view());
@@ -108,43 +106,12 @@ START_TEST(t_shard_init)
     delete shard4;
 }
 
-
-START_TEST(t_full_cancelation)
-{
-    size_t n = 100;
-    auto buffer = create_double_seq_mbuffer<R>(n, false);
-    auto buffer_ts = create_double_seq_mbuffer<R>(n, true);
-
-    Shard* shard = new Shard(buffer->get_buffer_view());
-    Shard* shard_ts = new Shard(buffer_ts->get_buffer_view());
-
-    ck_assert_int_eq(shard->get_record_count(), n);
-    ck_assert_int_eq(shard->get_tombstone_count(), 0);
-    ck_assert_int_eq(shard_ts->get_record_count(), n);
-    ck_assert_int_eq(shard_ts->get_tombstone_count(), n);
-
-    std::vector<Shard *> shards = {shard, shard_ts};
-
-    Shard* merged = new Shard(shards);
-
-    ck_assert_int_eq(merged->get_tombstone_count(), 0);
-    ck_assert_int_eq(merged->get_record_count(), 0);
-
-    delete buffer;
-    delete buffer_ts;
-    delete shard;
-    delete shard_ts;
-    delete merged;
-}
-END_TEST
-
-
 START_TEST(t_point_lookup) 
 {
     size_t n = 10000;
 
-    auto buffer = create_double_seq_mbuffer<R>(n, false);
-    auto isam = Shard(buffer->get_buffer_view());
+    auto buffer = create_test_mbuffer<R>(n);
+    auto shard = Shard(buffer->get_buffer_view());
 
     {
         auto view = buffer->get_buffer_view();
@@ -155,10 +122,11 @@ START_TEST(t_point_lookup)
             r.key = rec->rec.key;
             r.value = rec->rec.value;
 
-            auto result = isam.point_lookup(r);
+            auto result = shard.point_lookup(r);
             ck_assert_ptr_nonnull(result);
-            ck_assert_int_eq(result->rec.key, r.key);
+            ck_assert_str_eq(result->rec.key.c_str(), r.key.c_str());
             ck_assert_int_eq(result->rec.value, r.value);
+            fprintf(stderr, "%ld\n", i);
         }
     }
 
@@ -171,15 +139,15 @@ START_TEST(t_point_lookup_miss)
 {
     size_t n = 10000;
 
-    auto buffer = create_double_seq_mbuffer<R>(n, false);
-    auto isam = Shard(buffer->get_buffer_view());
+    auto buffer = create_test_mbuffer<R>(n);
+    auto shard = Shard(buffer->get_buffer_view());
 
     for (size_t i=n + 100; i<2*n; i++) {
         R r;
-        r.key = i;
-        r.value = i;
+        r.key = std::string("computer");
+        r.value = 1234;
 
-        auto result = isam.point_lookup(r);
+        auto result = shard.point_lookup(r);
         ck_assert_ptr_null(result);
     }
 
@@ -192,9 +160,7 @@ static void inject_shard_tests(Suite *suite) {
     tcase_add_test(create, t_shard_init);
     tcase_set_timeout(create, 100);
     suite_add_tcase(suite, create);
-    TCase *tombstone = tcase_create("Shard tombstone cancellation Testing");
-    tcase_add_test(tombstone, t_full_cancelation);
-    suite_add_tcase(suite, tombstone); 
+
     TCase *pointlookup = tcase_create("Shard point lookup Testing"); 
     tcase_add_test(pointlookup, t_point_lookup);
     tcase_add_test(pointlookup, t_point_lookup_miss); 

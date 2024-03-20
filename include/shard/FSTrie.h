@@ -43,10 +43,9 @@ public:
         , m_reccnt(0)
         , m_alloc_size(0)
     {
-        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
-                                               buffer.get_record_count() * 
-                                                 sizeof(Wrapped<R>), 
-                                               (byte**) &m_data);
+        m_data = new Wrapped<R>[buffer.get_record_count()]();
+        m_alloc_size = sizeof(Wrapped<R>) * buffer.get_record_count();
+
         size_t cnt = 0;
         std::vector<K> keys;
         keys.reserve(buffer.get_record_count());
@@ -62,10 +61,15 @@ public:
          * apply tombstone/deleted record filtering, as well as any possible
          * per-record processing that is required by the shard being built.
          */
+        /*
         auto temp_buffer = (Wrapped<R> *) psudb::sf_aligned_calloc(CACHELINE_SIZE, 
                                                                    buffer.get_record_count(), 
                                                                    sizeof(Wrapped<R>));
-        buffer.copy_to_buffer((byte *) temp_buffer);
+                                                                   */
+        auto temp_buffer = new Wrapped<R>[buffer.get_record_count()]();
+        for (size_t i=0; i<buffer.get_record_count(); i++) {
+            temp_buffer[i] = *(buffer.get(i));
+        }
 
         auto base = temp_buffer;
         auto stop = base + buffer.get_record_count();
@@ -77,6 +81,8 @@ public:
             }
 
             m_data[cnt] = temp_buffer[i];
+            m_data[cnt].header = 0;
+
             keys.push_back(m_data[cnt].rec.key);
             values.push_back(cnt);
             if constexpr (std::is_same_v<K, std::string>) {
@@ -88,6 +94,10 @@ public:
             cnt++;
         }
 
+        for (size_t i=0; i<keys.size() - 1; i++) {
+            assert(keys[i] <= keys[i+1]);
+        }
+
         m_reccnt = cnt;
         m_fst = FST();
         if constexpr (std::is_same_v<K, std::string>) {
@@ -96,7 +106,7 @@ public:
             m_fst.load(keys, values);
         }
 
-        free(temp_buffer);
+        delete[] temp_buffer;
     }
 
     FSTrie(std::vector<FSTrie*> &shards) 
@@ -108,9 +118,8 @@ public:
         size_t tombstone_count = 0;
         auto cursors = build_cursor_vec<R, FSTrie>(shards, &attemp_reccnt, &tombstone_count);
         
-        m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
-                                               attemp_reccnt * sizeof(Wrapped<R>),
-                                               (byte **) &m_data);
+        m_data = new Wrapped<R>[attemp_reccnt]();
+        m_alloc_size = attemp_reccnt * sizeof(Wrapped<R>);
 
         std::vector<K> keys;
         keys.reserve(attemp_reccnt);
@@ -165,6 +174,10 @@ public:
             }
         }
 
+        for (size_t i=0; i<keys.size() - 1; i++) {
+            assert(keys[i] <= keys[i+1]);
+        }
+
         if (m_reccnt > 0) {
             m_fst = FST();
             if constexpr (std::is_same_v<K, std::string>) {
@@ -176,16 +189,20 @@ public:
     }
 
     ~FSTrie() {
-        free(m_data);
+        delete[] m_data;
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
         size_t idx;
         bool res; 
         if constexpr (std::is_same_v<K, std::string>) {
-            res = m_fst.lookup(rec.key.c_str(), rec.key.size(), idx);
+            res = m_fst.lookup((uint8_t*)rec.key.c_str(), rec.key.size(), idx);
         } else {
             res = m_fst.lookup(rec.key, idx);
+        }
+
+        if (res && m_data[idx].rec.key != rec.key) {
+            fprintf(stderr, "ERROR!\n");
         }
 
         if (res) {

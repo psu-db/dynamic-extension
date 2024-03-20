@@ -50,7 +50,8 @@ public:
         , m_tail(0)
         , m_head({0, 0})
         , m_old_head({high_watermark, 0})
-        , m_data((Wrapped<R> *) psudb::sf_aligned_alloc(CACHELINE_SIZE, m_cap * sizeof(Wrapped<R>)))
+        //, m_data((Wrapped<R> *) psudb::sf_aligned_alloc(CACHELINE_SIZE, m_cap * sizeof(Wrapped<R>)))
+        , m_data(new Wrapped<R>[m_cap]())
         , m_tombstone_filter(new psudb::BloomFilter<R>(BF_FPR, m_hwm, BF_HASH_FUNCS))
         , m_tscnt(0)
         , m_old_tscnt(0)
@@ -61,7 +62,7 @@ public:
     }
 
     ~MutableBuffer() {
-        free(m_data);
+        delete[] m_data;
         delete m_tombstone_filter;
     }
 

@@ -97,9 +97,17 @@ template <typename K, typename V>
 struct Record {
     K key;
     V value;
-    uint32_t header = 0;
 
-       inline bool operator<(const Record& other) const {
+    Record &operator=(const Record &other) {
+        this->key = K();
+
+        this->key = other.key;
+        this->value = other.value;
+
+        return *this;
+    }
+
+    inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);
     }
 

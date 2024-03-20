@@ -22,3 +22,6 @@
 [submodule "external/fast-succinct-trie"]
 	path = external/fast-succinct-trie
 	url = git@github.com:efficient/fast-succinct-trie.git
+[submodule "external/louds-patricia"]
+	path = external/louds-patricia
+	url = git@github.com:s-yata/louds-patricia.git
