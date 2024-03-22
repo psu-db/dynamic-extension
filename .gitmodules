@@ -25,3 +25,9 @@
 [submodule "external/louds-patricia"]
 	path = external/louds-patricia
 	url = git@github.com:s-yata/louds-patricia.git
+[submodule "external/louds-fst"]
+	path = external/louds-fst
+	url = git@github.com:kampersanda/fast_succinct_trie.git
+[submodule "external/fast_succinct_trie"]
+	path = external/fast_succinct_trie
+	url = git@github.com:dbrumbaugh/fast_succinct_trie.git

@@ -287,7 +287,7 @@ public:
         }
 
         ReconstructionVector reconstructions;
-        size_t LOOKAHEAD = 2;
+        size_t LOOKAHEAD = 1;
         for (size_t i=0; i<LOOKAHEAD; i++) {
             /*
              * If L0 cannot support a direct buffer flush, figure out what 
