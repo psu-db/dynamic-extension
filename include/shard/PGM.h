@@ -147,14 +147,16 @@ public:
             return m_reccnt;
         }
 
-        // If the region to search is less than some pre-specified
-        // amount, perform a linear scan to locate the record.
+        /*
+         * If the region to search is less than some pre-specified
+         * amount, perform a linear scan to locate the record.
+         */
         if (bound.hi - bound.lo < 256) {
             while (idx < bound.hi && m_data[idx].rec.key < key) {
                 idx++;
             }
         } else {
-            // Otherwise, perform a binary search
+            /* Otherwise, perform a binary search */
             idx = bound.lo;
             size_t max = bound.hi;
 
@@ -169,10 +171,26 @@ public:
 
         }
 
+        /*
+         * the upper bound returned by PGM is one passed the end of the
+         * array. If we are at that point, we should just return "not found"
+         */
+        if (idx == m_reccnt) {
+            return idx;
+        }
+
+        /* 
+         * We may have walked one passed the actual lower bound, so check
+         * the index before the current one to see if it is the actual bound
+         */
         if (m_data[idx].rec.key > key && idx > 0 && m_data[idx-1].rec.key <= key) {
             return idx-1;
         }
 
+        /*
+         * Otherwise, check idx. If it is a valid bound, then return it,
+         * otherwise return "not found".
+         */
         return (m_data[idx].rec.key >= key) ? idx : m_reccnt;
     }
 
