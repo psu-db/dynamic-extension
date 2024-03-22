@@ -170,10 +170,8 @@ START_TEST(t_range_query)
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
-    //fprintf(stderr, "query start\n");
     auto result = test_de->query(&p);
     auto r = result.get();
-    //fprintf(stderr, "query stop\n");
     std::sort(r.begin(), r.end());
 
     ck_assert_int_eq(r.size(), 251);
@@ -349,12 +347,7 @@ START_TEST(t_static_structure)
     uint64_t prev_key = 0;
     for (size_t i=0; i<flat->get_record_count(); i++) {
         auto k = flat->get_record_at(i)->rec.key;
-        if (flat->get_record_at(i)->is_tombstone()) {
-            fprintf(stderr, "%ld %ld %ld\n", flat->get_record_at(i-1)->rec.key,
-                    flat->get_record_at(i)->rec.key, 
-                    flat->get_record_at(i+1)->rec.key);
-        }
-     //   ck_assert(!flat->get_record_at(i)->is_tombstone());
+        //ck_assert(!flat->get_record_at(i)->is_tombstone());
         ck_assert_int_ge(k, prev_key);
         prev_key = k;
     }

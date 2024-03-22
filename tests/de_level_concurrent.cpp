@@ -29,7 +29,7 @@ typedef DynamicExtension<R, ISAMTree<R>, rq::Query<R, ISAMTree<R>>, LayoutPolicy
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("DynamicExtension: Tombstone Leveling Testing");
+    Suite *unit = suite_create("DynamicExtension: Concurrent Leveling Testing");
     inject_dynamic_extension_tests(unit);
 
     return unit;
