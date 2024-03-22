@@ -58,7 +58,7 @@ START_TEST(t_mbuffer_init)
 
 START_TEST(t_shard_init)
 {
-    size_t n = 512;
+    size_t n = 2048;
     auto mbuffer1 = create_test_mbuffer<R>(n);
     auto mbuffer2 = create_test_mbuffer<R>(n);
     auto mbuffer3 = create_test_mbuffer<R>(n);
@@ -117,16 +117,14 @@ START_TEST(t_point_lookup)
         auto view = buffer->get_buffer_view();
 
         for (size_t i=0; i<n; i++) {
-            R r;
             auto rec = view.get(i);
-            r.key = rec->rec.key;
-            r.value = rec->rec.value;
+            R r = rec->rec;
 
             auto result = shard.point_lookup(r);
             ck_assert_ptr_nonnull(result);
             ck_assert_str_eq(result->rec.key.c_str(), r.key.c_str());
             ck_assert_int_eq(result->rec.value, r.value);
-            fprintf(stderr, "%ld\n", i);
+            //fprintf(stderr, "%ld\n", i);
         }
     }
 

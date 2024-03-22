@@ -51,7 +51,7 @@ static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
         r.value = atol(field.c_str());
         std::getline(ls, field, '\n');
         r.key = std::string(field);
-
+        
         vec.push_back(r);
     }
 
@@ -116,8 +116,8 @@ static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
     auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
     R rec;
-    if constexpr (de::KVPInterface<R>) {
-        if constexpr (std::is_same_v<R, StringRec>) {
+    if constexpr (de::KVPInterface<R>){
+        if constexpr (std::is_same_v<decltype(R::key), std::string>) {
             auto records = read_string_data(kjv_wordlist, cnt);
             for (size_t i=0; i<cnt; i++) {
                 if constexpr (de::WeightedRecordInterface<R>) {
