@@ -77,15 +77,19 @@ public:
         wrec.header = 0;
         if (tombstone) wrec.set_tombstone();
 
+        // FIXME: because of the mod, it isn't correct to use `pos`
+        //        as the ordering timestamp in the header anymore. 
         size_t pos = tail % m_cap;
 
         m_data[pos] = wrec;
-        m_data[pos].header |= (pos << 2);
+        m_data[pos].set_timestamp(pos);
 
         if (tombstone) {
             m_tscnt.fetch_add(1);
             if (m_tombstone_filter) m_tombstone_filter->insert(rec);
         }
+
+        m_data[pos].set_visible();
 
         return 1;     
     }
