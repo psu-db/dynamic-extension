@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug true)
+set(debug false)
 set(tests True)
 set(bench true)
 set(old_bench False)
@@ -25,7 +25,7 @@ if (debug)
     add_compile_options(-fsanitize=undefined)
     add_link_options(-fsanitize=undefined)
 else()
-    add_compile_options(-O3)
+    add_compile_options(-O3 -g)
 endif()
 
 # Test build instructions
@@ -125,9 +125,10 @@ if (tests)
 
 
     add_executable(fst_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/fst_tests.cpp)
-    target_link_libraries(fst_tests PUBLIC gsl check subunit pthread atomic FST)
+    target_link_libraries(fst_tests PUBLIC gsl check subunit pthread atomic)
     target_link_options(fst_tests PUBLIC -mcx16)
-    target_include_directories(fst_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast-succinct-trie/fst/include)
+    target_include_directories(fst_tests PRIVATE include
+    external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include)
 endif()
 
 if (bench) 
@@ -142,6 +143,13 @@ if (bench)
     target_link_libraries(insertion_tput PUBLIC gsl pthread gomp atomic)
     target_include_directories(insertion_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(insertion_tput PUBLIC -mcx16)
+
+
+    add_executable(string_insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/string_insertion_tput.cpp)
+    target_link_libraries(string_insertion_tput PUBLIC gsl pthread gomp atomic)
+    target_include_directories(string_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(string_insertion_tput PUBLIC -mcx16)
+
 
     add_executable(query_workload_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/query_workload_bench.cpp)
     target_link_libraries(query_workload_bench PUBLIC gsl pthread gomp atomic)
