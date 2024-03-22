@@ -54,6 +54,11 @@ concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
     {r.is_deleted()} -> std::convertible_to<bool>;
     {r.set_tombstone(b)};
     {r.is_tombstone()} -> std::convertible_to<bool>;
+    {r.set_timestamp()};
+    {r.get_timestamp()} -> std::convertible_to<uint32_t>;
+    {r.clear_timestamp()};
+    {r.is_deleted()} -> std::convertible_to<bool>;
+    {r.set_visible()};
     {r < s} -> std::convertible_to<bool>;
     {r == s} ->std::convertible_to<bool>;
 };
@@ -71,9 +76,29 @@ struct Wrapped {
         return header & 2;
     }
 
+    inline void set_visible() {
+        header |= 4;
+    }
+
+    inline bool is_visible() const {
+        return header & 4;
+    }
+
+    inline void set_timestamp(int ts) {
+        header |= (ts << 3);
+    }
+
+    inline int get_timestamp() const {
+        return header >> 3;
+    }
+
+    inline void clear_timestamp() {
+        header &= 7;
+    }
+
     inline void set_tombstone(bool val=true) {
         if (val) {
-            header |= val;
+            header |= 1;
         } else {
             header &= 0;
         }
@@ -97,15 +122,6 @@ template <typename K, typename V>
 struct Record {
     K key;
     V value;
-
-    Record &operator=(const Record &other) {
-        this->key = K();
-
-        this->key = other.key;
-        this->value = other.value;
-
-        return *this;
-    }
 
     inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);
