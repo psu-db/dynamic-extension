@@ -20,14 +20,14 @@ typedef StringRec R;
 typedef FSTrie<R> Shard;
 
 #include "include/shard_string.h"
-//#include "include/rangequery.h"
+#include "include/pointlookup.h"
 
 Suite *unit_testing()
 {
     Suite *unit = suite_create("Fast-succinct Trie Shard Unit Testing");
 
- //   inject_rangequery_tests(unit);
     inject_shard_tests(unit);
+    inject_pointlookup_tests(unit);
 
     return unit;
 }

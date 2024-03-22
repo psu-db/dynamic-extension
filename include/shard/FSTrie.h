@@ -160,6 +160,12 @@ public:
             return nullptr;
         }
 
+        // FIXME: for convenience, I'm treating this Trie as a unique index
+        // for now, so no need to scan forward and/or check values. This
+        // also makes the point lookup query class a lot easier to make.
+        // Ultimately, though, we can support non-unique indexes with some
+        // extra work.
+
         return m_data + idx;
     }
 
