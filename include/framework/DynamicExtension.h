@@ -685,6 +685,7 @@ private:
         return processed_records;
     }
 
+#ifdef _GNU_SOURCE
     void SetThreadAffinity() {
         int core = m_next_core.fetch_add(1) % m_core_cnt;
         cpu_set_t mask;
@@ -707,6 +708,11 @@ private:
         CPU_SET(core, &mask);
         ::sched_setaffinity(0, sizeof(mask), &mask);
     }
+#else
+    void SetThreadAffinity() {
+
+    }
+#endif
 
 
     void end_job(_Epoch *epoch) {

@@ -58,7 +58,7 @@ static std::vector<Cursor<Wrapped<R>>> build_cursor_vec(std::vector<S*> &shards,
     for (size_t i = 0; i < shards.size(); ++i) {
         if (shards[i]) {
             auto base = shards[i]->get_data();
-            cursors.emplace_back(Cursor{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
+            cursors.emplace_back(Cursor<Wrapped<R>>{base, base + shards[i]->get_record_count(), 0, shards[i]->get_record_count()});
             *reccnt += shards[i]->get_record_count();
             *tscnt += shards[i]->get_tombstone_count();
         } else {

@@ -20,7 +20,7 @@
 
 namespace de {
 
-typedef std::_Bind<void (*(void*, long unsigned int))(void*, long unsigned int)> ReleaseFunction;
+typedef std::function<void(void)> ReleaseFunction; 
 
 template <RecordInterface R>
 class BufferView {

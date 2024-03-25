@@ -2,7 +2,6 @@
 
 #include <cstdlib>
 #include "psu-ds/BTree.h"
-#include "mtree.h"
 #include "framework/interface/Record.h"
 
 /* TLX BTree definitions*/
@@ -46,5 +45,8 @@ struct euclidean_distance {
     }
 };
 
+#ifdef _GNU_SOURCE
+#include "mtree.h"
 typedef mt::mtree<Word2VecRec, euclidean_distance> MTree;
+#endif
 

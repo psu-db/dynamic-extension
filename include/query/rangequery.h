@@ -121,7 +121,7 @@ public:
         for (size_t i = 0; i < tmp_n; ++i)
 			if (results[i].size() > 0){
 	            auto base = results[i].data();
-		        cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
+		        cursors.emplace_back(Cursor<Wrapped<R>>{base, base + results[i].size(), 0, results[i].size()});
 				assert(i == cursors.size() - 1);
 			    total += results[i].size();
 				pq.push(cursors[i].ptr, tmp_n - i - 1);

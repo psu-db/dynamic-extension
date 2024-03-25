@@ -12,6 +12,7 @@
 #include "psu-util/timer.h"
 
 #include <algorithm>
+#include <random>
 
 typedef uint64_t K;
 typedef de::Record<K, K> Rec;
@@ -32,7 +33,10 @@ int main(int argc, char **argv) {
         keys[i] = i;
     }
 
-    std::random_shuffle(keys.begin(), keys.end());
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    std::shuffle(keys.begin(), keys.end(), g);
 
     TIMER_INIT();
 
