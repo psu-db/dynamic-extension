@@ -97,10 +97,12 @@ public:
                     return output;
                 }
 
-                output.append(r[0].rec);
+                output.push_back(r[0].rec);
                 return output;
             }
         }
+
+        return output;
     }
 
     static void delete_query_state(void *state) {

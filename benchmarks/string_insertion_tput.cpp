@@ -9,7 +9,7 @@
 
 #include "framework/DynamicExtension.h"
 #include "shard/FSTrie.h"
-#include "query/rangequery.h"
+#include "query/pointlookup.h"
 #include "framework/interface/Record.h"
 
 #include "psu-util/timer.h"
@@ -18,8 +18,8 @@
 
 typedef de::Record<std::string, uint64_t> Rec;
 typedef de::FSTrie<Rec> Trie;
-typedef de::rq::Query<Rec, Trie> Q;
-typedef de::DynamicExtension<Rec, Trie, Q> Ext; //, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
+typedef de::pl::Query<Rec, Trie> Q;
+typedef de::DynamicExtension<Rec, Trie, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 
 std::vector<std::string> strings;
 
@@ -47,45 +47,62 @@ void read_data(std::string fname, size_t n=10000000) {
     }
 }
 
+void usage(char *name) {
+    fprintf(stderr, "Usage:\n%s datafile record_count\n", name);
+}
+
 int main(int argc, char **argv) {
-    size_t n = 100000000;
 
-    std::vector<int> counts = {1 , 2, 4, 8}; //, 16, 32, 64};
-    //
-    read_data("benchmarks/data/ursa-genome.txt", n);
-
-    fprintf(stderr, "Finished reading from file.\n");
-
-    for (auto thread_count : counts) {
-
-        auto extension = new Ext(1000, 12000, 8);
-
-        size_t per_thread = n / thread_count;
-
-        std::thread threads[thread_count];
-
-        TIMER_INIT();
-        TIMER_START();
-        for (size_t i=0; i<thread_count; i++) {
-            threads[i] = std::thread(insert_thread, i*per_thread, 
-                                     i*per_thread+per_thread, extension);
-        }
-
-        for (size_t i=0; i<thread_count; i++) {
-            threads[i].join();
-        }
-
-        TIMER_STOP();
-
-        auto total_time = TIMER_RESULT();
-
-        double tput = (double) n / (double) total_time * 1e9;
-
-        fprintf(stdout, "%ld\t%d\t%lf\n", extension->get_record_count(), 
-                thread_count, tput);
-
-        delete extension;
+    if (argc < 3) {
+        usage(argv[0]);
+        exit(EXIT_FAILURE);
     }
+
+    std::string fname = std::string(argv[1]);
+    size_t n = atol(argv[2]);
+
+    read_data(fname, n);
+
+    if (strings.size() == 0) {
+        fprintf(stderr, "[E]: No string data read from file. Aborting execution.\n");
+    } else {
+        fprintf(stderr, "Finished reading from file.\n");
+    }
+
+    auto extension = new Ext(1000, 12000, 8);
+
+    TIMER_INIT();
+    TIMER_START();
+    insert_thread(0, strings.size(), extension);
+    TIMER_STOP();
+
+    auto total_time = TIMER_RESULT();
+
+    size_t m = 100;
+    TIMER_START();
+    for (size_t i=0; i<m; i++) {
+        size_t j = rand() % strings.size();
+        de::pl::Parms<Rec> parms;
+        parms.search_key = strings[j];
+
+        auto res = extension->query(&parms);
+        auto ans = res.get();
+
+        assert(ans[0].value == j);
+    }
+    TIMER_STOP();
+
+    auto query_time = TIMER_RESULT();
+
+
+    double i_tput = (double) n / (double) total_time * 1e9;
+    size_t q_lat = total_time / m;
+
+    fprintf(stdout, "%ld\t\t%lf\t%ld\n", extension->get_record_count(), 
+            i_tput, q_lat);
+
+
+    delete extension;
 
     fflush(stderr);
 }
