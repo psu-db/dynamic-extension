@@ -93,13 +93,31 @@ int main(int argc, char **argv) {
     TIMER_STOP();
 
     auto query_time = TIMER_RESULT();
+    
 
+    auto shard = extension->create_static_structure();
+    TIMER_START();
+    for (size_t i=0; i<m; i++) {
+        size_t j = rand() % strings.size();
+        de::pl::Parms<Rec> parms;
+        parms.search_key = strings[j];
+
+        auto res = Q::query(shard, nullptr, &parms);
+    }
+    TIMER_STOP();
+
+    auto shard_query_time = TIMER_RESULT();
 
     double i_tput = (double) n / (double) total_time * 1e9;
-    size_t q_lat = total_time / m;
+    size_t q_lat = query_time / m;
+    size_t s_q_lat = shard_query_time / m;
 
-    fprintf(stdout, "%ld\t\t%lf\t%ld\n", extension->get_record_count(), 
-            i_tput, q_lat);
+    fprintf(stdout, "%ld\t\t%lf\t%ld\t%ld\n", extension->get_record_count(), 
+            i_tput, q_lat, s_q_lat);
+
+
+
+
 
 
     delete extension;
