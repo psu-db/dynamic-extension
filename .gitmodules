@@ -4,9 +4,6 @@
 [submodule "external/PGM-index"]
 	path = external/PGM-index
 	url = https://github.com/gvinciguerra/PGM-index.git
-[submodule "external/vptree"]
-	path = external/vptree
-	url = https://github.com/pderkowski/vptree.git
 [submodule "external/m-tree"]
 	path = external/m-tree
 	url = git@github.com:dbrumbaugh/M-Tree
@@ -19,9 +16,6 @@
 [submodule "external/ctpl"]
 	path = external/ctpl
 	url = git@github.com:vit-vit/CTPL.git
-[submodule "external/fast-succinct-trie"]
-	path = external/fast-succinct-trie
-	url = git@github.com:efficient/fast-succinct-trie.git
 [submodule "external/louds-patricia"]
 	path = external/louds-patricia
 	url = git@github.com:s-yata/louds-patricia.git
