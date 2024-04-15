@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug false)
+set(debug true)
 set(tests True)
 set(bench true)
 

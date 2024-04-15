@@ -27,14 +27,17 @@ typedef de::WeightedRecord<uint64_t, uint32_t, uint64_t> WRec;
 typedef de::Record<uint64_t, uint32_t> Rec;
 typedef de::EuclidPoint<uint64_t> PRec;
 
-typedef de::Record<std::string, uint64_t> StringRec;
+typedef de::Record<const char*, uint64_t> StringRec;
 
-std::string kjv_wordlist = "tests/data/kjv-wordlist.txt";
-std::string summa_wordlist = "tests/data/summa-wordlist.txt";
+static std::string kjv_wordlist = "tests/data/kjv-wordlist.txt";
+static std::string summa_wordlist = "tests/data/summa-wordlist.txt";
+
+static std::vector<std::unique_ptr<char[]>> string_data;
 
 static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
     std::vector<StringRec> vec;
     vec.reserve(n);
+    string_data.reserve(n);
 
     std::fstream file;
     file.open(fname, std::ios::in);
@@ -44,13 +47,17 @@ static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
         if (!std::getline(file, line, '\n')) break;
 
         std::stringstream ls(line);
-        StringRec r;
         std::string field;
 
         std::getline(ls, field, '\t');
-        r.value = atol(field.c_str());
+        auto val = atol(field.c_str());
         std::getline(ls, field, '\n');
-        r.key = std::string(field);
+
+        char *c = strdup(field.c_str());
+
+        string_data.push_back(std::unique_ptr<char[]>(c));
+
+        StringRec r(string_data[string_data.size() -1].get(), val, field.size());
         
         vec.push_back(r);
     }
@@ -62,7 +69,7 @@ static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
 template <de::RecordInterface R> 
 std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {
     std::vector<R> out(vec.size());
-    for (size_t i=0; i<vec.size(); i++) {
+    for (uint32_t i=0; i<vec.size(); i++) {
         out[i] = vec[i].rec;
     }
 
@@ -115,34 +122,24 @@ static de::MutableBuffer<R> *create_test_mbuffer(size_t cnt)
 {
     auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
-    R rec;
     if constexpr (de::KVPInterface<R>){
-        if constexpr (std::is_same_v<decltype(R::key), std::string>) {
+        if constexpr (std::is_same_v<decltype(R::key), const char*>){
             auto records = read_string_data(kjv_wordlist, cnt);
             for (size_t i=0; i<cnt; i++) {
-                if constexpr (de::WeightedRecordInterface<R>) {
-                    rec.weight = 1;
-                }
-
                 buffer->append(records[i]);
             }
         } else {
             for (size_t i = 0; i < cnt; i++) {
-                rec.key = rand();
-                rec.value = rand();
-
                 if constexpr (de::WeightedRecordInterface<R>) {
-                    rec.weight = 1;
+                    buffer->append({(uint64_t) rand(), (uint32_t) rand(), 1});
+                } else {
+                    buffer->append({(uint64_t) rand(), (uint32_t) rand()});
                 }
-
-                buffer->append(rec);
             }
         }
     } else if constexpr (de::NDRecordInterface<R>) {
         for (size_t i=0; i<cnt; i++) {
-            uint64_t a = rand();
-            uint64_t b = rand();
-            buffer->append({a, b});
+            buffer->append({(uint64_t) rand(), (uint64_t) rand()});
         }
     } 
 
@@ -155,25 +152,19 @@ static de::MutableBuffer<R> *create_sequential_mbuffer(size_t start, size_t stop
     size_t cnt = stop - start;
     auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
-    for (size_t i=start; i<stop; i++) {
-        R rec;
-        if constexpr (de::KVPInterface<R>) {
-            rec.key = i;
-            rec.value = i;
-        } else if constexpr (de::NDRecordInterface<R>) {
-            rec = {i, i};
-        }
+    for (uint32_t i=start; i<stop; i++) {
 
         if constexpr (de::WeightedRecordInterface<R>) {
-            rec.weight = 1;
+            buffer->append({i, i, 1});
+        } else {
+            buffer->append({i, i});
         }
-
-        buffer->append(rec);
     }
 
     return buffer;
 }
 
+/*
 template <de::KVPInterface R>
 static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t ts_cnt) 
 {
@@ -183,12 +174,12 @@ static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t t
 
     R rec;
     for (size_t i = 0; i < cnt; i++) {
-        rec.key = rand();
-        rec.value = rand();
-
         if constexpr (de::WeightedRecordInterface<R>) {
-            rec.weight = 1;
+            rec = {rand(), rand(), 1};
+        } else {
+            rec = {rand(), rand(), 1};
         }
+
 
         if (i < ts_cnt) {
             tombstones.push_back({rec.key, rec.value});
@@ -204,6 +195,7 @@ static de::MutableBuffer<R> *create_test_mbuffer_tombstones(size_t cnt, size_t t
 
     return buffer;
 }
+*/
 
 template <typename R>
 requires de::WeightedRecordInterface<R> && de::KVPInterface<R>
@@ -234,20 +226,12 @@ static de::MutableBuffer<R> *create_double_seq_mbuffer(size_t cnt, bool ts=false
 {
     auto buffer = new de::MutableBuffer<R>(cnt/2, cnt);
 
-    for (size_t i = 0; i < cnt / 2; i++) { 
-        R rec;
-        rec.key = i;
-        rec.value = i;
-
-        buffer->append(rec, ts);
+    for (uint32_t i = 0; i < cnt / 2; i++) { 
+        buffer->append({i, i}, ts);
     }
 
-    for (size_t i = 0; i < cnt / 2; i++) {
-        R rec;
-        rec.key = i;
-        rec.value = i + 1;
-
-        buffer->append(rec, ts);
+    for (uint32_t i = 0; i < cnt / 2; i++) {
+        buffer->append({i, i+1}, ts);
     }
 
     return buffer;

@@ -122,7 +122,7 @@ START_TEST(t_point_lookup)
 
             auto result = shard.point_lookup(r);
             ck_assert_ptr_nonnull(result);
-            ck_assert_str_eq(result->rec.key.c_str(), r.key.c_str());
+            ck_assert_str_eq(result->rec.key, r.key);
             ck_assert_int_eq(result->rec.value, r.value);
             //fprintf(stderr, "%ld\n", i);
         }
@@ -141,9 +141,8 @@ START_TEST(t_point_lookup_miss)
     auto shard = Shard(buffer->get_buffer_view());
 
     for (size_t i=n + 100; i<2*n; i++) {
-        R r;
-        r.key = std::string("computer");
-        r.value = 1234;
+        const char *c = "computer";
+        R r = {c, 1234, 8};
 
         auto result = shard.point_lookup(r);
         ck_assert_ptr_null(result);

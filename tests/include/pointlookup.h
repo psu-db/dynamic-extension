@@ -40,24 +40,25 @@ START_TEST(t_point_lookup_query)
     auto buffer = create_test_mbuffer<R>(1000);
     auto shard = Shard(buffer->get_buffer_view());
 
-    pl::Parms<R> parms;
     {
         auto bv = buffer->get_buffer_view();
         for (size_t i=0; i<bv.get_record_count(); i++) {
             auto key = bv.get(i)->rec.key;
 
-            parms.search_key = key;
+            pl::Parms<R> parms = {key};
             auto state = pl::Query<R, Shard>::get_query_state(&shard, &parms);
             auto result = pl::Query<R, Shard>::query(&shard, state, &parms);
             pl::Query<R, Shard>::delete_query_state(state);
 
             ck_assert_int_eq(result.size(), 1);
-            ck_assert_str_eq(result[0].rec.key.c_str(), key.c_str());
+            ck_assert_str_eq(result[0].rec.key, key);
             ck_assert_int_eq(result[0].rec.value, bv.get(i)->rec.value);
         }
 
         /* point lookup miss; result size should be 0 */
-        parms.search_key = "computer";
+        const char *c = "computer";
+        pl::Parms<R> parms = {c};
+
         auto state = pl::Query<R, Shard>::get_query_state(&shard, &parms);
         auto result = pl::Query<R, Shard>::query(&shard, state, &parms);
         pl::Query<R, Shard>::delete_query_state(state);
@@ -74,23 +75,24 @@ START_TEST(t_buffer_point_lookup)
 {
 
     auto buffer = create_test_mbuffer<R>(1000);
-    pl::Parms<R> parms;
     {
         auto view = buffer->get_buffer_view();
         for (int i=view.get_record_count()-1; i>=0; i--) {
-            parms.search_key = view.get(i)->rec.key;
+            pl::Parms<R> parms = {view.get(i)->rec.key};
 
             auto state = pl::Query<R, Shard>::get_buffer_query_state(&view, &parms);
             auto result = pl::Query<R, Shard>::buffer_query(state, &parms);
             pl::Query<R, Shard>::delete_buffer_query_state(state);
 
             ck_assert_int_eq(result.size(), 1);
-            ck_assert_str_eq(result[0].rec.key.c_str(), view.get(i)->rec.key.c_str());
+            ck_assert_str_eq(result[0].rec.key, view.get(i)->rec.key);
             ck_assert_int_eq(result[0].rec.value, view.get(i)->rec.value);
         }
 
         /* point lookup miss; result size should be 0 */
-        parms.search_key = "computer";
+        const char *c = "computer";
+        pl::Parms<R> parms = {c};
+
         auto state = pl::Query<R, Shard>::get_buffer_query_state(&view, &parms);
         auto result = pl::Query<R, Shard>::buffer_query(state, &parms);
         pl::Query<R, Shard>::delete_buffer_query_state(state);

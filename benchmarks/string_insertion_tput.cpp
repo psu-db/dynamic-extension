@@ -16,16 +16,16 @@
 #include "psu-util/progress.h"
 
 
-typedef de::Record<std::string, uint64_t> Rec;
+typedef de::Record<const char *, uint64_t> Rec;
 typedef de::FSTrie<Rec> Trie;
 typedef de::pl::Query<Rec, Trie> Q;
 typedef de::DynamicExtension<Rec, Trie, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 
-std::vector<std::string> strings;
+std::vector<std::unique_ptr<char[]>> strings;
 
 void insert_thread(int64_t start, int64_t end, Ext *extension) {
     for (uint64_t i=start; i<end; i++) {
-            Rec r = {strings[i], i};
+            Rec r = {strings[i].get(), i, strlen(strings[i].get())};
             while (!extension->insert(r)) {
                 _mm_pause();
             }
@@ -41,7 +41,7 @@ void read_data(std::string fname, size_t n=10000000) {
     size_t i=0;
     std::string line;
     while (i < n && std::getline(file, line, '\n')) {
-        strings.emplace_back(line);
+        strings.emplace_back(std::unique_ptr<char[]>(strdup(line.c_str())));
         i++;
         psudb::progress_update((double) i / (double) n, "Reading file:");
     }
@@ -82,14 +82,13 @@ int main(int argc, char **argv) {
     TIMER_START();
     for (size_t i=0; i<m; i++) {
         size_t j = rand() % strings.size();
-        de::pl::Parms<Rec> parms;
-        parms.search_key = strings[j];
+        de::pl::Parms<Rec> parms = {strings[j].get()};
 
         auto res = extension->query(&parms);
         auto ans = res.get();
 
         if (ans[0].value != j) {
-            fprintf(stderr, "ext:\t%ld %ld %s\n", ans[0].value, j, strings[j].c_str());
+            fprintf(stderr, "ext:\t%ld %ld %s\n", ans[0].value, j, strings[j].get());
         }
 
         assert(ans[0].value == j);
@@ -103,13 +102,12 @@ int main(int argc, char **argv) {
     TIMER_START();
     for (size_t i=0; i<m; i++) {
         size_t j = rand() % strings.size();
-        de::pl::Parms<Rec> parms;
-        parms.search_key = strings[j];
+        de::pl::Parms<Rec> parms = {strings[j].get()};
 
         auto res = Q::query(shard, nullptr, &parms);
 
         if (res[0].rec.value != j) {
-            fprintf(stderr, "static:\t%ld %ld %s\n", res[0].rec.value, j, strings[j].c_str());
+            fprintf(stderr, "static:\t%ld %ld %s\n", res[0].rec.value, j, strings[j].get());
         }
     }
     TIMER_STOP();

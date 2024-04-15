@@ -97,8 +97,7 @@ START_TEST(t_insert_with_mem_merges)
     R r = {key, val};
     for (size_t i=0; i<1000; i++) {
         ck_assert_int_eq(test_de->insert(r), 1);
-        r.key++;
-        r.value++;
+        r = R{r.key + 1, r.value + 1};
     }
 
     ck_assert_int_eq(test_de->get_record_count(), 1000);
@@ -114,8 +113,7 @@ START_TEST(t_insert_with_mem_merges)
     size_t cnt = 0;
     do {
         if (test_de->insert(r)) {
-            r.key++;
-            r.value++;
+            r = R{r.key + 1, r.value + 1};
             cnt++;
             ck_assert_int_eq(test_de->get_record_count(), cnt + 1000);
         } else {

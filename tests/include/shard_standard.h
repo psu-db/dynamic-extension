@@ -150,10 +150,8 @@ START_TEST(t_point_lookup)
         auto view = buffer->get_buffer_view();
 
         for (size_t i=0; i<n; i++) {
-            R r;
             auto rec = view.get(i);
-            r.key = rec->rec.key;
-            r.value = rec->rec.value;
+            R r = {rec->rec.key, rec->rec.value};
 
             auto result = isam.point_lookup(r);
             ck_assert_ptr_nonnull(result);
@@ -174,10 +172,8 @@ START_TEST(t_point_lookup_miss)
     auto buffer = create_double_seq_mbuffer<R>(n, false);
     auto isam = Shard(buffer->get_buffer_view());
 
-    for (size_t i=n + 100; i<2*n; i++) {
-        R r;
-        r.key = i;
-        r.value = i;
+    for (uint32_t i=n + 100; i<2*n; i++) {
+        R r = R{i, i};
 
         auto result = isam.point_lookup(r);
         ck_assert_ptr_null(result);

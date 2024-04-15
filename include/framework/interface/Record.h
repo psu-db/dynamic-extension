@@ -132,6 +132,23 @@ struct Record {
     }
 };
 
+template<typename V>
+struct Record<const char*, V> {
+    const char* key;
+    V value;
+    size_t len;
+
+    inline bool operator<(const Record& other) const {
+        size_t n = std::min(len, other.len) + 1;
+        return strncmp(key, other.key, n) < 0;
+    }
+
+    inline bool operator==(const Record& other) const {
+        size_t n = std::min(len, other.len) + 1;
+        return strncmp(key, other.key, n) == 0;
+    }
+};
+
 template <typename K, typename V, typename W>
 struct WeightedRecord {
     K key;

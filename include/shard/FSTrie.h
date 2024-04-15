@@ -30,7 +30,7 @@ private:
 
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
-    static_assert(std::is_same_v<K, std::string>, "FST requires std::string keys.");
+    static_assert(std::is_same_v<K, const char*>, "FST requires const char* keys.");
 
 public:
     FSTrie(BufferView<R> buffer)
@@ -42,7 +42,7 @@ public:
         m_alloc_size = sizeof(Wrapped<R>) * buffer.get_record_count();
 
         size_t cnt = 0;
-        std::vector<K> keys;
+        std::vector<std::string> keys;
         keys.reserve(buffer.get_record_count());
 
         /*
@@ -68,12 +68,8 @@ public:
             m_data[cnt] = temp_buffer[i];
             m_data[cnt].clear_timestamp();
 
-            keys.push_back(m_data[cnt].rec.key);
+            keys.push_back(std::string(m_data[cnt].rec.key));
             cnt++;
-        }
-
-        for (size_t i=0; i<keys.size() - 1; i++) {
-            assert(keys[i] <= keys[i+1]);
         }
 
         m_reccnt = cnt;
@@ -96,7 +92,7 @@ public:
         m_data = new Wrapped<R>[attemp_reccnt]();
         m_alloc_size = attemp_reccnt * sizeof(Wrapped<R>);
 
-        std::vector<K> keys;
+        std::vector<std::string> keys;
         keys.reserve(attemp_reccnt);
 
         // FIXME: For smaller cursor arrays, it may be more efficient to skip
@@ -128,7 +124,7 @@ public:
                 /* skip over records that have been deleted via tagging */
                 if (!cursor.ptr->is_deleted() && cursor.ptr->rec.key != "") {
                     m_data[m_reccnt] = *cursor.ptr;
-                    keys.push_back(m_data[m_reccnt].rec.key);
+                    keys.push_back(std::string(m_data[m_reccnt].rec.key));
 
                     m_reccnt++;
                 }
@@ -136,10 +132,6 @@ public:
                 
                 if (advance_cursor(cursor)) pq.push(cursor.ptr, now.version);
             }
-        }
-
-        for (size_t i=0; i<keys.size() - 1; i++) {
-            assert(keys[i] <= keys[i+1]);
         }
 
         if (m_reccnt > 0) {
