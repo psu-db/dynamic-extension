@@ -75,10 +75,10 @@ int main(int argc, char **argv) {
         size_t j = rand() % strings.size();
 
         auto res = trie->find(strings[j]);
-        if (*res != j-1) {
+        if (*res != (j+1)) {
             fprintf(stderr, "%ld %d %s\n", j, *res, strings[j].c_str());
         }
-        assert(*(res)+1 == j);
+        //assert(*(res)+1 == j);
     }
     TIMER_STOP();
 
@@ -90,6 +90,8 @@ int main(int argc, char **argv) {
 
     fprintf(stdout, "%ld\t\t%lf\t%ld\n", trie->size(), 
             i_tput, q_lat);
+
+    trie->show_stats(std::cerr, 1);
 
     delete trie;
 

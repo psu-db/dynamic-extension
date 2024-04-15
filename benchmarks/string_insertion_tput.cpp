@@ -88,6 +88,10 @@ int main(int argc, char **argv) {
         auto res = extension->query(&parms);
         auto ans = res.get();
 
+        if (ans[0].value != j) {
+            fprintf(stderr, "ext:\t%ld %ld %s\n", ans[0].value, j, strings[j].c_str());
+        }
+
         assert(ans[0].value == j);
     }
     TIMER_STOP();
@@ -103,6 +107,10 @@ int main(int argc, char **argv) {
         parms.search_key = strings[j];
 
         auto res = Q::query(shard, nullptr, &parms);
+
+        if (res[0].rec.value != j) {
+            fprintf(stderr, "static:\t%ld %ld %s\n", res[0].rec.value, j, strings[j].c_str());
+        }
     }
     TIMER_STOP();
 
@@ -112,15 +120,11 @@ int main(int argc, char **argv) {
     size_t q_lat = query_time / m;
     size_t s_q_lat = shard_query_time / m;
 
-    fprintf(stdout, "%ld\t\t%lf\t%ld\t%ld\n", extension->get_record_count(), 
-            i_tput, q_lat, s_q_lat);
-
-
-
-
-
+    fprintf(stdout, "%ld\t\t%lf\t%ld\t%ld\t%ld\t%ld\n", extension->get_record_count(), 
+            i_tput, q_lat, s_q_lat, extension->get_memory_usage(), shard->get_memory_usage());
 
     delete extension;
+    delete shard;
 
     fflush(stderr);
 }
