@@ -31,3 +31,6 @@
 [submodule "external/fast_succinct_trie"]
 	path = external/fast_succinct_trie
 	url = git@github.com:dbrumbaugh/fast_succinct_trie.git
+[submodule "external/poplar-trie"]
+	path = external/poplar-trie
+	url = git@github.com:kampersanda/poplar-trie.git

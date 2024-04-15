@@ -177,6 +177,10 @@ if (bench)
     target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(insert_query_tput PUBLIC -mcx16)
 
+    add_executable(poplar_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/poplar_trie.cpp)
+    target_link_libraries(poplar_trie PUBLIC gsl pthread atomic)
+    target_include_directories(poplar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/poplar-trie/include)
+    target_link_options(poplar_trie PUBLIC -mcx16)
 
     #add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
     #target_link_libraries(btree_insert_query_tput PUBLIC gsl cblas pthread atomic)
