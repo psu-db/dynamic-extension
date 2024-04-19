@@ -19,7 +19,7 @@
 typedef de::Record<uint64_t, uint64_t> Rec;
 typedef de::ISAMTree<Rec> Shard;
 typedef de::irs::Query<Rec, Shard> Q;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
+typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 typedef de::irs::Parms<Rec> QP;
 
 void usage(char *progname) {
