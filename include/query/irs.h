@@ -103,7 +103,7 @@ public:
             weights.push_back((bs) ? bs->records.size() : 0);
         }
 
-        size_t total_weight = 0;
+        size_t total_weight = weights[0];
         for (auto &s : shard_states) {
             auto state = (State<R> *) s;
             total_weight += state->total_weight;

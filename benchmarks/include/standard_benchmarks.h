@@ -40,6 +40,12 @@ static void run_static_queries(S *shard, std::vector<QP> &queries) {
         auto q = &queries[i];
 
         auto state = Q::get_query_state(shard, q);
+
+        std::vector<void*> shards = {shard};
+        std::vector<void*> states = {state};
+
+        Q::process_query_states(q, states, nullptr);
+
         auto res = Q::query(shard, state, q);
 
         total += res.size();
