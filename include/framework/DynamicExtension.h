@@ -204,8 +204,6 @@ public:
         auto t = m_buffer->get_memory_usage() + epoch->get_structure()->get_memory_usage();
         end_job(epoch);
 
-        fprintf(stderr, "total: %ld\n", t);
-
         return t;
     }
 
