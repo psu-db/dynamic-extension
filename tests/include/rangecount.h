@@ -100,7 +100,8 @@ START_TEST(t_range_count_merge)
     ck_assert_int_eq(results[0].size(), 1);
     ck_assert_int_eq(results[1].size(), 1);
 
-    auto result = rc::Query<R, Shard>::merge(results, nullptr);
+    std::vector<R> result;
+    rc::Query<R, Shard>::merge(results, nullptr, result);
 
     ck_assert_int_eq(result[0].key, result_size);
 

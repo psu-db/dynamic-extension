@@ -546,30 +546,34 @@ private:
         std::vector<std::pair<ShardID, Shard*>> shards;
         std::vector<void *> states = vers->get_query_states(shards, parms);
 
+        std::vector<R> results;
         Q::process_query_states(parms, states, buffer_state);
 
-        std::vector<std::vector<Wrapped<R>>> query_results(shards.size() + 1);
-        for (size_t i=0; i<query_results.size(); i++) {
-            std::vector<Wrapped<R>> local_results;
-            ShardID shid;
+        do {
+            std::vector<std::vector<Wrapped<R>>> query_results(shards.size() + 1);
+            for (size_t i=0; i<query_results.size(); i++) {
+                std::vector<Wrapped<R>> local_results;
+                ShardID shid;
 
-            if (i == 0) { /* process the buffer first */
-                local_results = Q::buffer_query(buffer_state, parms);
-                shid = INVALID_SHID;
-            } else {
-                local_results = Q::query(shards[i - 1].second, states[i - 1], parms);
-                shid = shards[i - 1].first; 
+                if (i == 0) { /* process the buffer first */
+                    local_results = Q::buffer_query(buffer_state, parms);
+                    shid = INVALID_SHID;
+                } else {
+                    local_results = Q::query(shards[i - 1].second, states[i - 1], parms);
+                    shid = shards[i - 1].first; 
+                }
+
+                query_results[i] = std::move(filter_deletes(local_results, shid, vers, &buffer)); 
+
+                if constexpr (Q::EARLY_ABORT) {
+                    if (query_results[i].size() > 0) break;
+                }
             }
+            Q::merge(query_results, parms, results);
 
-            query_results[i] = std::move(filter_deletes(local_results, shid, vers, &buffer)); 
+        } while (Q::repeat(parms, results, states, buffer_state));
 
-            if constexpr (Q::EARLY_ABORT) {
-                if (query_results[i].size() > 0) break;
-            }
-        }
-
-        auto result = Q::merge(query_results, parms);
-        args->result_set.set_value(std::move(result));
+        args->result_set.set_value(std::move(results));
 
         ((DynamicExtension *) args->extension)->end_job(epoch);
 

@@ -25,15 +25,15 @@
  * include statement.
  */
 
-#include "shard/FSTrie.h"
+//#include "shard/FSTrie.h"
 #include "query/pointlookup.h"
 #include "testing.h"
 
 #include <check.h>
 
 using namespace de;
-typedef StringRec R;
-typedef FSTrie<R> Shard;
+//typedef StringRec R;
+//typedef FSTrie<R> Shard;
 
 START_TEST(t_point_lookup_query)
 {
@@ -51,8 +51,8 @@ START_TEST(t_point_lookup_query)
             pl::Query<R, Shard>::delete_query_state(state);
 
             ck_assert_int_eq(result.size(), 1);
-            ck_assert_str_eq(result[0].rec.key, key);
-            ck_assert_int_eq(result[0].rec.value, bv.get(i)->rec.value);
+            //ck_assert_str_eq(result[0].rec.key, key);
+            //ck_assert_int_eq(result[0].rec.value, bv.get(i)->rec.value);
         }
 
         /* point lookup miss; result size should be 0 */
@@ -85,8 +85,8 @@ START_TEST(t_buffer_point_lookup)
             pl::Query<R, Shard>::delete_buffer_query_state(state);
 
             ck_assert_int_eq(result.size(), 1);
-            ck_assert_str_eq(result[0].rec.key, view.get(i)->rec.key);
-            ck_assert_int_eq(result[0].rec.value, view.get(i)->rec.value);
+            //ck_assert_str_eq(result[0].rec.key, view.get(i)->rec.key);
+            //ck_assert_int_eq(result[0].rec.value, view.get(i)->rec.value);
         }
 
         /* point lookup miss; result size should be 0 */

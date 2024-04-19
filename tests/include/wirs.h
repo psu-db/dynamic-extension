@@ -117,7 +117,8 @@ START_TEST(t_range_query_merge)
         }
     }
 
-    auto result = rq::Query<R, Shard>::merge(proc_results, nullptr);
+    std::vector<R> result;
+    rq::Query<R, Shard>::merge(proc_results, nullptr, result);
     std::sort(result.begin(), result.end());
 
     ck_assert_int_eq(result.size(), result_size);

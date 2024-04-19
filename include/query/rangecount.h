@@ -134,12 +134,10 @@ public:
         return records;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
-
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms, std::vector<R> &output) {
         R res;
         res.key = 0;
         res.value = 0;
-        std::vector<R> output;
         output.emplace_back(res);
 
         for (size_t i=0; i<results.size(); i++) {
@@ -159,6 +157,10 @@ public:
     static void delete_buffer_query_state(void *state) {
         auto s = (BufferState<R> *) state;
         delete s;
+    }
+
+    static bool repeat(void *parms, std::vector<R> &results, std::vector<void*> states, void* buffer_state) {
+        return false;
     }
 };
 

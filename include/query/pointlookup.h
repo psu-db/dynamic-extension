@@ -89,8 +89,7 @@ public:
         return records;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
-        std::vector<R> output;
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms, std::vector<R> &output) {
         for (auto r : results) {
             if (r.size() > 0) {
                 if (r[0].is_deleted() || r[0].is_tombstone()) {
@@ -113,6 +112,11 @@ public:
     static void delete_buffer_query_state(void *state) {
         auto s = (BufferState<R> *) state;
         delete s;
+    }
+
+
+    static bool repeat(void *parms, std::vector<R> &results, std::vector<void*> states, void* buffer_state) {
+        return false;
     }
 };
 

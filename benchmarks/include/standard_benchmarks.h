@@ -22,20 +22,17 @@ static double delete_proportion = 0.05;
 
 template<typename DE, typename QP>
 static void run_queries(DE *extension, std::vector<QP> &queries) {
-    size_t total;
     for (size_t i=0; i<queries.size(); i++) {
         auto q = &queries[i];
 
         auto res = extension->query(q);
         auto r = res.get();
-        total += r.size();
     }
 }
 
 
 template<typename S, typename QP, typename Q>
 static void run_static_queries(S *shard, std::vector<QP> &queries) {
-    size_t total;
     for (size_t i=0; i<queries.size(); i++) {
         auto q = &queries[i];
 
@@ -45,10 +42,7 @@ static void run_static_queries(S *shard, std::vector<QP> &queries) {
         std::vector<void*> states = {state};
 
         Q::process_query_states(q, states, nullptr);
-
         auto res = Q::query(shard, state, q);
-
-        total += res.size();
     }
 }
 
