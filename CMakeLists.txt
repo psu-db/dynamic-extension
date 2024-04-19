@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(namespace "de")
 project("Practical Dynamic Extension" VERSION 0.1.0)
 
-set(debug true)
+set(debug false)
 set(tests True)
 set(bench true)
 
@@ -18,7 +18,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_CXX_FLAGS=-latomic -mcx16)
 
-add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal -mcx16) # -fconcepts-diagnostics-depth=3)
+add_compile_options(-Iinclude -Iexternal/PLEX/include -Iexternal -mcx16 -march=native) # -fconcepts-diagnostics-depth=3)
 
 if (BSD) 
     add_link_options(-L/usr/local/lib)
@@ -122,29 +122,29 @@ if (tests)
 
     # OpenBSD doesn't have OpenMP support, so don't build the PGM code on that
     # platform.
-    #if (!BSD)
-        #        add_executable(pgm_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pgm_tests.cpp)
-        #target_link_libraries(pgm_tests PUBLIC gsl cblas check subunit  pthread gomp atomic)
-        #target_include_directories(pgm_tests PRIVATE include external/PGM-index/include external/psudb-common/cpp/include)
-        #target_link_options(pgm_tests PUBLIC -mcx16)
-        #target_compile_options(pgm_tests PUBLIC -fopenmp)
-    #endif()
+    add_executable(pgm_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/pgm_tests.cpp)
+    target_link_libraries(pgm_tests PUBLIC gsl check subunit  pthread gomp atomic)
+    target_include_directories(pgm_tests PRIVATE include external/PGM-index/include external/psudb-common/cpp/include)
+    target_link_options(pgm_tests PUBLIC -mcx16)
+    target_compile_options(pgm_tests PUBLIC -fopenmp)
 
     # Triespline code doesn't build under OpenBSD either due to ambiguous function call;
     # this is likely a difference between gcc and clang, rather than an OS thing 
-if (!BSD)
     add_executable(triespline_debug ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_debug.cpp)
     target_link_libraries(triespline_debug PUBLIC gsl check subunit  pthread atomic)
     target_link_options(triespline_debug PUBLIC -mcx16)
     target_include_directories(triespline_debug PRIVATE include external/psudb-common/cpp/include external/PLEX/include)
-endif()
 
 
     add_executable(fst_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/fst_tests.cpp)
     target_link_libraries(fst_tests PUBLIC gsl check subunit  pthread atomic)
     target_link_options(fst_tests PUBLIC -mcx16)
-    target_include_directories(fst_tests PRIVATE include
-    external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include)
+    target_include_directories(fst_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include external/louds-patricia)
+
+    add_executable(louds_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/louds_tests.cpp)
+    target_link_libraries(louds_tests PUBLIC gsl check subunit  pthread atomic)
+    target_link_options(louds_tests PUBLIC -mcx16)
+    target_include_directories(louds_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include external/louds-patricia)
 endif()
 
 if (bench) 
@@ -167,6 +167,12 @@ if (bench)
     target_link_options(string_insertion_tput PUBLIC -mcx16)
 
 
+    add_executable(louds_insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/louds_insertion_tput.cpp)
+    target_link_libraries(louds_insertion_tput PUBLIC gsl pthread atomic)
+    target_include_directories(louds_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/louds-patricia)
+    target_link_options(louds_insertion_tput PUBLIC -mcx16)
+
+
     add_executable(query_workload_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/query_workload_bench.cpp)
     target_link_libraries(query_workload_bench PUBLIC gsl pthread atomic)
     target_include_directories(query_workload_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
@@ -181,6 +187,17 @@ if (bench)
     target_link_libraries(poplar_trie PUBLIC gsl pthread atomic)
     target_include_directories(poplar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/poplar-trie/include)
     target_link_options(poplar_trie PUBLIC -mcx16)
+
+    add_executable(hat_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/hat_trie.cpp)
+    target_link_libraries(hat_trie PUBLIC gsl pthread atomic)
+    target_include_directories(hat_trie PRIVATE include external
+    external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
+    target_link_options(hat_trie PUBLIC -mcx16)
+
+    add_executable(cedar_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/cedar_trie.cpp) 
+    target_link_libraries(cedar_trie PUBLIC gsl pthread atomic)
+    target_include_directories(cedar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
+    target_link_options(cedar_trie PUBLIC -mcx16)
 
     #add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
     #target_link_libraries(btree_insert_query_tput PUBLIC gsl cblas pthread atomic)
@@ -202,13 +219,16 @@ if (bench)
     target_include_directories(vptree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(vptree_bench PUBLIC -mcx16)
 
-
-if(!BSD) 
     add_executable(ts_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/ts_bench.cpp)
     target_link_libraries(ts_bench PUBLIC gsl pthread atomic)
     target_include_directories(ts_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
     target_link_options(ts_bench PUBLIC -mcx16)
-endif()
+    
+    add_executable(pgm_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/pgm_bench.cpp)
+    target_link_libraries(pgm_bench PUBLIC gsl pthread atomic gomp)
+    target_include_directories(pgm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_link_options(pgm_bench PUBLIC -mcx16)
+    target_compile_options(pgm_bench PUBLIC -fopenmp)
 
     #add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
     #target_link_libraries(static_dynamic_comp PUBLIC gsl cblas pthread atomic)
