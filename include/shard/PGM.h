@@ -74,7 +74,6 @@ public:
         size_t tombstone_count = 0;
         auto cursors = build_cursor_vec<R, PGM>(shards, &attemp_reccnt, &tombstone_count);
 
-        m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
         m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
                                                attemp_reccnt * sizeof(Wrapped<R>),
                                                (byte **) &m_data);
