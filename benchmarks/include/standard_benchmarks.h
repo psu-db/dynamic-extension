@@ -21,7 +21,7 @@ static size_t g_deleted_records = 0;
 static double delete_proportion = 0.05;
 
 template<typename DE, typename QP>
-static void run_queries(DE *extension, std::vector<QP> &queries, gsl_rng *rng) {
+static void run_queries(DE *extension, std::vector<QP> &queries) {
     size_t total;
     for (size_t i=0; i<queries.size(); i++) {
         auto q = &queries[i];
@@ -31,6 +31,22 @@ static void run_queries(DE *extension, std::vector<QP> &queries, gsl_rng *rng) {
         total += r.size();
     }
 }
+
+
+template<typename S, typename QP, typename Q>
+static void run_static_queries(S *shard, std::vector<QP> &queries) {
+    size_t total;
+    for (size_t i=0; i<queries.size(); i++) {
+        auto q = &queries[i];
+
+        auto state = Q::get_query_state(shard, q);
+        auto res = Q::query(shard, state, q);
+
+        total += res.size();
+    }
+}
+
+
 
 
 template<typename DE, de::RecordInterface R>

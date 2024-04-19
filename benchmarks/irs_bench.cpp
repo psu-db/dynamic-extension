@@ -72,12 +72,23 @@ int main(int argc, char **argv) {
     size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
     TIMER_START();
-    run_queries<Ext, QP>(extension, queries, rng);
+    run_queries<Ext, QP>(extension, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();
 
-    fprintf(stdout, "T\t%ld\t%ld\t%ld\n", insert_throughput, query_latency, g_deleted_records);
+    auto shard = extension->create_static_structure();
+
+    TIMER_START();
+    run_static_queries<Shard, QP, Q>(shard, queries);
+    TIMER_STOP();
+
+    auto static_latency = TIMER_RESULT() / queries.size();
+
+    auto ext_size = extension->get_memory_usage() + extension->get_aux_memory_usage();
+    auto static_size = shard->get_memory_usage();// + shard->get_aux_memory_usage();
+
+    fprintf(stdout, "%ld\t%ld\t%ld\t%ld\t%ld\n", insert_throughput, query_latency, ext_size, static_latency, static_size);
 
     gsl_rng_free(rng);
     delete extension;

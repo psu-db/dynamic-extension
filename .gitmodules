@@ -28,3 +28,6 @@
 [submodule "external/poplar-trie"]
 	path = external/poplar-trie
 	url = git@github.com:kampersanda/poplar-trie.git
+[submodule "external/hat-trie"]
+	path = external/hat-trie
+	url = git@github.com:Tessil/hat-trie.git

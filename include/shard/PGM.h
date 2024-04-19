@@ -39,8 +39,7 @@ private:
 
 public:
     PGM(BufferView<R> buffer)
-        : m_data(nullptr)
-        , m_bf(new BloomFilter<R>(BF_FPR, buffer.get_tombstone_count(), BF_HASH_FUNCS))
+        : m_bf(nullptr)
         , m_reccnt(0)
         , m_tombstone_cnt(0)
         , m_alloc_size(0) {
@@ -49,6 +48,7 @@ public:
                                                buffer.get_record_count() * 
                                                  sizeof(Wrapped<R>), 
                                                (byte**) &m_data);
+
         auto res = sorted_array_from_bufferview<R>(std::move(buffer), m_data, m_bf);
         m_reccnt = res.record_count;
         m_tombstone_cnt = res.tombstone_count;
@@ -132,7 +132,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return m_pgm.size_in_bytes() + m_alloc_size;
+        return m_pgm.size_in_bytes();
     }
 
     size_t get_aux_memory_usage() {

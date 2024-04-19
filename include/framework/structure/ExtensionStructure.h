@@ -161,9 +161,11 @@ public:
     size_t get_memory_usage() {
         size_t cnt = 0;
         for (size_t i=0; i<m_levels.size(); i++) {
+            fprintf(stderr, "%ld\t%ld\n", i, m_levels[i]->get_memory_usage());
             if (m_levels[i]) cnt += m_levels[i]->get_memory_usage();
         }
 
+        fprintf(stderr, "%ld\n", cnt);
         return cnt;
     }
 

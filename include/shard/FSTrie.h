@@ -74,7 +74,7 @@ public:
 
         m_reccnt = cnt;
         if (m_reccnt > 0) {
-            m_fst = new fst::Trie(keys);
+            m_fst = new fst::Trie(keys, true, 1);
         }
 
         delete[] temp_buffer;
@@ -135,7 +135,7 @@ public:
         }
 
         if (m_reccnt > 0) {
-            m_fst = new fst::Trie(keys);
+            m_fst = new fst::Trie(keys, true, 1);
         }
     }
 
@@ -180,11 +180,11 @@ public:
 
 
     size_t get_memory_usage() {
-        return m_fst->getMemoryUsage() + m_alloc_size;
+        return m_fst->getMemoryUsage();
     }
 
     size_t get_aux_memory_usage() {
-        return 0;
+        return m_alloc_size;
     }
 
     size_t get_lower_bound(R &rec) {return 0;}

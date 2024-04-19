@@ -175,7 +175,7 @@ public:
     }
 
     size_t get_memory_usage() {
-        return m_node_cnt * sizeof(vpnode) + m_reccnt * sizeof(R*) + m_alloc_size;
+        return m_node_cnt * sizeof(vpnode) + m_reccnt * sizeof(R*);
     }
 
     size_t get_aux_memory_usage() {

@@ -36,13 +36,12 @@ private:
 
 public:
     TrieSpline(BufferView<R> buffer)
-        : m_data(nullptr)
-        , m_reccnt(0)
+        : m_reccnt(0)
         , m_tombstone_cnt(0)
         , m_alloc_size(0)
         , m_max_key(0)
         , m_min_key(0)
-        , m_bf(new BloomFilter<R>(BF_FPR, buffer.get_tombstone_count(), BF_HASH_FUNCS))
+        , m_bf(nullptr)
     {
         m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
                                                buffer.get_record_count() * 
@@ -79,7 +78,6 @@ public:
         size_t tombstone_count = 0;
         auto cursors = build_cursor_vec<R, TrieSpline>(shards, &attemp_reccnt, &tombstone_count);
         
-        m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
         m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
                                                attemp_reccnt * sizeof(Wrapped<R>),
                                                (byte **) &m_data);
@@ -107,7 +105,7 @@ public:
     }
 
     Wrapped<R> *point_lookup(const R &rec, bool filter=false) {
-        if (filter && !m_bf->lookup(rec)) {
+        if (filter && m_bf && !m_bf->lookup(rec)) {
             return nullptr;
         }
 
@@ -144,7 +142,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return m_ts.GetSize() + m_alloc_size;
+        return m_ts.GetSize();
     }
 
     size_t get_aux_memory_usage() {
