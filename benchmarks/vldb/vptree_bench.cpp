@@ -24,7 +24,7 @@ typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::Delet
 typedef de::knn::Parms<Rec> QP;
 
 void usage(char *progname) {
-    fprintf(stderr, "%s reccnt datafile queryfile", progname);
+    fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
 }
 
 int main(int argc, char **argv) {

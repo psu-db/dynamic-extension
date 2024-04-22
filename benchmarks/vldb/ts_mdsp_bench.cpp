@@ -22,7 +22,7 @@ typedef de::rc::Parms<FRec> QP;
 typedef psudb::bsm::BentleySaxe<Rec, Shard, true> Ext;
 
 void usage(char *progname) {
-    fprintf(stderr, "%s reccnt datafile queryfile", progname);
+    fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
 }
 
 int main(int argc, char **argv) {
