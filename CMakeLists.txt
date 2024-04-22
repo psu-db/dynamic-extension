@@ -11,7 +11,8 @@ project("Practical Dynamic Extension" VERSION 0.1.0)
 
 set(debug false)
 set(tests True)
-set(bench true)
+set(bench false)
+set(vldb_bench true)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -147,96 +148,136 @@ if (tests)
     target_include_directories(louds_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include external/louds-patricia)
 endif()
 
+if (vldb_bench)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
+
+    add_executable(irs_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/irs_bench.cpp)
+    target_link_libraries(irs_bench PUBLIC gsl pthread atomic)
+    target_include_directories(irs_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(irs_bench PUBLIC -mcx16)
+
+    add_executable(vptree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/vptree_bench.cpp)
+    target_link_libraries(vptree_bench PUBLIC gsl pthread atomic)
+    target_include_directories(vptree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(vptree_bench PUBLIC -mcx16)
+
+    add_executable(ts_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/ts_bench.cpp)
+    target_link_libraries(ts_bench PUBLIC gsl pthread atomic)
+    target_include_directories(ts_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(ts_bench PUBLIC -mcx16)
+
+    add_executable(ts_bsm_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/ts_bsm_bench.cpp)
+    target_link_libraries(ts_bsm_bench PUBLIC gsl pthread atomic)
+    target_include_directories(ts_bsm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(ts_bsm_bench PUBLIC -mcx16)
+
+    add_executable(ts_mdsp_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/ts_mdsp_bench.cpp)
+    target_link_libraries(ts_mdsp_bench PUBLIC gsl pthread atomic)
+    target_include_directories(ts_mdsp_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(ts_mdsp_bench PUBLIC -mcx16)
+    
+    add_executable(pgm_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/pgm_bench.cpp)
+    target_link_libraries(pgm_bench PUBLIC gsl pthread atomic gomp)
+    target_include_directories(pgm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(pgm_bench PUBLIC -mcx16)
+    target_compile_options(pgm_bench PUBLIC -fopenmp)
+
+    add_executable(dynamic_pgm_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/dynamic_pgm_bench.cpp)
+    target_link_libraries(dynamic_pgm_bench PUBLIC gsl pthread atomic gomp)
+    target_include_directories(dynamic_pgm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(dynamic_pgm_bench PUBLIC -mcx16)
+    target_compile_options(dynamic_pgm_bench PUBLIC -fopenmp)
+
+    add_executable(btree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/btree_bench.cpp)
+    target_link_libraries(btree_bench PUBLIC gsl pthread atomic gomp)
+    target_include_directories(btree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(btree_bench PUBLIC -mcx16)
+    target_compile_options(btree_bench PUBLIC -fopenmp)
+
+    #add_executable(alex_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/alex_bench.cpp)
+    #target_link_libraries(alex_bench PUBLIC gsl pthread atomic gomp)
+    #target_include_directories(alex_bench PRIVATE include external/benchmarks/include external/psudb-common/cpp/include external/alex/src/core/)
+    #target_link_options(alex_bench PUBLIC -mcx16)
+    #target_compile_options(alex_bench PUBLIC -fopenmp -std=c++17)
+
+    add_executable(mtree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/mtree_bench.cpp)
+    target_link_libraries(mtree_bench PUBLIC gsl pthread atomic gomp)
+    target_include_directories(mtree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(mtree_bench PUBLIC -mcx16)
+    target_compile_options(mtree_bench PUBLIC -fopenmp)
+endif()
+
+
+
 if (bench) 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin/benchmarks")
 
     add_executable(reconstruction_interference ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/reconstruction_interference.cpp)
     target_link_libraries(reconstruction_interference PUBLIC gsl pthread atomic)
     target_link_options(reconstruction_interference PUBLIC -mcx16)
-    target_include_directories(reconstruction_interference PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(reconstruction_interference PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
 
     add_executable(insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insertion_tput.cpp)
     target_link_libraries(insertion_tput PUBLIC gsl pthread atomic)
-    target_include_directories(insertion_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(insertion_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(insertion_tput PUBLIC -mcx16)
 
 
     add_executable(string_insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/string_insertion_tput.cpp)
     target_link_libraries(string_insertion_tput PUBLIC gsl pthread atomic)
-    target_include_directories(string_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(string_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(string_insertion_tput PUBLIC -mcx16)
 
 
     add_executable(louds_insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/louds_insertion_tput.cpp)
     target_link_libraries(louds_insertion_tput PUBLIC gsl pthread atomic)
-    target_include_directories(louds_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/louds-patricia)
+    target_include_directories(louds_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include external/louds-patricia)
     target_link_options(louds_insertion_tput PUBLIC -mcx16)
 
 
     add_executable(query_workload_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/query_workload_bench.cpp)
     target_link_libraries(query_workload_bench PUBLIC gsl pthread atomic)
-    target_include_directories(query_workload_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(query_workload_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(query_workload_bench PUBLIC -mcx16)
 
     add_executable(insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_query_tput.cpp)
     target_link_libraries(insert_query_tput PUBLIC gsl pthread atomic)
-    target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(insert_query_tput PUBLIC -mcx16)
 
     add_executable(poplar_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/poplar_trie.cpp)
     target_link_libraries(poplar_trie PUBLIC gsl pthread atomic)
-    target_include_directories(poplar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/poplar-trie/include)
+    target_include_directories(poplar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include external/poplar-trie/include)
     target_link_options(poplar_trie PUBLIC -mcx16)
 
     add_executable(hat_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/hat_trie.cpp)
     target_link_libraries(hat_trie PUBLIC gsl pthread atomic)
     target_include_directories(hat_trie PRIVATE include external
-    external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
+    external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
     target_link_options(hat_trie PUBLIC -mcx16)
 
     add_executable(cedar_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/cedar_trie.cpp) 
     target_link_libraries(cedar_trie PUBLIC gsl pthread atomic)
-    target_include_directories(cedar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
+    target_include_directories(cedar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
     target_link_options(cedar_trie PUBLIC -mcx16)
 
     #add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
     #target_link_libraries(btree_insert_query_tput PUBLIC gsl cblas pthread atomic)
-    #target_include_directories(btree_insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    #target_include_directories(btree_insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     #target_link_options(btree_insert_query_tput PUBLIC -mcx16)
 
     add_executable(watermark_testing ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/watermark_testing.cpp)
     target_link_libraries(watermark_testing PUBLIC gsl pthread atomic)
-    target_include_directories(watermark_testing PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(watermark_testing PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(watermark_testing PUBLIC -mcx16)
-
-    add_executable(irs_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/irs_bench.cpp)
-    target_link_libraries(irs_bench PUBLIC gsl pthread atomic)
-    target_include_directories(irs_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(irs_bench PUBLIC -mcx16)
-
-    add_executable(vptree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vptree_bench.cpp)
-    target_link_libraries(vptree_bench PUBLIC gsl pthread atomic)
-    target_include_directories(vptree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(vptree_bench PUBLIC -mcx16)
-
-    add_executable(ts_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/ts_bench.cpp)
-    target_link_libraries(ts_bench PUBLIC gsl pthread atomic)
-    target_include_directories(ts_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(ts_bench PUBLIC -mcx16)
-    
-    add_executable(pgm_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/pgm_bench.cpp)
-    target_link_libraries(pgm_bench PUBLIC gsl pthread atomic gomp)
-    target_include_directories(pgm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
-    target_link_options(pgm_bench PUBLIC -mcx16)
-    target_compile_options(pgm_bench PUBLIC -fopenmp)
 
     #add_executable(static_dynamic_comp ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/static_dynamic_comp.cpp)
     #target_link_libraries(static_dynamic_comp PUBLIC gsl cblas pthread atomic)
-    #target_include_directories(static_dynamic_comp PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    #target_include_directories(static_dynamic_comp PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     #target_link_options(static_dynamic_comp PUBLIC -mcx16)
 
     add_executable(insert_tail_latency ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_tail_latency.cpp)
     target_link_libraries(insert_tail_latency PUBLIC gsl pthread atomic)
-    target_include_directories(insert_tail_latency PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include bench/include external/psudb-common/cpp/include)
+    target_include_directories(insert_tail_latency PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(insert_tail_latency PUBLIC -mcx16)
 endif()

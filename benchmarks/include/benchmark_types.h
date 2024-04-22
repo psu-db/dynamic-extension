@@ -3,8 +3,9 @@
 #include <cstdlib>
 #include "psu-ds/BTree.h"
 #include "framework/interface/Record.h"
+#include "pgm/pgm_index_dynamic.hpp"
 
-/* TLX BTree definitions*/
+/* BTree definitions*/
 template <typename K, typename V>
 struct btree_record {
     K key;
@@ -49,4 +50,6 @@ struct euclidean_distance {
 #include "mtree.h"
 typedef mt::mtree<Word2VecRec, euclidean_distance> MTree;
 #endif
+
+typedef pgm::DynamicPGMIndex<uint64_t, uint64_t, pgm::PGMIndex<uint64_t, 64>> PGM;
 

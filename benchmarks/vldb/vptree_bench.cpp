@@ -4,25 +4,24 @@
 
 #define ENABLE_TIMER
 
-#include <thread>
-
 #include "framework/DynamicExtension.h"
-#include "shard/PGM.h"
-#include "query/rangecount.h"
+#include "shard/VPTree.h"
+#include "query/knn.h"
 #include "framework/interface/Record.h"
-#include "include/file_util.h"
-#include "include/standard_benchmarks.h"
+#include "file_util.h"
+#include "standard_benchmarks.h"
 
 #include <gsl/gsl_rng.h>
 
 #include "psu-util/timer.h"
 
 
-typedef de::Record<uint64_t, uint64_t> Rec;
-typedef de::PGM<Rec> Shard;
-typedef de::rc::Query<Rec, Shard> Q;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
-typedef de::rc::Parms<Rec> QP;
+typedef Word2VecRec Rec;
+
+typedef de::VPTree<Rec, 100, true> Shard;
+typedef de::knn::Query<Rec, Shard> Q;
+typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
+typedef de::knn::Parms<Rec> QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile queryfile", progname);
@@ -39,10 +38,13 @@ int main(int argc, char **argv) {
     std::string d_fname = std::string(argv[2]);
     std::string q_fname = std::string(argv[3]);
 
-    auto extension = new Ext(12000, 12001, 8, 0, 64);
+    auto extension = new Ext(100, 1000, 8, 0, 64);
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
-    auto data = read_sosd_file<Rec>(d_fname, n);
+    fprintf(stderr, "[I] Reading data file...\n");
+    auto data = read_vector_file<Rec, 300>(d_fname, n);
+
+    fprintf(stderr, "[I] Generating delete vector\n");
     std::vector<size_t> to_delete(n * delete_proportion);
     size_t j=0;
     for (size_t i=0; i<data.size() && j<to_delete.size(); i++) {
@@ -50,8 +52,10 @@ int main(int argc, char **argv) {
             to_delete[j++] = i;
         } 
     }
-    auto queries = read_range_queries<QP>(q_fname, .001);
+    fprintf(stderr, "[I] Reading Queries\n");
+    auto queries = read_knn_queries<QP>(q_fname, 10);
 
+    fprintf(stderr, "[I] Warming up structure...\n");
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
     size_t delete_idx = 0;
@@ -61,6 +65,7 @@ int main(int argc, char **argv) {
 
     TIMER_INIT();
 
+    fprintf(stderr, "[I] Running Insertion Benchmark\n");
     TIMER_START();
     insert_records<Ext, Rec>(extension, warmup, data.size(), data, to_delete, delete_idx, true, rng);
     TIMER_STOP();
@@ -68,6 +73,7 @@ int main(int argc, char **argv) {
     auto insert_latency = TIMER_RESULT();
     size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
+    fprintf(stderr, "[I] Running Query Benchmark\n");
     TIMER_START();
     run_queries<Ext, QP>(extension, queries);
     TIMER_STOP();

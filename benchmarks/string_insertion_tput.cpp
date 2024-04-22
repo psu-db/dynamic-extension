@@ -69,7 +69,13 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Finished reading from file.\n");
     }
 
-    auto extension = new Ext(1000, 12000, 8);
+    std::vector<size_t> scale_factors = {2, 4, 6, 8, 10, 12};
+    std::vector<size_t> buffer_sizes = {1000, 2000, 5000, 10000, 12000, 15000};
+
+    for (auto &sf : scale_factors) {
+        for (auto &bf_sz : buffer_sizes) {
+
+    auto extension = new Ext(bf_sz, bf_sz, sf);
 
     TIMER_INIT();
     TIMER_START();
@@ -97,33 +103,15 @@ int main(int argc, char **argv) {
 
     auto query_time = TIMER_RESULT();
     
-
-    auto shard = extension->create_static_structure();
-    TIMER_START();
-    for (size_t i=0; i<m; i++) {
-        size_t j = rand() % strings.size();
-        de::pl::Parms<Rec> parms = {strings[j].get()};
-
-        auto res = Q::query(shard, nullptr, &parms);
-
-        if (res[0].rec.value != j) {
-            fprintf(stderr, "static:\t%ld %ld %s\n", res[0].rec.value, j, strings[j].get());
-        }
-    }
-    TIMER_STOP();
-
-    auto shard_query_time = TIMER_RESULT();
-
     double i_tput = (double) n / (double) total_time * 1e9;
     size_t q_lat = query_time / m;
-    size_t s_q_lat = shard_query_time / m;
 
-    fprintf(stdout, "%ld\t\t%lf\t%ld\t%ld\t%ld\t%ld\n", extension->get_record_count(), 
-            i_tput, q_lat, s_q_lat, extension->get_memory_usage(), shard->get_memory_usage());
+            fprintf(stdout, "%ld\t%ld\t%ld\t%lf\t%ld\t%ld\n", extension->get_record_count(), 
+                    bf_sz, sf, i_tput, q_lat, extension->get_memory_usage());
 
     delete extension;
-    delete shard;
 
+        }}
     fflush(stderr);
 }
 

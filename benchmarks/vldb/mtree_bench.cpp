@@ -4,12 +4,9 @@
 
 #define ENABLE_TIMER
 
-#include "framework/DynamicExtension.h"
-#include "shard/VPTree.h"
 #include "query/knn.h"
-#include "framework/interface/Record.h"
-#include "include/file_util.h"
-#include "include/standard_benchmarks.h"
+#include "file_util.h"
+#include "standard_benchmarks.h"
 
 #include <gsl/gsl_rng.h>
 
@@ -17,14 +14,10 @@
 
 
 typedef Word2VecRec Rec;
-
-typedef de::VPTree<Rec, 100, true> Shard;
-typedef de::knn::Query<Rec, Shard> Q;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 typedef de::knn::Parms<Rec> QP;
 
 void usage(char *progname) {
-    fprintf(stderr, "%s reccnt datafile queryfile", progname);
+    fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
 }
 
 int main(int argc, char **argv) {
@@ -38,7 +31,7 @@ int main(int argc, char **argv) {
     std::string d_fname = std::string(argv[2]);
     std::string q_fname = std::string(argv[3]);
 
-    auto extension = new Ext(100, 1000, 8, 0, 64);
+    auto mtree = new MTree();
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
     fprintf(stderr, "[I] Reading data file...\n");
@@ -59,15 +52,13 @@ int main(int argc, char **argv) {
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
     size_t delete_idx = 0;
-    insert_records<Ext, Rec>(extension, 0, warmup, data, to_delete, delete_idx, false, rng);
-
-    extension->await_next_epoch();
+    insert_records<MTree, Rec>(mtree, 0, warmup, data, to_delete, delete_idx, false, rng);
 
     TIMER_INIT();
 
     fprintf(stderr, "[I] Running Insertion Benchmark\n");
     TIMER_START();
-    insert_records<Ext, Rec>(extension, warmup, data.size(), data, to_delete, delete_idx, true, rng);
+    insert_records<MTree, Rec>(mtree, warmup, data.size(), data, to_delete, delete_idx, true, rng);
     TIMER_STOP();
 
     auto insert_latency = TIMER_RESULT();
@@ -75,26 +66,15 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "[I] Running Query Benchmark\n");
     TIMER_START();
-    run_queries<Ext, QP>(extension, queries);
+    run_queries<MTree, QP>(mtree, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();
 
-    auto shard = extension->create_static_structure();
-
-    TIMER_START();
-    run_static_queries<Shard, QP, Q>(shard, queries);
-    TIMER_STOP();
-
-    auto static_latency = TIMER_RESULT() / queries.size();
-
-    auto ext_size = extension->get_memory_usage() + extension->get_aux_memory_usage();
-    auto static_size = shard->get_memory_usage(); // + shard->get_aux_memory_usage();
-
-    fprintf(stdout, "%ld\t%ld\t%ld\t%ld\t%ld\n", insert_throughput, query_latency, ext_size, static_latency, static_size);
+    fprintf(stdout, "%ld\t%ld\n", insert_throughput, query_latency);
 
     gsl_rng_free(rng);
-    delete extension;
+    delete mtree;
     fflush(stderr);
 }
 

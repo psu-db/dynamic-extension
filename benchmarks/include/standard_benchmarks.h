@@ -14,6 +14,7 @@
 
 #include "framework/DynamicExtension.h"
 #include "framework/interface/Query.h"
+#include "query/irs.h"
 #include "psu-util/progress.h"
 #include "benchmark_types.h"
 #include "psu-util/bentley-saxe.h"
@@ -24,12 +25,38 @@ static double delete_proportion = 0.05;
 template<typename DE, typename QP, bool BSM=false>
 static void run_queries(DE *extension, std::vector<QP> &queries) {
     for (size_t i=0; i<queries.size(); i++) {
-        auto q = &queries[i];
+        if constexpr (std::is_same_v<MTree, DE>) {
+            std::vector<Word2VecRec> result;
+            auto res = extension->get_nearest_by_limit(queries[i].point, queries[i].k);
 
-        auto res = extension->query(q);
-        if constexpr (!BSM) {
-            auto r = res.get();
+            auto itr = res.begin();
+            while (itr != res.end()) {
+                result.emplace_back(itr->data);
+                itr++;
+            }
+        } else if constexpr (std::is_same_v<PGM, DE>) {
+            size_t tot = 0;
+            auto ptr = extension->find(queries[i].lower_bound);
+            while (ptr != extension->end() && ptr->first <= queries[i].upper_bound) {
+                tot++;
+                ++ptr;
+            }
+        } else {
+            auto res = extension->query(&queries[i]);
+            if constexpr (!BSM) {
+                auto r = res.get();
+            }
         }
+    }
+}
+
+template <typename R>
+static void run_btree_queries(BenchBTree *btree, std::vector<de::irs::Parms<R>> &queries) {
+    std::vector<int64_t> sample_set;
+    sample_set.reserve(queries[0].sample_size);
+
+    for (size_t i=0; i<queries.size(); i++) {
+        btree->range_sample(queries[i].lower_bound, queries[i].upper_bound, queries[i].sample_size, sample_set, queries[i].rng);
     }
 }
 
@@ -68,26 +95,42 @@ static void insert_records(psudb::bsm::BentleySaxe<R, DS, MDSP> *extension,
 }
 
 
-template<typename DE, de::RecordInterface R>
-static void insert_records(DE *extension, size_t start, size_t stop, 
+template<typename DE, typename R>
+static void insert_records(DE *structure, size_t start, size_t stop, 
                            std::vector<R> &records, std::vector<size_t> &to_delete, 
                            size_t &delete_idx, bool delete_records, gsl_rng *rng) {
 
     psudb::progress_update(0, "Insert Progress");
     size_t reccnt = 0;
     for (size_t i=start; i<stop; i++) {
-        while (!extension->insert(records[i])) {
-            psudb::progress_update((double) i / (double)(stop - start), "Insert Progress");
-            usleep(1);
+
+        if constexpr (std::is_same_v<BenchBTree, DE>) {
+            structure->insert(records[i]);
+        } else if constexpr (std::is_same_v<MTree, DE>) {
+            structure->add(records[i]);
+        } else if constexpr (std::is_same_v<PGM, DE>) {
+            structure->insert_or_assign(records[i].key, records[i].value);
+        } else {
+            while (!structure->insert(records[i])) {
+                psudb::progress_update((double) i / (double)(stop - start), "Insert Progress");
+                usleep(1);
+            }
         }
 
         if (delete_records && gsl_rng_uniform(rng) <= 
             delete_proportion && to_delete[delete_idx] <= i) {
 
-            while (!extension->erase(records[to_delete[delete_idx]])) {
-                usleep(1);
+            if constexpr (std::is_same_v<BenchBTree, DE>) {
+                structure->erase_one(records[to_delete[delete_idx]].key);
+            } else if constexpr (std::is_same_v<MTree, DE>) {
+                structure->remove(records[to_delete[delete_idx]]);
+            } else if constexpr (std::is_same_v<PGM, DE>) {
+                structure->erase(records[to_delete[delete_idx]].key);
+            } else {
+                while (!structure->erase(records[to_delete[delete_idx]])) {
+                    usleep(1);
+                }
             }
-
             delete_idx++;
             g_deleted_records++;
         }
