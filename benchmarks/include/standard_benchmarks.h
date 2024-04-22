@@ -16,17 +16,20 @@
 #include "framework/interface/Query.h"
 #include "psu-util/progress.h"
 #include "benchmark_types.h"
+#include "psu-util/bentley-saxe.h"
 
 static size_t g_deleted_records = 0;
 static double delete_proportion = 0.05;
 
-template<typename DE, typename QP>
+template<typename DE, typename QP, bool BSM=false>
 static void run_queries(DE *extension, std::vector<QP> &queries) {
     for (size_t i=0; i<queries.size(); i++) {
         auto q = &queries[i];
 
         auto res = extension->query(q);
-        auto r = res.get();
+        if constexpr (!BSM) {
+            auto r = res.get();
+        }
     }
 }
 
@@ -47,6 +50,22 @@ static void run_static_queries(S *shard, std::vector<QP> &queries) {
 }
 
 
+/*
+ * Insert records into a standard Bentley-Saxe extension. Deletes are not
+ * supported.
+ */
+template<typename DS, typename R, bool MDSP=false>
+static void insert_records(psudb::bsm::BentleySaxe<R, DS, MDSP> *extension, 
+                           size_t start, size_t stop, std::vector<R> &records) {
+
+    psudb::progress_update(0, "Insert Progress");
+    size_t reccnt = 0;
+    for (size_t i=start; i<stop; i++) {
+        extension->insert(records[i]);
+    }
+
+    psudb::progress_update(1, "Insert Progress");
+}
 
 
 template<typename DE, de::RecordInterface R>

@@ -97,6 +97,22 @@ static std::vector<R> read_sosd_file(std::string &fname, size_t n) {
     return records;
 }
 
+template<typename K, typename V>
+static std::vector<std::pair<K, V>> read_sosd_file_pair(std::string &fname, size_t n) {
+    std::fstream file;
+    file.open(fname, std::ios::in | std::ios::binary);
+
+    std::vector<std::pair<K,V>> records(n);
+    for (size_t i=0; i<n; i++) {
+        uint64_t k;
+        file.read((char*) &(k), sizeof(uint64_t));
+        records[i].first = k;
+        records[i].second = i;
+    }
+
+    return records;
+}
+
 /*
  * This function expects a plaintext file with each vector on its own line.
  * There should be D dimensions (or more) for each record, separated by
