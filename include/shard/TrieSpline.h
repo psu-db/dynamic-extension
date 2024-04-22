@@ -48,26 +48,82 @@ public:
                                                  sizeof(Wrapped<R>), 
                                                (byte**) &m_data);
 
-        auto res = sorted_array_from_bufferview(std::move(buffer), m_data, m_bf);
-        m_reccnt = res.record_count;
-        m_tombstone_cnt = res.tombstone_count;
+        /*
+         * Copy the contents of the buffer view into a temporary buffer, and
+         * sort them. We still need to iterate over these temporary records to 
+         * apply tombstone/deleted record filtering, as well as any possible
+         * per-record processing that is required by the shard being built.
+         */
+        auto temp_buffer = (Wrapped<R> *) psudb::sf_aligned_calloc(CACHELINE_SIZE, 
+                                                                   buffer.get_record_count(), 
+                                                                   sizeof(Wrapped<R>));
+        buffer.copy_to_buffer((byte *) temp_buffer);
 
-        if (m_reccnt > 0) {
-            m_min_key = m_data[0].rec.key;
-            m_max_key = m_data[m_reccnt-1].rec.key;
+        auto base = temp_buffer;
+        auto stop = base + buffer.get_record_count();
+        std::sort(base, stop, std::less<Wrapped<R>>());
 
-            auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
-            for (size_t i=0; i<m_reccnt; i++) {
-                bldr.AddKey(m_data[i].rec.key);
+        auto tmp_min_key = temp_buffer[0].rec.key;
+        auto tmp_max_key = temp_buffer[buffer.get_record_count() - 1].rec.key;
+        auto bldr = ts::Builder<K>(tmp_min_key, tmp_max_key, E);
+
+        merge_info info = {0, 0};
+
+        m_min_key = tmp_max_key;
+        m_max_key = tmp_min_key;
+
+        /* 
+         * Iterate over the temporary buffer to process the records, copying
+         * them into buffer as needed
+         */
+        while (base < stop) {
+            if (!base->is_tombstone() && (base + 1 < stop)
+                && base->rec == (base + 1)->rec  && (base + 1)->is_tombstone()) {
+                base += 2;
+                continue;
+            } else if (base->is_deleted()) {
+                base += 1;
+                continue;
             }
 
+            // FIXME: this shouldn't be necessary, but the tagged record
+            // bypass doesn't seem to be working on this code-path, so this
+            // ensures that tagged records from the buffer are able to be
+            // dropped, eventually. It should only need to be &= 1
+            base->header &= 3;
+            bldr.AddKey(base->rec.key);
+            m_data[info.record_count++] = *base;
+
+            if (base->is_tombstone()) {
+                info.tombstone_count++;
+                if (m_bf){
+                    m_bf->insert(base->rec);
+                }
+            }
+
+            if (base->rec.key < m_min_key) {
+                m_min_key = base->rec.key;
+            } 
+
+            if (base->rec.key > m_max_key) {
+                m_max_key = base->rec.key;
+            }
+
+            base++;
+        }
+
+        free(temp_buffer);
+
+        m_reccnt = info.record_count;
+        m_tombstone_cnt = info.tombstone_count;
+
+        if (m_reccnt > 0) {
             m_ts = bldr.Finalize();
         }
     }
 
     TrieSpline(std::vector<TrieSpline*> &shards) 
-        : m_data(nullptr)
-        , m_reccnt(0)
+        : m_reccnt(0)
         , m_tombstone_cnt(0)
         , m_alloc_size(0)
         , m_max_key(0)
@@ -82,19 +138,86 @@ public:
                                                attemp_reccnt * sizeof(Wrapped<R>),
                                                (byte **) &m_data);
 
-        auto res = sorted_array_merge<R>(cursors, m_data, m_bf);
-        m_reccnt = res.record_count;
-        m_tombstone_cnt = res.tombstone_count;
+        // FIXME: For smaller cursor arrays, it may be more efficient to skip
+        //        the priority queue and just do a scan.
+        PriorityQueue<Wrapped<R>> pq(cursors.size());
+        for (size_t i=0; i<cursors.size(); i++) {
+            pq.push(cursors[i].ptr, i);
+        }
 
-        if (m_reccnt > 0) {
-            m_min_key = m_data[0].rec.key;
-            m_max_key = m_data[m_reccnt-1].rec.key;
+        auto tmp_max_key = shards[0]->m_max_key;
+        auto tmp_min_key = shards[0]->m_min_key;
 
-            auto bldr = ts::Builder<K>(m_min_key, m_max_key, E);
-            for (size_t i=0; i<m_reccnt; i++) {
-                bldr.AddKey(m_data[i].rec.key);
+        for (size_t i=0; i<shards.size(); i++) {
+            if (shards[i]->m_max_key > tmp_max_key) {
+                tmp_max_key = shards[i]->m_max_key;
             }
 
+            if (shards[i]->m_min_key < tmp_min_key) {
+                tmp_min_key = shards[i]->m_min_key;
+            }
+        }
+
+        auto bldr = ts::Builder<K>(tmp_min_key, tmp_max_key, E);
+
+        m_max_key = tmp_min_key;
+        m_min_key = tmp_max_key;
+
+        merge_info info = {0, 0};
+        while (pq.size()) {
+            auto now = pq.peek();
+            auto next = pq.size() > 1 ? pq.peek(1) : queue_record<Wrapped<R>>{nullptr, 0};
+            /* 
+             * if the current record is not a tombstone, and the next record is
+             * a tombstone that matches the current one, then the current one
+             * has been deleted, and both it and its tombstone can be skipped
+             * over.
+             */
+            if (!now.data->is_tombstone() && next.data != nullptr &&
+                now.data->rec == next.data->rec && next.data->is_tombstone()) {
+                
+                pq.pop(); pq.pop();
+                auto& cursor1 = cursors[now.version];
+                auto& cursor2 = cursors[next.version];
+                if (advance_cursor(cursor1)) pq.push(cursor1.ptr, now.version);
+                if (advance_cursor(cursor2)) pq.push(cursor2.ptr, next.version);
+            } else {
+                auto& cursor = cursors[now.version];
+                /* skip over records that have been deleted via tagging */
+                if (!cursor.ptr->is_deleted()) {
+                    bldr.AddKey(cursor.ptr->rec.key);
+                    m_data[info.record_count++] = *cursor.ptr;
+
+                    /*  
+                     * if the record is a tombstone, increment the ts count and 
+                     * insert it into the bloom filter if one has been
+                     * provided.
+                     */
+                    if (cursor.ptr->is_tombstone()) {
+                        info.tombstone_count++;
+                        if (m_bf) {
+                            m_bf->insert(cursor.ptr->rec);
+                        }
+                    }
+
+                    if (cursor.ptr->rec.key < m_min_key) {
+                        m_min_key = cursor.ptr->rec.key;
+                    }
+
+                    if (cursor.ptr->rec.key > m_max_key) {
+                        m_max_key = cursor.ptr->rec.key;
+                    }
+                }
+                pq.pop();
+                
+                if (advance_cursor(cursor)) pq.push(cursor.ptr, now.version);
+            }
+        }
+
+        m_reccnt = info.record_count;
+        m_tombstone_cnt = info.tombstone_count;
+
+        if (m_reccnt > 0) {
             m_ts = bldr.Finalize();
         }
     }
