@@ -166,6 +166,11 @@ if (vldb_bench)
     target_include_directories(ts_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(ts_bench PUBLIC -mcx16)
 
+    add_executable(ts_parmsweep ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/ts_parmsweep.cpp)
+    target_link_libraries(ts_parmsweep PUBLIC gsl pthread atomic)
+    target_include_directories(ts_parmsweep PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(ts_parmsweep PUBLIC -mcx16)
+
     add_executable(ts_bsm_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/ts_bsm_bench.cpp)
     target_link_libraries(ts_bsm_bench PUBLIC gsl pthread atomic)
     target_include_directories(ts_bsm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
