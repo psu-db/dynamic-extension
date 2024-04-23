@@ -8,9 +8,6 @@
 #include <cstring>
 #include <vector>
 
-#include "framework/interface/Record.h"
-#include "query/irs.h"
-
 #pragma once
 
 template <typename QP>
@@ -81,7 +78,7 @@ static std::vector<QP> read_knn_queries(std::string fname, size_t k) {
     return queries;
 }
 
-template<de::KVPInterface R>
+template<typename R>
 static std::vector<R> read_sosd_file(std::string &fname, size_t n) {
     std::fstream file;
     file.open(fname, std::ios::in | std::ios::binary);
