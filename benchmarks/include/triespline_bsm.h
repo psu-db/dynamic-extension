@@ -34,6 +34,7 @@ public:
 
         /* return an empty result set if q is invalid */
         if (q == nullptr) {
+            rs.push_back({0, 0});
             return rs;
         }
 
@@ -41,15 +42,18 @@ public:
 
         size_t idx = lower_bound(parms->lower_bound);
 
+        size_t cnt = 0;
         while (idx < m_data.size() && m_data[idx].first < parms->upper_bound) {
-            rs.emplace_back(m_data[idx++]);
+            cnt++;
         }
+
+        rs.push_back({cnt, 0});
 
         return std::move(rs);
     }
 
     std::vector<R> query_merge(std::vector<R> &rsa, std::vector<R> &rsb) {
-        rsa.insert(rsa.end(), rsb.begin(), rsb.end());
+        rsa[0].first += rsb[0].first;
         return std::move(rsa);
     }
 
@@ -57,9 +61,7 @@ public:
         return m_data.size();
     }
 
-
     ~BSMTrieSpline() = default;
-
 
 private:
     std::vector<R> m_data;
