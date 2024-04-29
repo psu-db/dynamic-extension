@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 
     auto query_latency = TIMER_RESULT() / queries.size();
 
-    auto ext_size = pgm.size_in_bytes();
+    auto ext_size = pgm.index_size_in_bytes();
 
     fprintf(stdout, "%ld\t%ld\t%ld\n", insert_throughput, query_latency, ext_size);
 
