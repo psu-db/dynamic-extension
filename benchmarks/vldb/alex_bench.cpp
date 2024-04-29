@@ -1,5 +1,10 @@
+#define ENABLE_TIMER
+
 #include "alex.h"
-#include "include/standalone_utility.h"
+
+#include "file_util.h"
+#include "psu-util/progress.h"
+#include "psu-util/timer.h"
 
 typedef uint64_t key_type;
 typedef uint64_t value_type;
@@ -16,190 +21,124 @@ struct query {
     key_type upper_bound;
 };
 
-template <typename R>
-static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n, 
-                             double delete_prop, std::vector<R> &to_delete, bool binary=false) {
-    vec.clear();
-    for (size_t i=0; i<n; i++) {
-        R rec;
-        if (!next_record(file, rec, binary)) {
-            if (i == 0) {
-                return false;
-            }
-
-            break;
-        }
-
-        vec.emplace_back(rec);
-
-        if (gsl_rng_uniform(g_rng) < delete_prop + (delete_prop * .1)) {
-            to_delete.emplace_back(rec);
-        }
-    }
-
-    return true;
+void usage(char *progname) {
+    fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
 }
 
+static size_t g_deleted_records = 0;
+static double delete_proportion = 0.05;
 
-static Alex *warmup(std::fstream &file, size_t count, 
-                   double delete_prop, std::vector<record> to_delete, bool progress=true, bool binary=false) {
-    size_t batch = std::min(.1 * count, 25000.0);
+static void insert_records(Alex *structure, size_t start, size_t stop, 
+                           std::vector<record> &records, std::vector<size_t> &to_delete, 
+                           size_t &delete_idx, bool delete_records, gsl_rng *rng) {
 
-    std::pair<key_type, value_type> *insert_vec = new std::pair<key_type, value_type>[count];
-    Alex *alex = new Alex();
+    psudb::progress_update(0, "Insert Progress");
+    size_t reccnt = 0;
+    for (size_t i=start; i<stop; i++) {
+        structure->insert(records[i].key, records[i].value);
 
-    size_t cnt = 0;
-    record rec;
-    while (cnt < count && next_record(file, rec)) {
-        insert_vec[cnt] = {rec.key, rec.value};
-        cnt++;
+        if (delete_records && gsl_rng_uniform(rng) <= 
+            delete_proportion && to_delete[delete_idx] <= i) {
+
+            structure->erase_one(records[i].key);
+            delete_idx++;
+            g_deleted_records++;
+        }
     }
 
-    std::sort(insert_vec, insert_vec + count);
+    psudb::progress_update(1, "Insert Progress");
+}
 
-    alex->bulk_load(insert_vec, count); 
+size_t g_global_cnt = 0;
+
+static void run_queries(Alex *alex, std::vector<query> &queries) {
+    for (size_t i=0; i<queries.size(); i++) {
+        size_t cnt=0; 
+        auto ptr = alex->find(queries[i].lower_bound);
+        while (ptr != alex->end() && ptr.key() <= queries[i].upper_bound) {
+            cnt++;
+            ptr++;
+        }
+
+        g_global_cnt += cnt;
+    }
+}
+
+Alex *warmup_alex(std::vector<record> records, size_t cnt) {
+    if (cnt >= records.size()) {
+        fprintf(stderr, "[E] Requesting warmup with more records than are available.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    auto alex = new Alex();
+    std::pair<key_type, value_type> *insert_vec = new std::pair<key_type, value_type>[cnt];
+
+    for (size_t i=0; i<cnt; i++) {
+        insert_vec[i] = {records[i].key, records[i].value};
+    }
+
+    std::sort(insert_vec, insert_vec + cnt);
+    alex->bulk_load(insert_vec, cnt);
     delete[] insert_vec;
 
     return alex;
 }
 
-
-static void alex_rq_insert(Alex &alex, std::fstream &file, size_t insert_cnt, double delete_prop, std::vector<record> &to_delete, bool binary=false) {
-    size_t delete_cnt = insert_cnt * delete_prop;
-
-    size_t applied_deletes = 0;
-    size_t applied_inserts = 0;
-
-    size_t BATCH=1000;
-
-    std::vector<record> insert_vec;
-    std::vector<record> delete_vec;
-    insert_vec.reserve(BATCH);
-    delete_vec.reserve(BATCH*delete_prop);
-
-    size_t delete_idx = 0;
-
-    bool continue_benchmark = true;
-
-    size_t total_time = 0;
-
-    while (applied_inserts < insert_cnt && continue_benchmark) { 
-        continue_benchmark = build_insert_vec(file, insert_vec, BATCH, delete_prop, to_delete, binary);
-        progress_update((double) applied_inserts / (double) insert_cnt, "inserting:");
-        if (applied_deletes < delete_cnt) {
-            build_delete_vec(to_delete, delete_vec, BATCH*delete_prop);
-            delete_idx = 0;
-        }
-
-        if (insert_vec.size() == 0) {
-            break;
-        }
-
-        auto insert_start = std::chrono::high_resolution_clock::now();
-        for (size_t i=0; i<insert_vec.size(); i++) {
-            // process a delete if necessary
-            if (applied_deletes < delete_cnt && delete_idx < delete_vec.size() && gsl_rng_uniform(g_rng) < delete_prop) {
-                alex.erase_one(delete_vec[delete_idx++].key);
-                applied_deletes++;
-            }
-
-            // insert the record;
-            alex.insert(insert_vec[i].key, insert_vec[i].value);
-            applied_inserts++;
-        }
-        auto insert_stop = std::chrono::high_resolution_clock::now();
-
-        total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(insert_stop - insert_start).count();
-    } 
-
-    progress_update(1.0, "inserting:");
-
-    size_t throughput = (((double) (applied_inserts + applied_deletes) / (double) total_time) * 1e9);
-
-    fprintf(stdout, "%ld\t", throughput);
-}
-
-
-
-static void alex_rq_bench(Alex &alex, std::vector<query> queries, size_t trial_cnt=1) 
-{
-    char progbuf[25];
-    sprintf(progbuf, "sampling:");
-
-    size_t batch_size = 100;
-    size_t batches = trial_cnt / batch_size;
-    size_t total_time = 0;
-
-    std::vector<record> result_set;
-
-    for (int i=0; i<trial_cnt; i++) {
-        auto start = std::chrono::high_resolution_clock::now();
-        for (size_t j=0; j<queries.size(); j++) {
-            auto ptr = alex.find(queries[j].lower_bound);
-            while (ptr != alex.end() && ptr.key() <= queries[j].upper_bound) {
-                result_set.push_back({ptr.key(), ptr.payload()});
-                ptr++;
-            }
-            result_set.clear();
-        }
-        auto stop = std::chrono::high_resolution_clock::now();
-
-        total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
-    }
-
-    size_t latency = total_time / (trial_cnt * queries.size());
-
-    fprintf(stdout, "%ld\t", latency);
-}
-
 int main(int argc, char **argv)
 {
-    if (argc < 5) {
-        fprintf(stderr, "Usage: alex_rq_bench <filename> <record_count> <delete_proportion> <query_file>\n");
+    if (argc < 4) {
+        usage(argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    std::string filename = std::string(argv[1]);
-    size_t record_count = atol(argv[2]);
-    double delete_prop = atof(argv[3]);
-    std::string qfilename = std::string(argv[4]);
+    size_t n = atol(argv[1]);
+    std::string d_fname = std::string(argv[2]);
+    std::string q_fname = std::string(argv[3]);
 
-    size_t buffer_cap = 12000;
-    size_t scale_factor = 6;
-    double max_delete_prop = delete_prop;
-    bool use_osm = false;
+    gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
 
-    double insert_batch = 0.8; 
 
-    init_bench_env(record_count, true, use_osm);
-    auto queries = read_range_queries<query>(qfilename, .0001);
+    auto data = read_sosd_file<record>(d_fname, n);
+    std::vector<size_t> to_delete(n * delete_proportion);
+    size_t j=0;
+    for (size_t i=0; i<data.size() && j<to_delete.size(); i++) {
+        if (gsl_rng_uniform(rng) <= delete_proportion) {
+            to_delete[j++] = i;
+        } 
+    }
 
-    std::fstream datafile;
-    datafile.open(filename, std::ios::in | std::ios::binary);
+    auto queries = read_range_queries<query>(q_fname, .001);
 
-    std::vector<record> to_delete;
 
-    // warm up the tree with initial_insertions number of initially inserted
-    // records
-    size_t warmup_cnt = insert_batch * record_count;
-    auto alex = warmup(datafile, warmup_cnt, delete_prop, to_delete, true, true);
+    size_t warmup = .1 * n;
+    size_t delete_idx = 0;
 
-    fprintf(stderr, "Size: %ld\n", alex->size());
-    size_t insert_cnt = record_count - warmup_cnt;
+    auto alex = warmup_alex(data, warmup);
 
-    alex_rq_insert(*alex, datafile, insert_cnt, delete_prop, to_delete, true);
-    size_t memory_usage = alex->model_size() + alex->data_size();
+    TIMER_INIT();
 
-    fprintf(stderr, "Size: %ld\n", alex->size());
-    fprintf(stdout, "%ld\t", memory_usage);
+    TIMER_START();
+    insert_records(alex, warmup, data.size(), data, to_delete, delete_idx, true, rng);
+    TIMER_STOP();
 
-    alex_rq_bench(*alex, queries);
-    fprintf(stdout, "\n");
+    auto insert_latency = TIMER_RESULT();
+    size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
-    delete_bench_env();
-    delete alex;
+    TIMER_START();
+    run_queries(alex, queries);
+    TIMER_STOP();
+
+    auto query_latency = TIMER_RESULT() / queries.size();
+
+    auto ext_size = alex->model_size() + alex->data_size() - (alex->size() * sizeof(record));
+
+    fprintf(stdout, "%ld\t%ld\t%lld\t%ld\n", insert_throughput, query_latency, ext_size, g_global_cnt);
     fflush(stdout);
+
+    gsl_rng_free(rng);
     fflush(stderr);
+
+    delete alex;
 
     exit(EXIT_SUCCESS);
 }
