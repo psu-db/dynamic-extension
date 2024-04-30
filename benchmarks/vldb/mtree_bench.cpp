@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
         } 
     }
     fprintf(stderr, "[I] Reading Queries\n");
-    auto queries = read_knn_queries<QP>(q_fname, 10);
+    auto queries = read_knn_queries<QP>(q_fname, 1000);
 
     fprintf(stderr, "[I] Warming up structure...\n");
     /* warmup structure w/ 10% of records */

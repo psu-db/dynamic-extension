@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <vector>
+#include <algorithm>
 #include "ts/builder.h"
 
 template <typename K, typename V, size_t E=1024>
@@ -52,7 +53,7 @@ public:
         return std::move(rs);
     }
 
-    std::vector<R> query_merge(std::vector<R> &rsa, std::vector<R> &rsb) {
+    std::vector<R> query_merge(std::vector<R> &rsa, std::vector<R> &rsb, void *parms) {
         rsa[0].first += rsb[0].first;
         return std::move(rsa);
     }

@@ -34,6 +34,14 @@ static void run_queries(DE *extension, std::vector<QP> &queries) {
                 result.emplace_back(itr->data);
                 itr++;
             }
+
+            #ifdef BENCH_PRINT_RESULTS
+                fprintf(stdout, "\n\n");
+                for (auto &r : result) {
+                    fprintf(stdout, "%ld %lf %lf %lf %lf %lf %lf\n", result.size(), r.data[0],
+                            r.data[1], r.data[2], r.data[3], r.data[4], r.data[5]);
+                }
+            #endif
         } else if constexpr (std::is_same_v<PGM, DE>) {
             size_t tot = 0;
             auto ptr = extension->find(queries[i].lower_bound);
@@ -44,7 +52,26 @@ static void run_queries(DE *extension, std::vector<QP> &queries) {
         } else {
             auto res = extension->query(&queries[i]);
             if constexpr (!BSM) {
-                auto r = res.get();
+                auto result = res.get();
+                #ifdef BENCH_PRINT_RESULTS
+                    fprintf(stdout, "\n\n");
+                    for (int i=result.size()-1; i>=0; i--) {
+                        auto &r = result[i];
+                        fprintf(stdout, "%ld %lf %lf %lf %lf %lf %lf\n", result.size(), r.data[0],
+                                r.data[1], r.data[2], r.data[3], r.data[4], r.data[5]);
+                    }
+                fflush(stdout);
+                #endif
+            } else {
+                #ifdef BENCH_PRINT_RESULTS
+                    fprintf(stdout, "\n\n");
+                    for (int i=res.size()-1; i>=0; i--) {
+                        auto &r = res[i];
+                        fprintf(stdout, "%ld %lf %lf %lf %lf %lf %lf\n", res.size(), r.data[0],
+                                r.data[1], r.data[2], r.data[3], r.data[4], r.data[5]);
+                    }
+                fflush(stdout);
+                #endif
             }
         }
     }
@@ -73,6 +100,16 @@ static void run_static_queries(S *shard, std::vector<QP> &queries) {
 
         Q::process_query_states(q, states, nullptr);
         auto res = Q::query(shard, state, q);
+
+        #ifdef BENCH_PRINT_RESULTS
+            fprintf(stdout, "\n\n");
+            for (int i=res.size()-1; i>=0; i--) {
+                auto &r = res[i].rec;
+                fprintf(stdout, "%ld %lf %lf %lf %lf %lf %lf\n", res.size(), r.data[0],
+                        r.data[1], r.data[2], r.data[3], r.data[4], r.data[5]);
+            }
+        fflush(stdout);
+        #endif
     }
 }
 

@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     std::string d_fname = std::string(argv[2]);
     std::string q_fname = std::string(argv[3]);
 
-    auto extension = new Ext(100, 1000, 8, 0, 64);
+    auto extension = new Ext(1400, 1400, 8, 0, 64);
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
     fprintf(stderr, "[I] Reading data file...\n");
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
         } 
     }
     fprintf(stderr, "[I] Reading Queries\n");
-    auto queries = read_knn_queries<QP>(q_fname, 10);
+    auto queries = read_knn_queries<QP>(q_fname, 1000);
 
     fprintf(stderr, "[I] Warming up structure...\n");
     /* warmup structure w/ 10% of records */
@@ -82,6 +82,7 @@ int main(int argc, char **argv) {
 
     auto shard = extension->create_static_structure();
 
+    fprintf(stderr, "Running Static query tests\n\n");
     TIMER_START();
     run_static_queries<Shard, QP, Q>(shard, queries);
     TIMER_STOP();
@@ -96,5 +97,6 @@ int main(int argc, char **argv) {
     gsl_rng_free(rng);
     delete extension;
     fflush(stderr);
+    fflush(stdout);
 }
 
