@@ -111,7 +111,7 @@ public:
             pq.pop();
         }
 
-        return results;
+        return std::move(results);
     }
 
     static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms, std::vector<R> &output) {
@@ -141,7 +141,7 @@ public:
             pq.pop();
         }
 
-        return output;
+        return std::move(output);
     }
 
     static void delete_query_state(void *state) {

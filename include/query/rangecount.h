@@ -42,13 +42,7 @@ public:
     constexpr static bool SKIP_DELETE_FILTER=true;
 
     static void *get_query_state(S *shard, void *parms) {
-        auto res = new State<R>();
-        auto p = (Parms<R> *) parms;
-
-        res->start_idx = shard->get_lower_bound(p->lower_bound);
-        res->stop_idx = shard->get_record_count();
-
-        return res;
+        return nullptr;
     }
 
     static void* get_buffer_query_state(BufferView<R> *buffer, void *parms) {
@@ -74,36 +68,42 @@ public:
         res.rec.value = 0; // tombstones
         records.emplace_back(res);
 
+
+        auto start_idx = shard->get_lower_bound(p->lower_bound);
+        auto stop_idx = shard->get_lower_bound(p->upper_bound);
+
         /* 
          * if the returned index is one past the end of the
          * records for the PGM, then there are not records
          * in the index falling into the specified range.
          */
-        if (s->start_idx == shard->get_record_count()) {
+        if (start_idx == shard->get_record_count()) {
             return records;
         }
 
-        auto ptr = shard->get_record_at(s->start_idx);
         
         /*
          * roll the pointer forward to the first record that is
          * greater than or equal to the lower bound.
          */
-        while(ptr < shard->get_data() + s->stop_idx && ptr->rec.key < p->lower_bound) {
-            ptr++;
+        auto recs = shard->get_data();
+        while(start_idx < stop_idx && recs[start_idx].rec.key < p->lower_bound) {
+            start_idx++;
         }
 
-        while (ptr < shard->get_data() + s->stop_idx && ptr->rec.key <= p->upper_bound) {
-            if (!ptr->is_deleted()) {
-                if (ptr->is_tombstone()) {
-                    records[0].rec.value++;
-                } else {
-                    records[0].rec.key++;
-                }
-            }
-
-            ptr++;
+        while (stop_idx < shard->get_record_count() && recs[stop_idx].rec.key <= p->upper_bound) {
+            stop_idx++;
         }
+        size_t idx = start_idx;
+        size_t ts_cnt = 0;
+
+        while (idx < stop_idx) {
+            ts_cnt += recs[idx].is_tombstone() * 2 + recs[idx].is_deleted();
+            idx++;
+        }
+
+        records[0].rec.key = idx - start_idx;
+        records[0].rec.value = ts_cnt;
 
         return records;
     }
@@ -150,8 +150,6 @@ public:
     }
 
     static void delete_query_state(void *state) {
-        auto s = (State<R> *) state;
-        delete s;
     }
 
     static void delete_buffer_query_state(void *state) {
