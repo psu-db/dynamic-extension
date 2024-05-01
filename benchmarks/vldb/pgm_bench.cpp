@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
             to_delete[j++] = i;
         } 
     }
-    auto queries = read_range_queries<QP>(q_fname, .001);
+    auto queries = read_range_queries<QP>(q_fname, .0001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;

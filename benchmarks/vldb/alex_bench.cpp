@@ -107,7 +107,7 @@ int main(int argc, char **argv)
         } 
     }
 
-    auto queries = read_range_queries<query>(q_fname, .001);
+    auto queries = read_range_queries<query>(q_fname, .0001);
 
 
     size_t warmup = .1 * n;

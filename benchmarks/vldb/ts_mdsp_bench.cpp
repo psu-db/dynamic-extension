@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
     
     auto data = read_sosd_file_pair<uint64_t, uint64_t>(d_fname, n);
-    auto queries = read_range_queries<QP>(q_fname, .001);
+    auto queries = read_range_queries<QP>(q_fname, .0001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;

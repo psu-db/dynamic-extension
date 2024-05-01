@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
         } 
     }
     /* read in the range queries and add sample size and rng for sampling */
-    auto queries = read_range_queries<QP>(q_fname, .001);
+    auto queries = read_range_queries<QP>(q_fname, .0001);
     for (auto &q : queries) {
         q.sample_size = 1000;
         q.rng = rng;

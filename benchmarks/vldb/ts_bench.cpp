@@ -3,6 +3,7 @@
  */
 
 #define ENABLE_TIMER
+#define TS_TEST
 
 #include <thread>
 
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
     std::string d_fname = std::string(argv[2]);
     std::string q_fname = std::string(argv[3]);
 
-    auto extension = new Ext(12000, 12001, 8, 0, 64);
+    auto extension = new Ext(8000, 12001, 8, 0, 64);
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
     auto data = read_sosd_file<Rec>(d_fname, n);
@@ -50,7 +51,7 @@ int main(int argc, char **argv) {
             to_delete[j++] = i;
         } 
     }
-    auto queries = read_range_queries<QP>(q_fname, .001);
+    auto queries = read_range_queries<QP>(q_fname, .0001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
