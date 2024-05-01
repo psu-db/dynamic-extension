@@ -22,6 +22,19 @@
 static size_t g_deleted_records = 0;
 static double delete_proportion = 0.05;
 
+static volatile size_t total = 0;
+
+template<typename DE, typename QP, typename R>
+static void run_queries(DE *extension, DE *ghost, std::vector<QP> &queries) {
+    for (size_t i=0; i<queries.size(); i++) {
+        std::vector<R> res = extension->query(&queries[i]);
+        std::vector<R> negres = ghost->query(&queries[i]);
+        auto result = res[0].first - negres[0].first;
+        total = result;
+    }
+}
+
+
 template<typename DE, typename QP, bool BSM=false>
 static void run_queries(DE *extension, std::vector<QP> &queries) {
     for (size_t i=0; i<queries.size(); i++) {
@@ -63,6 +76,7 @@ static void run_queries(DE *extension, std::vector<QP> &queries) {
                 fflush(stdout);
                 #endif
             } else {
+                total = res.size();
                 #ifdef BENCH_PRINT_RESULTS
                     fprintf(stdout, "\n\n");
                     for (int i=res.size()-1; i>=0; i--) {
@@ -123,12 +137,35 @@ static void insert_records(psudb::bsm::BentleySaxe<R, DS, MDSP> *extension,
                            size_t start, size_t stop, std::vector<R> &records) {
 
     psudb::progress_update(0, "Insert Progress");
-    size_t reccnt = 0;
     for (size_t i=start; i<stop; i++) {
         extension->insert(records[i]);
     }
 
     psudb::progress_update(1, "Insert Progress");
+}
+
+
+template<typename DS, typename R, bool MDSP=false>
+static void insert_records(psudb::bsm::BentleySaxe<R, DS, MDSP> *extension, 
+                           psudb::bsm::BentleySaxe<R, DS, MDSP> *ghost, 
+                           size_t start, size_t stop, std::vector<R> &records,
+                           std::vector<size_t> &to_delete, size_t &delete_idx, 
+                           gsl_rng *rng) {
+
+    psudb::progress_update(0, "Insert Progress");
+    size_t reccnt = 0;
+    for (size_t i=start; i<stop; i++) {
+
+        extension->insert(records[i]);
+
+        if (gsl_rng_uniform(rng) <= delete_proportion && to_delete[delete_idx] <= i) {
+            ghost->insert(records[to_delete[delete_idx]]);
+            delete_idx++;
+            g_deleted_records++;
+        }
+
+    }
+
 }
 
 

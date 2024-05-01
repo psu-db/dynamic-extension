@@ -37,26 +37,37 @@ int main(int argc, char **argv) {
     std::string q_fname = std::string(argv[3]);
 
     auto extension = new psudb::bsm::BentleySaxe<Rec, Shard>();
+    auto ghost = new psudb::bsm::BentleySaxe<Rec, Shard>();
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
     
     auto data = read_sosd_file_pair<uint64_t, uint64_t>(d_fname, n);
-    auto queries = read_range_queries<QP>(q_fname, .001);
+    std::vector<size_t> to_delete(n * delete_proportion);
+    size_t j=0;
+    for (size_t i=0; i<data.size() && j<to_delete.size(); i++) {
+        if (gsl_rng_uniform(rng) <= delete_proportion) {
+            to_delete[j++] = i;
+        } 
+    }
+    auto queries = read_range_queries<QP>(q_fname, .0001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
-    insert_records<Shard, Rec>(extension, 0, warmup, data);
+    size_t delete_idx = 0;
+    insert_records<Shard, Rec>(extension, ghost, 0, warmup, data, to_delete,
+                               delete_idx, rng);
 
     TIMER_INIT();
 
     TIMER_START();
-    insert_records<Shard, Rec>(extension, warmup, data.size(), data);
+    insert_records<Shard, Rec>(extension, ghost, warmup, data.size(), data,
+                               to_delete, delete_idx, rng);
     TIMER_STOP();
 
     auto insert_latency = TIMER_RESULT();
     size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
     TIMER_START();
-    run_queries<Ext, QP, true>(extension, queries);
+    run_queries<Ext, QP, Rec>(extension, ghost, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();
