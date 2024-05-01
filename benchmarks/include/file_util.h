@@ -49,7 +49,7 @@ static std::vector<QP> read_range_queries(std::string &fname, double selectivity
     size_t start, stop;
     double sel;
     while (fscanf(qf, "%zu%zu%lf\n", &start, &stop, &sel) != EOF) {
-        if (start < stop && std::abs(sel - selectivity) < 0.1) {
+        if (start < stop && std::abs(sel - selectivity) < 0.00001) {
             QP q;
             q.lower_bound = start;
             q.upper_bound = stop;
