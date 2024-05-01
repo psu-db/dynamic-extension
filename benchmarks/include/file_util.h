@@ -15,6 +15,12 @@ static std::vector<QP> read_lookup_queries(std::string fname, double selectivity
     std::vector<QP> queries;
 
     FILE *qf = fopen(fname.c_str(), "r");
+
+    if (!qf) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
     size_t start, stop;
     double sel;
     while (fscanf(qf, "%zu%zu%lf\n", &start, &stop, &sel) != EOF) {
@@ -34,6 +40,12 @@ static std::vector<QP> read_range_queries(std::string &fname, double selectivity
     std::vector<QP> queries;
 
     FILE *qf = fopen(fname.c_str(), "r");
+
+    if (!qf) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
     size_t start, stop;
     double sel;
     while (fscanf(qf, "%zu%zu%lf\n", &start, &stop, &sel) != EOF) {
@@ -57,6 +69,11 @@ static std::vector<QP> read_knn_queries(std::string fname, size_t k) {
     FILE *qf = fopen(fname.c_str(), "r");
     char *line = NULL;
     size_t len = 0;
+
+    if (!qf) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
 
     while (getline(&line, &len, qf) > 0) {
         char *token;
@@ -83,10 +100,15 @@ static std::vector<R> read_sosd_file(std::string &fname, size_t n) {
     std::fstream file;
     file.open(fname, std::ios::in | std::ios::binary);
 
+    if (!file.is_open()) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
     std::vector<R> records(n);
     for (size_t i=0; i<n; i++) {
-        uint64_t k;
-        file.read((char*) &(k), sizeof(uint64_t));
+        decltype(R::key) k;
+        file.read((char*) &(k), sizeof(R::key));
         records[i].key = k;
         records[i].value = i;
     }
@@ -99,10 +121,15 @@ static std::vector<std::pair<K, V>> read_sosd_file_pair(std::string &fname, size
     std::fstream file;
     file.open(fname, std::ios::in | std::ios::binary);
 
+    if (!file.is_open()) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
     std::vector<std::pair<K,V>> records(n);
     for (size_t i=0; i<n; i++) {
-        uint64_t k;
-        file.read((char*) &(k), sizeof(uint64_t));
+        K k;
+        file.read((char*) &(k), sizeof(K));
         records[i].first = k;
         records[i].second = i;
     }
@@ -120,6 +147,11 @@ template <typename R, size_t D>
 static std::vector<R> read_vector_file(std::string &fname, size_t n) {
     std::fstream file;
     file.open(fname, std::ios::in);
+
+    if (!file.is_open()) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
 
     std::vector<R> records;
     records.reserve(n);
