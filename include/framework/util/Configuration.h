@@ -35,7 +35,8 @@ static thread_local size_t sampling_bailouts = 0;
 
 enum class LayoutPolicy {
     LEVELING,
-    TEIRING
+    TEIRING,
+    BSM
 };
 
 enum class DeletePolicy {

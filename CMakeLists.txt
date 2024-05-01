@@ -96,6 +96,11 @@ if (tests)
     target_link_options(de_level_tomb PUBLIC -mcx16)
     target_include_directories(de_level_tomb PRIVATE include external/ctpl external/PLEX/include external/psudb-common/cpp/include external)
 
+    add_executable(de_bsm_tomb ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_bsm_tomb.cpp)
+    target_link_libraries(de_bsm_tomb PUBLIC gsl check subunit  pthread atomic)
+    target_link_options(de_bsm_tomb PUBLIC -mcx16)
+    target_include_directories(de_bsm_tomb PRIVATE include external/PLEX/include external/psudb-common/cpp/include external)
+
     add_executable(de_level_concurrent ${CMAKE_CURRENT_SOURCE_DIR}/tests/de_level_concurrent.cpp)
     target_link_libraries(de_level_concurrent PUBLIC gsl check subunit  pthread atomic)
     target_link_options(de_level_concurrent PUBLIC -mcx16)

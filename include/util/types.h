@@ -73,10 +73,16 @@ const ShardID INVALID_SHID = {-1, -1};
 
 typedef ssize_t level_index;
 
-typedef struct {
-    level_index source;
+typedef struct ReconstructionTask {
+    std::vector<level_index> sources;
     level_index target;
     size_t reccnt;
+
+    void add_source(level_index source, size_t cnt) {
+        sources.push_back(source);
+        reccnt += cnt;
+    }
+
 } ReconstructionTask;
 
 class ReconstructionVector {
@@ -91,7 +97,7 @@ public:
     }
 
     void add_reconstruction(level_index source, level_index target, size_t reccnt) {
-        m_tasks.push_back({source, target, reccnt});
+        m_tasks.push_back({{source}, target, reccnt});
         total_reccnt += reccnt;
     }
 

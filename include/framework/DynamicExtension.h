@@ -54,6 +54,10 @@ public:
         , m_next_core(0)
         , m_epoch_cnt(0)
     {
+        if constexpr (L == LayoutPolicy::BSM) {
+            assert(scale_factor == 2);
+        }
+
         auto vers = new Structure(buffer_hwm, m_scale_factor, m_max_delete_prop);
         m_current_epoch.store({new _Epoch(0, vers, m_buffer, 0), 0});
         m_previous_epoch.store({nullptr, 0});
@@ -487,9 +491,16 @@ private:
         ((DynamicExtension *) args->extension)->SetThreadAffinity();
         Structure *vers = args->epoch->get_structure();
 
-        for (ssize_t i=0; i<args->merges.size(); i++) {
-            vers->reconstruction(args->merges[i].target, args->merges[i].source);
+        if constexpr (L == LayoutPolicy::BSM) {
+            if (args->merges.size() > 0) {
+               vers->reconstruction(args->merges[0]); 
+            }
+        } else {
+            for (ssize_t i=0; i<args->merges.size(); i++) {
+                vers->reconstruction(args->merges[i].target, args->merges[i].sources[0]);
+            }
         }
+
 
         /*
          * we'll grab the buffer AFTER doing the internal reconstruction, so we
@@ -628,7 +639,7 @@ private:
 
     static std::vector<Wrapped<R>> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, Structure *vers, BufView *bview) {
         if constexpr (Q::SKIP_DELETE_FILTER) {
-            return records;
+            return std::move(records);
         }
 
         std::vector<Wrapped<R>> processed_records;
@@ -691,6 +702,10 @@ private:
 
 #ifdef _GNU_SOURCE
     void SetThreadAffinity() {
+        if constexpr (std::same_as<SCHED, SerialScheduler>) {
+            return;
+        }
+
         int core = m_next_core.fetch_add(1) % m_core_cnt;
         cpu_set_t mask;
         CPU_ZERO(&mask);

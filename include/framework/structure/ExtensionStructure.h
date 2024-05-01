@@ -343,6 +343,30 @@ public:
             base_level = grow(scratch_state);
         }
 
+        if constexpr (L == LayoutPolicy::BSM) {
+            if (base_level == 0) {
+                return std::move(reconstructions);
+            }
+
+            ReconstructionTask task; 
+            task.target = base_level;
+
+            size_t base_reccnt = 0;
+            for (level_index i=base_level; i>source_level; i--) {
+                auto recon_reccnt = scratch_state[i-1].reccnt;
+                base_reccnt += recon_reccnt;
+                scratch_state[i-1].reccnt = 0;
+                scratch_state[i-1].shardcnt = 0;
+                task.add_source(i-1, recon_reccnt);
+            }
+
+            reconstructions.add_reconstruction(task);
+            scratch_state[base_level].reccnt = base_reccnt;
+            scratch_state[base_level].shardcnt = 1;
+
+            return std::move(reconstructions);
+        }
+
         /*
          * Determine the full set of reconstructions necessary to open up
          * space in the source level.
@@ -384,6 +408,33 @@ public:
         return std::move(reconstructions);
     }
 
+    inline void reconstruction(ReconstructionTask task) {
+        static_assert(L == LayoutPolicy::BSM);
+        std::vector<InternalLevel<R, Shard, Q>*> levels(task.sources.size());
+        for (size_t i=0; i<task.sources.size(); i++) {
+            levels[i] = m_levels[task.sources[i]].get();
+        }
+
+        auto new_level = InternalLevel<R, Shard, Q>::reconstruction(levels, task.target);
+        if (task.target >= m_levels.size()) {
+            m_current_state.push_back({new_level->get_record_count(), calc_level_record_capacity(task.target),
+                1, 1});
+            m_levels.emplace_back(new_level);
+        } else {
+            m_current_state[task.target] = {new_level->get_record_count(), calc_level_record_capacity(task.target),
+            1, 1};
+            m_levels[task.target] = new_level;
+        }
+
+        /* remove all of the levels that have been flattened */
+        for (size_t i=0; i<task.sources.size(); i++) {
+            m_levels[task.sources[i]] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(task.sources[i], 1));
+            m_current_state[task.sources[i]] = {0, calc_level_record_capacity(task.target), 0, 1};
+        }
+
+        return;
+    }
+
     /*
      * Combine incoming_level with base_level and reconstruct the shard,
      * placing it in base_level. The two levels should be sequential--i.e. no
@@ -395,7 +446,6 @@ public:
 
         if (base_level >= m_levels.size()) {
             m_levels.emplace_back(std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(base_level, shard_capacity)));
-
             m_current_state.push_back({0, calc_level_record_capacity(base_level), 
                                        0, shard_capacity});
         }
@@ -418,7 +468,7 @@ public:
         m_levels[incoming_level] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor));
 
         /* 
-         * Update the state vector to match the *real* stage following
+         * Update the state vector to match the *real* state following
          * the reconstruction 
          */
         m_current_state[base_level] = {m_levels[base_level]->get_record_count(), 
@@ -576,9 +626,11 @@ private:
             return false;
         }
 
-        if (L == LayoutPolicy::LEVELING) {
+        if constexpr (L == LayoutPolicy::LEVELING) {
             return state[idx].reccnt + incoming_rec_cnt <= state[idx].reccap; 
-        } else {
+        } else if constexpr (L == LayoutPolicy::BSM) {
+            return state[idx].reccnt == 0;
+        } else { 
             return state[idx].shardcnt < state[idx].shardcap;
         }
 
