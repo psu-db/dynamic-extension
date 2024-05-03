@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
@@ -7,8 +9,10 @@
 #include <gsl/gsl_rng.h>
 #include <cstring>
 #include <vector>
+#include <memory>
 
-#pragma once
+#include "psu-util/progress.h"
+
 
 template <typename QP>
 static std::vector<QP> read_lookup_queries(std::string fname, double selectivity) {
@@ -31,6 +35,20 @@ static std::vector<QP> read_lookup_queries(std::string fname, double selectivity
         }
     }
     fclose(qf);
+
+    return queries;
+}
+
+template <typename QP>
+static std::vector<QP> generate_string_lookup_queries(std::vector<std::unique_ptr<char[]>> &strings, size_t cnt, gsl_rng *rng) {
+    std::vector<QP> queries;
+
+    for (size_t i=0; i<cnt; i++) {
+        auto idx = gsl_rng_uniform_int(rng, strings.size());
+        QP q;
+        q.search_key = strings[idx].get();
+        queries.push_back(q);
+    }
 
     return queries;
 }
@@ -172,4 +190,29 @@ static std::vector<R> read_vector_file(std::string &fname, size_t n) {
     }
 
     return records;
+}
+
+
+static std::vector<std::unique_ptr<char[]>>read_string_file(std::string fname, size_t n=10000000) {
+
+    std::fstream file;
+    file.open(fname, std::ios::in);
+
+    if (!file.is_open()) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
+    std::vector<std::unique_ptr<char[]>> strings;
+    strings.reserve(n);
+
+    size_t i=0;
+    std::string line;
+    while (i < n && std::getline(file, line, '\n')) {
+        strings.emplace_back(std::unique_ptr<char[]>(strdup(line.c_str())));
+        i++;
+        psudb::progress_update((double) i / (double) n, "Reading file:");
+    }
+
+    return strings;
 }
