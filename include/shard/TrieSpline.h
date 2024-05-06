@@ -117,7 +117,7 @@ public:
         m_reccnt = info.record_count;
         m_tombstone_cnt = info.tombstone_count;
 
-        if (m_reccnt > 0) {
+        if (m_reccnt > 50) {
             m_ts = bldr.Finalize();
         }
     }
@@ -217,7 +217,7 @@ public:
         m_reccnt = info.record_count;
         m_tombstone_cnt = info.tombstone_count;
 
-        if (m_reccnt > 0) {
+        if (m_reccnt > 50) {
             m_ts = bldr.Finalize();
         }
     }
@@ -273,6 +273,18 @@ public:
     }
 
     size_t get_lower_bound(const K& key) const {
+        if (m_reccnt < 50) {
+            size_t bd = m_reccnt;
+            for (size_t i=0; i<m_reccnt; i++) {
+                if (m_data[i].rec.key >= key) {
+                    bd = i;
+                    break;
+                }
+            }
+
+            return bd;
+        }
+
         auto bound = m_ts.GetSearchBound(key);
         size_t idx = bound.begin;
 
