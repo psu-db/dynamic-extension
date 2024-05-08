@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     auto ext_size = extension->get_memory_usage() + extension->get_aux_memory_usage();
     auto static_size = shard->get_memory_usage(); // + shard->get_aux_memory_usage();
 
-    fprintf(stdout, "%ld\t%ld\t%ld\t%ld\t%ld\n", insert_throughput, query_latency, ext_size, static_latency, static_size);
+    fprintf(stdout, "%ld\t%ld\t\t%ld\t%ld\t%ld\n", insert_throughput, query_latency, ext_size, static_latency, static_size);
 
     gsl_rng_free(rng);
     delete extension;
