@@ -18,7 +18,7 @@
 
 typedef de::Record<uint64_t, uint64_t> Rec;
 typedef de::TrieSpline<Rec> Shard;
-typedef de::rc::Query<Rec, Shard> Q;
+typedef de::rc::Query<Rec, Shard, true> Q;
 typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
 typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::LEVELING, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext2;
 typedef de::rc::Parms<Rec> QP;

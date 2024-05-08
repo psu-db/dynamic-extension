@@ -112,6 +112,10 @@ public:
     size_t get_record_count() {
         return m_tail - m_head;
     }
+
+    size_t get_capacity() {
+        return m_cap;
+    }
     
     /*
      * NOTE: This function returns an upper bound on the number
@@ -123,7 +127,7 @@ public:
     }
 
     Wrapped<R> *get(size_t i) {
-        assert(i < get_record_count());
+        //assert(i < get_record_count());
         return m_data + to_idx(i);
     }
 

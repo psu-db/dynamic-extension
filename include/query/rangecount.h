@@ -35,7 +35,7 @@ struct BufferState {
         : buffer(buffer) {}
 };
 
-template <KVPInterface R, ShardInterface<R> S>
+template <KVPInterface R, ShardInterface<R> S, bool FORCE_SCAN=false>
 class Query {
 public:
     constexpr static bool EARLY_ABORT=false;
@@ -119,8 +119,16 @@ public:
         res.rec.value = 0; // tombstones
         records.emplace_back(res);
 
+        size_t stop_idx;
+        if constexpr (FORCE_SCAN) {
+            stop_idx = s->buffer->get_capacity() / 2;
+        } else {
+            stop_idx = s->buffer->get_record_count();
+        }
+
         for (size_t i=0; i<s->buffer->get_record_count(); i++) {
             auto rec = s->buffer->get(i);
+
             if (rec->rec.key >= p->lower_bound && rec->rec.key <= p->upper_bound
                     && !rec->is_deleted()) {
                 if (rec->is_tombstone()) {
