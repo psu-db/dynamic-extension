@@ -80,6 +80,46 @@ static std::vector<QP> read_range_queries(std::string &fname, double selectivity
     return queries;
 }
 
+
+template <typename QP>
+static std::vector<QP> read_binary_knn_queries(std::string fname, size_t k, size_t n) {
+    std::vector<QP> queries;
+    queries.reserve(n);
+
+    std::fstream file;
+    file.open(fname, std::ios::in | std::ios::binary);
+
+    if (!file.is_open()) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
+
+    int32_t dim;
+    int32_t cnt;
+
+    file.read((char*) &(cnt), sizeof(cnt));
+    file.read((char*) &(dim), sizeof(dim));
+
+    if (n > cnt) {
+        n = cnt;
+    }
+
+    for (size_t i=0; i<n; i++) {
+        QP query;
+        for (size_t j=0; j<dim; j++) {
+            uint64_t val;
+            file.read((char*) &(val), sizeof(uint64_t));
+            query.point.data[j] = val;
+        }
+        query.k = k;
+        queries.push_back(query);
+    }
+
+    return queries;
+}
+
+
 template <typename QP>
 static std::vector<QP> read_knn_queries(std::string fname, size_t k) {
     std::vector<QP> queries;
@@ -192,6 +232,42 @@ static std::vector<R> read_vector_file(std::string &fname, size_t n) {
     return records;
 }
 
+template <typename R>
+static std::vector<R> read_binary_vector_file(std::string &fname, size_t n) {
+    std::fstream file;
+    file.open(fname, std::ios::in | std::ios::binary);
+
+    if (!file.is_open()) {
+        fprintf(stderr, "ERROR: Failed to open file %s\n", fname.c_str());
+        exit(EXIT_FAILURE);
+    }
+
+    std::vector<R> records;
+    records.reserve(n);
+
+    int32_t dim;
+    int32_t cnt;
+
+    file.read((char*) &(cnt), sizeof(cnt));
+    file.read((char*) &(dim), sizeof(dim));
+
+    if (n > cnt) {
+        n = cnt;
+    }
+
+    R rec;
+    for (size_t i=0; i<n; i++) {
+        for (size_t j=0; j<dim; j++) {
+            uint64_t val;
+            file.read((char*) &(val), sizeof(uint64_t));
+            rec.data[j] = val;
+        }
+
+        records.emplace_back(rec);
+    }
+
+    return records;
+}
 
 static std::vector<std::unique_ptr<char[]>>read_string_file(std::string fname, size_t n=10000000) {
 
