@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     }
 
     /* warmup structure w/ 10% of records */
-    size_t warmup = .3 * n;
+    size_t warmup = .1 * n;
     size_t delete_idx = 0;
     insert_records<Ext, Rec>(extension, 0, warmup, data, to_delete, delete_idx, false, rng);
 
