@@ -164,7 +164,7 @@ private:
     bool m_active;
 
     size_t to_idx(size_t i) {
-        size_t idx = (m_start + i >= m_cap) ? i = (m_cap - m_start) 
+        size_t idx = (m_start + i >= m_cap) ? i - (m_cap - m_start) 
                                             : m_start + i;
         assert(idx < m_cap);
         return idx;
