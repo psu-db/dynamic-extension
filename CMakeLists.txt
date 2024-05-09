@@ -168,6 +168,14 @@ if (vldb_bench)
     target_link_options(vptree_bench PUBLIC -mcx16)
     target_compile_options(vptree_bench PUBLIC -fopenmp)
 
+
+    add_executable(vptree_bench_alt ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/vptree_bench_alt.cpp)
+    target_link_libraries(vptree_bench_alt PUBLIC gsl pthread atomic)
+    target_include_directories(vptree_bench_alt PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(vptree_bench_alt PUBLIC -mcx16)
+    target_compile_options(vptree_bench_alt PUBLIC -fopenmp)
+
+
     add_executable(vptree_parmsweep ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/vptree_parmsweep.cpp)
     target_link_libraries(vptree_parmsweep PUBLIC gsl pthread atomic)
     target_include_directories(vptree_parmsweep PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
@@ -179,6 +187,12 @@ if (vldb_bench)
     target_include_directories(vptree_bsm_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(vptree_bsm_bench PUBLIC -mcx16)
     target_compile_options(vptree_bsm_bench PUBLIC -fopenmp)
+
+    add_executable(vptree_bsm_bench_alt ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/vptree_bsm_bench_alt.cpp)
+    target_link_libraries(vptree_bsm_bench_alt PUBLIC gsl pthread atomic)
+    target_include_directories(vptree_bsm_bench_alt PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(vptree_bsm_bench_alt PUBLIC -mcx16)
+    target_compile_options(vptree_bsm_bench_alt PUBLIC -fopenmp)
 
     add_executable(fst_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/fst_bench.cpp)
     target_link_libraries(fst_bench PUBLIC gsl pthread atomic)
@@ -240,11 +254,11 @@ if (vldb_bench)
     target_compile_options(alex_bench PUBLIC -fopenmp)
     set_property(TARGET alex_bench PROPERTY CXX_STANDARD 14)
 
-    add_executable(mtree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/mtree_bench.cpp)
-    target_link_libraries(mtree_bench PUBLIC gsl pthread atomic gomp)
-    target_include_directories(mtree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
-    target_link_options(mtree_bench PUBLIC -mcx16)
-    target_compile_options(mtree_bench PUBLIC -fopenmp)
+    add_executable(mtree_bench_alt ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/mtree_bench_alt.cpp)
+    target_link_libraries(mtree_bench_alt PUBLIC gsl pthread atomic gomp)
+    target_include_directories(mtree_bench_alt PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(mtree_bench_alt PUBLIC -mcx16)
+    target_compile_options(mtree_bench_alt PUBLIC -fopenmp)
 endif()
 
 

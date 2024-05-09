@@ -55,7 +55,16 @@ static void run_queries(DE *extension, std::vector<QP> &queries) {
                             r.data[1], r.data[2], r.data[3], r.data[4], r.data[5]);
                 }
             #endif
-        } else if constexpr (std::is_same_v<PGM, DE>) {
+        } else if constexpr (std::is_same_v<MTree_alt, DE>) {
+            std::vector<ANNRec> result;
+            auto res = extension->get_nearest_by_limit(queries[i].point, queries[i].k);
+
+            auto itr = res.begin();
+            while (itr != res.end()) {
+                result.emplace_back(itr->data);
+                itr++;
+            }
+        }else if constexpr (std::is_same_v<PGM, DE>) {
             size_t tot = 0;
             auto ptr = extension->find(queries[i].lower_bound);
             while (ptr != extension->end() && ptr->first <= queries[i].upper_bound) {
@@ -180,7 +189,7 @@ static void insert_records(DE *structure, size_t start, size_t stop,
 
         if constexpr (std::is_same_v<BenchBTree, DE>) {
             structure->insert(records[i]);
-        } else if constexpr (std::is_same_v<MTree, DE>) {
+        } else if constexpr (std::is_same_v<MTree, DE> || std::is_same_v<MTree_alt, DE>) {
             structure->add(records[i]);
         } else if constexpr (std::is_same_v<PGM, DE>) {
             structure->insert_or_assign(records[i].key, records[i].value);
@@ -196,7 +205,7 @@ static void insert_records(DE *structure, size_t start, size_t stop,
 
             if constexpr (std::is_same_v<BenchBTree, DE>) {
                 structure->erase_one(records[to_delete[delete_idx]].key);
-            } else if constexpr (std::is_same_v<MTree, DE>) {
+            } else if constexpr (std::is_same_v<MTree, DE> || std::is_same_v<MTree_alt, DE>) {
                 structure->remove(records[to_delete[delete_idx]]);
             } else if constexpr (std::is_same_v<PGM, DE>) {
                 structure->erase(records[to_delete[delete_idx]].key);
@@ -255,7 +264,7 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
                 if constexpr (std::is_same_v<BenchBTree, DE>) {
                     de_index.erase_one(delete_vec[delete_idx++].key);
                 #ifdef _GNU_SOURCE
-                } else if constexpr (std::is_same_v<MTree, DE>) {
+                } else if constexpr (std::is_same_v<MTree, DE> || std::is_same_v<MTree_alt, DE>) {
                     de_index.remove(delete_vec[delete_idx++]);
                 #endif
                 } else {
@@ -266,7 +275,7 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
 
             // insert the record;
             #ifdef _GNU_SOURCE
-            if constexpr (std::is_same_v<MTree, DE>) {
+            if constexpr (std::is_same_v<MTree, DE> || std::is_same_v<MTree_alt, DE>) {
                 de_index.add(insert_vec[i]);
             } else {
                 de_index.insert(insert_vec[i]);
