@@ -71,7 +71,9 @@ int main(int argc, char **argv) {
 
     auto query_latency = TIMER_RESULT() / queries.size();
 
-    fprintf(stdout, "%ld\t%ld\n", insert_throughput, query_latency);
+    auto size = mtree->size() - sizeof(Rec)*(data.size() - to_delete.size());
+
+    fprintf(stdout, "%ld\t%ld\t%ld\n", insert_throughput, query_latency, size);
 
     gsl_rng_free(rng);
     delete mtree;

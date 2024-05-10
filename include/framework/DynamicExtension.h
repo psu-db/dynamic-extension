@@ -218,7 +218,7 @@ public:
      */
     size_t get_aux_memory_usage() {
         auto epoch = get_active_epoch();
-        auto t = m_buffer->get_memory_usage() + epoch->get_structure()->get_aux_memory_usage();
+        auto t = epoch->get_structure()->get_aux_memory_usage();
         end_job(epoch);
 
         return t;
