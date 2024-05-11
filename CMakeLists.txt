@@ -260,6 +260,12 @@ if (vldb_bench)
     target_link_options(mtree_bench_alt PUBLIC -mcx16)
     target_compile_options(mtree_bench_alt PUBLIC -fopenmp)
 
+    add_executable(bigann_sample ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/bigann_sample.cpp)
+    target_link_libraries(bigann_sample PUBLIC gsl pthread atomic gomp)
+    target_include_directories(bigann_sample PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(bigann_sample PUBLIC -mcx16)
+    target_compile_options(bigann_sample PUBLIC -fopenmp)
+
     add_executable(mtree_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/mtree_bench.cpp)
     target_link_libraries(mtree_bench PUBLIC gsl pthread atomic gomp)
     target_include_directories(mtree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
