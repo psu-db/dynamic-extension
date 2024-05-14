@@ -7,8 +7,8 @@
 #include <thread>
 
 #include "query/irs.h"
-#include "include/data-proc.h"
-#include "psu-ds/BTree.h"
+#include "benchmark_types.h"
+#include "file_util.h"
 #include <mutex>
 
 #include <gsl/gsl_rng.h>
@@ -16,7 +16,7 @@
 #include "psu-util/timer.h"
 
 
-typedef de::Record<int64_t, int64_t> Rec;
+typedef btree_record<int64_t, int64_t> Rec;
 typedef de::irs::Parms<Rec> QP;
 
 std::atomic<bool> inserts_done = false;
@@ -46,11 +46,11 @@ void query_thread(BenchBTree *tree, std::vector<QP> *queries) {
     gsl_rng_free(rng);
 }
 
-void insert_thread(BenchBTree *tree, size_t start, std::vector<int64_t> *records) {
+void insert_thread(BenchBTree *tree, size_t start, std::vector<Rec> *records) {
     size_t reccnt = 0;
     for (size_t i=start; i<records->size(); i++) {
-        btree_record r;
-        r.key = (*records)[i];
+        btree_record<int64_t, int64_t> r;
+        r.key = (*records)[i].key;
         r.value = i;
 
         g_btree_lock.lock();
@@ -80,15 +80,15 @@ int main(int argc, char **argv) {
     auto tree = new BenchBTree();
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
-    auto data = read_sosd_file(d_fname, n);
+    auto data = read_sosd_file<Rec>(d_fname, n);
     auto queries = read_range_queries<QP>(q_fname, .001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
     for (size_t i=0; i<warmup; i++) {
-        btree_record r;
-        r.key = data[i];
-        r.value = i;
+        btree_record<int64_t, int64_t> r;
+        r.key = data[i].key;
+        r.value = data[i].value;
 
         tree->insert(r);
     }

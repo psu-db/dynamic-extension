@@ -271,6 +271,15 @@ if (vldb_bench)
     target_link_libraries(thread_scaling_bench PUBLIC gsl pthread atomic)
     target_include_directories(thread_scaling_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(thread_scaling_bench PUBLIC -mcx16)
+    target_compile_options(thread_scaling_bench PUBLIC -fopenmp)
+
+
+    add_executable(btree_thread_scaling_bench
+    ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/btree_thread_scaling_bench.cpp)
+    target_link_libraries(btree_thread_scaling_bench PUBLIC gsl pthread atomic)
+    target_include_directories(btree_thread_scaling_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(btree_thread_scaling_bench PUBLIC -mcx16)
+    target_compile_options(btree_thread_scaling_bench PUBLIC -fopenmp)
 
 endif()
 
@@ -317,10 +326,6 @@ if (bench)
     target_include_directories(cedar_trie PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include external/hat-trie/include/tsl)
     target_link_options(cedar_trie PUBLIC -mcx16)
 
-    #add_executable(btree_insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/btree_insert_query_tput.cpp)
-    #target_link_libraries(btree_insert_query_tput PUBLIC gsl cblas pthread atomic)
-    #target_include_directories(btree_insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
-    #target_link_options(btree_insert_query_tput PUBLIC -mcx16)
 
     add_executable(watermark_testing ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/watermark_testing.cpp)
     target_link_libraries(watermark_testing PUBLIC gsl pthread atomic)
