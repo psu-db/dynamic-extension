@@ -145,12 +145,7 @@ if (tests)
     add_executable(fst_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/fst_tests.cpp)
     target_link_libraries(fst_tests PUBLIC gsl check subunit  pthread atomic)
     target_link_options(fst_tests PUBLIC -mcx16)
-    target_include_directories(fst_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include external/louds-patricia)
-
-    #add_executable(louds_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/louds_tests.cpp)
-    #target_link_libraries(louds_tests PUBLIC gsl check subunit  pthread atomic)
-    #target_link_options(louds_tests PUBLIC -mcx16)
-    #target_include_directories(louds_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include external/louds-patricia)
+    target_include_directories(fst_tests PRIVATE include external/psudb-common/cpp/include external/PLEX/include external/fast_succinct_trie/include)
 endif()
 
 if (vldb_bench)
@@ -293,12 +288,6 @@ if (bench)
     target_link_libraries(string_insertion_tput PUBLIC gsl pthread atomic)
     target_include_directories(string_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(string_insertion_tput PUBLIC -mcx16)
-
-
-    add_executable(louds_insertion_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/louds_insertion_tput.cpp)
-    target_link_libraries(louds_insertion_tput PUBLIC gsl pthread atomic)
-    target_include_directories(louds_insertion_tput PRIVATE include external external/fast_succinct_trie/include external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include external/louds-patricia)
-    target_link_options(louds_insertion_tput PUBLIC -mcx16)
 
 
     add_executable(query_workload_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/query_workload_bench.cpp)
