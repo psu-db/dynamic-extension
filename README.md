@@ -12,8 +12,8 @@ The project is built using cmake. CMakeLists contains several flags that can
 be used to customize the build. In particular, setting `debug` to true will
 build without optimization, and with asan and ubsan enabled. The `tests`
 and `benchmarks` flag can be used to toggle the construction of unit tests
-and benchmarks respectively. `old_bench` should be ignored--most of these won't
-build anymore anyway. Eventually that will be removed.
+and benchmarks respectively. The benchmarks specific to the VLDB 2024 
+submission are built using the `vldb_bench` flag.
 
 After configuring the build to your liking, make sure that you initialized the
 git sub-modules first if you've just cloned the repository.
@@ -33,11 +33,19 @@ The unit test binaries will appear in `bin/tests/` and the benchmarks in
 `bin/benchmarks/`.
 
 ## Available Benchmarks
-At present there are several benchmarks available in `benchmarks/`. Not every
-benchmark has been updated to build with the current version; these can be
-found in `benchmarks/old-bench/`. Most of the benchmarks will display a help
-message, showing what arguments they expect, if you run them without any
-arguments, or with the wrong number of arguments.
+The benchmarks relevant to the 2024 VLDB submission are located in
+`benchmarks/vldb`, and various other benchmarks are in `benchmarks`. The
+majority of the benchmark suite used for creating the figures in the VLDB
+submission can be run using the `bin/scripts/run_benchmarks.sh` script, which
+should be updated first with the locations of the desired data and query files.
+The main benchmark not automatically run by this script is
+`bin/benchmarks/ts_parmsweep`, which should be updated (by editing
+`benchmarks/vldb/ts_parmsweep`) to reflect the parameter values to test, and
+then run manually as desired.
+
+Most of the benchmarks will display a help message, showing what arguments they
+expect, if you run them without any arguments, or with the wrong number of
+arguments.
 
 ## Unit Tests
 While test coverage is not perfect yet, there are some basic unit tests in
@@ -48,6 +56,11 @@ unit](https://libcheck.github.io/check/) test framework.
 This is still an active research project, and so the interfaces are not yet
 stable. Proper documentation will come when these interfaces stabilize
 a little. In the meantime, the code will have to serve as the documentation.
-There are also a lot of comments in most of the files, though several are a bit
-light in that regard.
+
+Some of the most important files are `include/framework/DynamicExtension`,
+which contains the external interface of the framework, and
+`include/framework/interface/*`, which contains the necessary C++20
+concepts/interfaces for developing your own shards and queries. Any class
+implementing the appropriate interfaces can be used as template arguments to
+the DynamicExtension itself.
 
