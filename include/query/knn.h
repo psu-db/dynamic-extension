@@ -111,10 +111,10 @@ public:
             pq.pop();
         }
 
-        return results;
+        return std::move(results);
     }
 
-    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms, std::vector<R> &output) {
         Parms<R> *p = (Parms<R> *) parms;
         R rec = p->point;
         size_t k = p->k;
@@ -136,13 +136,12 @@ public:
             }
         }
 
-        std::vector<R> output;
         while (pq.size() > 0) {
             output.emplace_back(*pq.peek().data);
             pq.pop();
         }
 
-        return output;
+        return std::move(output);
     }
 
     static void delete_query_state(void *state) {
@@ -153,6 +152,10 @@ public:
     static void delete_buffer_query_state(void *state) {
         auto s = (BufferState<R> *) state;
         delete s;
+    }
+
+    static bool repeat(void *parms, std::vector<R> &results, std::vector<void*> states, void* buffer_state) {
+        return false;
     }
 };
 

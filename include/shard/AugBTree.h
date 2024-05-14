@@ -148,7 +148,7 @@ public:
     }
 
     size_t get_memory_usage() {
-        return m_alloc_size + m_node_cnt * sizeof(AugBTreeNode<Wrapped<R>>);
+        return m_node_cnt * sizeof(AugBTreeNode<Wrapped<R>>);
     }
 
     size_t get_aux_memory_usage() {

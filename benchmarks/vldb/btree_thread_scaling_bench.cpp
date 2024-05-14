@@ -6,26 +6,24 @@
 
 #include <thread>
 
-#include "framework/DynamicExtension.h"
-#include "shard/ISAMTree.h"
 #include "query/irs.h"
-#include "framework/interface/Record.h"
-#include "include/data-proc.h"
+#include "benchmark_types.h"
+#include "file_util.h"
+#include <mutex>
 
 #include <gsl/gsl_rng.h>
 
 #include "psu-util/timer.h"
 
 
-typedef de::Record<int64_t, int64_t> Rec;
-typedef de::ISAMTree<Rec> ISAM;
-typedef de::irs::Query<Rec, ISAM> Q;
-typedef de::DynamicExtension<Rec, ISAM, Q> Ext;
+typedef btree_record<int64_t, int64_t> Rec;
 typedef de::irs::Parms<Rec> QP;
 
 std::atomic<bool> inserts_done = false;
 
-void query_thread(Ext *extension, std::vector<QP> *queries) {
+std::mutex g_btree_lock;
+
+void query_thread(BenchBTree *tree, std::vector<QP> *queries) {
     gsl_rng *rng = gsl_rng_alloc(gsl_rng_mt19937);
     size_t total = 0;
 
@@ -33,12 +31,13 @@ void query_thread(Ext *extension, std::vector<QP> *queries) {
         auto q_idx = gsl_rng_uniform_int(rng, queries->size());
 
         auto q = (*queries)[q_idx];
-        q.rng = rng;
-        q.sample_size = 1000;
 
-        auto res = extension->query(&q);
-        auto r = res.get();
-        total += r.size();
+        std::vector<int64_t> result;
+        g_btree_lock.lock();
+        tree->range_sample(q.lower_bound, q.upper_bound, 1000, result, rng);
+        g_btree_lock.unlock();
+
+        total += result.size();
         usleep(1);
     }
 
@@ -47,15 +46,19 @@ void query_thread(Ext *extension, std::vector<QP> *queries) {
     gsl_rng_free(rng);
 }
 
-void insert_thread(Ext *extension, size_t start, std::vector<int64_t> *records) {
+void insert_thread(BenchBTree *tree, size_t start, std::vector<Rec> *records) {
     size_t reccnt = 0;
-    Rec r;
     for (size_t i=start; i<records->size(); i++) {
-        r.key = (*records)[i];
+        btree_record<int64_t, int64_t> r;
+        r.key = (*records)[i].key;
         r.value = i;
 
-        while (!extension->insert(r)) {
-            usleep(1);
+        g_btree_lock.lock();
+        tree->insert(r);
+        g_btree_lock.unlock();
+
+        if (i % 100000 == 0) {
+            fprintf(stderr, "Inserted %ld records\n", i);
         }
     }
 
@@ -65,7 +68,7 @@ void insert_thread(Ext *extension, size_t start, std::vector<int64_t> *records) 
 int main(int argc, char **argv) {
 
     if (argc < 5) {
-        fprintf(stderr, "insert_query_tput reccnt query_threads datafile queryfile\n");
+        fprintf(stderr, "btree_insert_query_tput reccnt query_threads datafile queryfile\n");
         exit(EXIT_FAILURE);
     }
 
@@ -74,34 +77,30 @@ int main(int argc, char **argv) {
     std::string d_fname = std::string(argv[3]);
     std::string q_fname = std::string(argv[4]);
 
-    auto extension = new Ext(1000, 12000, 8, 0, 64);
+    auto tree = new BenchBTree();
     gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
     
-    auto data = read_sosd_file(d_fname, n);
+    auto data = read_sosd_file<Rec>(d_fname, n);
     auto queries = read_range_queries<QP>(q_fname, .001);
 
     /* warmup structure w/ 10% of records */
     size_t warmup = .1 * n;
-    Rec r;
     for (size_t i=0; i<warmup; i++) {
-        r.key = data[i];
-        r.value = gsl_rng_uniform_int(rng, n);
+        btree_record<int64_t, int64_t> r;
+        r.key = data[i].key;
+        r.value = data[i].value;
 
-        while (!extension->insert(r)) {
-            usleep(1);
-        }
+        tree->insert(r);
     }
-
-    extension->await_next_epoch();
 
     TIMER_INIT();
 
     std::vector<std::thread> qthreads(qthread_cnt);
 
     TIMER_START();
-    std::thread i_thrd(insert_thread, extension, warmup, &data);
+    std::thread i_thrd(insert_thread, tree, warmup, &data);
     for (size_t i=0; i<qthread_cnt; i++) {
-        qthreads[i] = std::thread(query_thread, extension, &queries);
+        qthreads[i] = std::thread(query_thread, tree, &queries);
     }
     i_thrd.join();
     TIMER_STOP();
@@ -115,7 +114,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "T\t%ld\t%ld\n", total_latency, throughput);
 
     gsl_rng_free(rng);
-    delete extension;
+    delete tree;
     fflush(stderr);
 }
 

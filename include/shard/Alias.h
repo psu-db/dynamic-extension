@@ -148,7 +148,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return m_alloc_size;
+        return 0;
     }
 
     size_t get_aux_memory_usage() {

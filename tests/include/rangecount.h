@@ -40,9 +40,7 @@ START_TEST(t_range_count)
     auto buffer = create_sequential_mbuffer<R>(100, 1000);
     auto shard = Shard(buffer->get_buffer_view());
 
-    rc::Parms<R> parms;
-    parms.lower_bound = 300;
-    parms.upper_bound = 500;
+    rc::Parms<R> parms = {300, 500};
 
     auto state = rc::Query<R, Shard>::get_query_state(&shard, &parms);
     auto result = rc::Query<R, Shard>::query(&shard, state, &parms);
@@ -60,9 +58,7 @@ START_TEST(t_buffer_range_count)
 {
     auto buffer = create_sequential_mbuffer<R>(100, 1000);
 
-    rc::Parms<R> parms;
-    parms.lower_bound = 300;
-    parms.upper_bound = 500;
+    rc::Parms<R> parms = {300, 500};
 
     {
         auto view = buffer->get_buffer_view();
@@ -87,9 +83,7 @@ START_TEST(t_range_count_merge)
     auto shard1 = Shard(buffer1->get_buffer_view());
     auto shard2 = Shard(buffer2->get_buffer_view());
 
-    rc::Parms<R> parms;
-    parms.lower_bound = 150;
-    parms.upper_bound = 500;
+    rc::Parms<R> parms = {150, 500};
 
     size_t result_size = parms.upper_bound - parms.lower_bound + 1 - 200;
 
@@ -106,7 +100,8 @@ START_TEST(t_range_count_merge)
     ck_assert_int_eq(results[0].size(), 1);
     ck_assert_int_eq(results[1].size(), 1);
 
-    auto result = rc::Query<R, Shard>::merge(results, nullptr);
+    std::vector<R> result;
+    rc::Query<R, Shard>::merge(results, nullptr, result);
 
     ck_assert_int_eq(result[0].key, result_size);
 
@@ -128,10 +123,8 @@ START_TEST(t_lower_bound)
 
     auto merged = Shard(shards);
 
-    for (size_t i=100; i<1000; i++) {
-        R r;
-        r.key = i;
-        r.value = i;
+    for (uint32_t i=100; i<1000; i++) {
+        R r = R{i, i};
 
         auto idx = merged.get_lower_bound(i);
 

@@ -50,18 +50,19 @@ public:
         , m_tail(0)
         , m_head({0, 0})
         , m_old_head({high_watermark, 0})
-        , m_data((Wrapped<R> *) psudb::sf_aligned_alloc(CACHELINE_SIZE, m_cap * sizeof(Wrapped<R>)))
+        //, m_data((Wrapped<R> *) psudb::sf_aligned_alloc(CACHELINE_SIZE, m_cap * sizeof(Wrapped<R>)))
+        , m_data(new Wrapped<R>[m_cap]())
         , m_tombstone_filter(new psudb::BloomFilter<R>(BF_FPR, m_hwm, BF_HASH_FUNCS))
         , m_tscnt(0)
         , m_old_tscnt(0)
         , m_active_head_advance(false) 
     {
         assert(m_cap > m_hwm);
-        assert(m_hwm > m_lwm);
+        assert(m_hwm >= m_lwm);
     }
 
     ~MutableBuffer() {
-        free(m_data);
+        delete[] m_data;
         delete m_tombstone_filter;
     }
 
@@ -76,15 +77,19 @@ public:
         wrec.header = 0;
         if (tombstone) wrec.set_tombstone();
 
+        // FIXME: because of the mod, it isn't correct to use `pos`
+        //        as the ordering timestamp in the header anymore. 
         size_t pos = tail % m_cap;
 
         m_data[pos] = wrec;
-        m_data[pos].header |= (pos << 2);
+        m_data[pos].set_timestamp(pos);
 
         if (tombstone) {
             m_tscnt.fetch_add(1);
             if (m_tombstone_filter) m_tombstone_filter->insert(rec);
         }
+
+        m_data[pos].set_visible();
 
         return 1;     
     }

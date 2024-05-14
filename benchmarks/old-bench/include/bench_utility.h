@@ -79,8 +79,6 @@ struct cosine_similarity {
     }
 };
 
-typedef tlx::BTree<key_type, btree_record, btree_key_extract> TreeMap;
-typedef mt::mtree<Word2VecRec, euclidean_distance> MTree;
 
 template <de::RecordInterface R>
 static bool build_insert_vec(std::fstream &file, std::vector<R> &vec, size_t n, 

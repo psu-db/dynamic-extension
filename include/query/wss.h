@@ -183,9 +183,7 @@ public:
         return result;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
-        std::vector<R> output;
-
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms, std::vector<R> &output) {
         for (size_t i=0; i<results.size(); i++) {
             for (size_t j=0; j<results[i].size(); j++) {
                 output.emplace_back(results[i][j].rec);
@@ -203,6 +201,15 @@ public:
     static void delete_buffer_query_state(void *state) {
         auto s = (BufferState<R> *) state;
         delete s;
+    }
+
+    static bool repeat(void *parms, std::vector<R> &results, std::vector<void*> states, void* buffer_state) {
+        auto p = (Parms<R> *)  parms;
+
+        if (results.size() < p->sample_size) {
+            return true;
+        }
+        return false;
     }
 };
 

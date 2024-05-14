@@ -64,6 +64,21 @@ public:
         return std::shared_ptr<InternalLevel>(res);
     }
 
+    static std::shared_ptr<InternalLevel> reconstruction(std::vector<InternalLevel*> levels, size_t level_idx) {
+        std::vector<Shard *> shards; 
+        for (auto level : levels) {
+            for (auto shard : level->m_shards) {
+                if (shard) shards.emplace_back(shard.get());
+            }
+        }
+
+        auto res = new InternalLevel(level_idx, 1);
+        res->m_shard_cnt = 1;
+        res->m_shards[0] = std::make_shared<S>(shards);
+
+        return std::shared_ptr<InternalLevel>(res);
+    }
+
     /*
      * Create a new shard combining the records from all of
      * the shards in level, and append this new shard into
@@ -185,6 +200,10 @@ public:
     }
 
     Shard* get_shard(size_t idx) {
+        if (idx >= m_shard_cnt) {
+            return nullptr;
+        }
+
         return m_shards[idx].get();
     }
 

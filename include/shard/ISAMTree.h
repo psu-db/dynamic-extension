@@ -51,7 +51,7 @@ constexpr static size_t LEAF_FANOUT = NODE_SZ / sizeof(R);
 
 public:
     ISAMTree(BufferView<R> buffer)
-        : m_bf(new BloomFilter<R>(BF_FPR, buffer.get_tombstone_count(), BF_HASH_FUNCS))
+        : m_bf(nullptr)
         , m_isam_nodes(nullptr)
         , m_root(nullptr)
         , m_reccnt(0)
@@ -59,18 +59,11 @@ public:
         , m_internal_node_cnt(0)
         , m_deleted_cnt(0)
         , m_alloc_size(0)
-        , m_data(nullptr)
     {
         m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
                                                buffer.get_record_count() * 
                                                  sizeof(Wrapped<R>), 
                                                (byte**) &m_data);
-
-        /* 
-         * without this, gcc seems to hoist the building of the array
-         * _above_ its allocation under -O3, resulting in memfaults.
-         */
-        asm volatile ("" ::: "memory");
 
         auto res = sorted_array_from_bufferview(std::move(buffer), m_data, m_bf);
         m_reccnt = res.record_count;
@@ -90,13 +83,12 @@ public:
         , m_internal_node_cnt(0)
         , m_deleted_cnt(0)
         , m_alloc_size(0)
-        , m_data(nullptr)
     {
         size_t attemp_reccnt = 0;
         size_t tombstone_count = 0;
         auto cursors = build_cursor_vec<R, ISAMTree>(shards, &attemp_reccnt, &tombstone_count);
 
-        m_bf = new BloomFilter<R>(BF_FPR, tombstone_count, BF_HASH_FUNCS);
+        m_bf = nullptr;
         m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
                                                attemp_reccnt * sizeof(Wrapped<R>),
                                                (byte **) &m_data);
@@ -149,7 +141,7 @@ public:
 
 
     size_t get_memory_usage() {
-        return m_alloc_size + m_internal_node_cnt * NODE_SZ;
+        return m_internal_node_cnt * NODE_SZ;
     }
 
     size_t get_aux_memory_usage() {

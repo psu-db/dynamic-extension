@@ -4,9 +4,6 @@
 [submodule "external/PGM-index"]
 	path = external/PGM-index
 	url = https://github.com/gvinciguerra/PGM-index.git
-[submodule "external/vptree"]
-	path = external/vptree
-	url = https://github.com/pderkowski/vptree.git
 [submodule "external/m-tree"]
 	path = external/m-tree
 	url = git@github.com:dbrumbaugh/M-Tree
@@ -15,7 +12,19 @@
 	url = https://github.com/microsoft/ALEX
 [submodule "external/psudb-common"]
 	path = external/psudb-common
-	url = git@github.com/psu-db/psudb-common
+	url = https://github.com/psu-db/psudb-common
 [submodule "external/ctpl"]
 	path = external/ctpl
 	url = git@github.com:vit-vit/CTPL.git
+[submodule "external/louds-fst"]
+	path = external/louds-fst
+	url = git@github.com:kampersanda/fast_succinct_trie.git
+[submodule "external/fast_succinct_trie"]
+	path = external/fast_succinct_trie
+	url = git@github.com:dbrumbaugh/fast_succinct_trie.git
+[submodule "external/poplar-trie"]
+	path = external/poplar-trie
+	url = git@github.com:kampersanda/poplar-trie.git
+[submodule "external/hat-trie"]
+	path = external/hat-trie
+	url = git@github.com:Tessil/hat-trie.git

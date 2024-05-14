@@ -20,7 +20,7 @@
 
 namespace de {
 
-typedef std::_Bind<void (*(void*, long unsigned int))(void*, long unsigned int)> ReleaseFunction;
+typedef std::function<void(void)> ReleaseFunction; 
 
 template <RecordInterface R>
 class BufferView {
@@ -112,6 +112,10 @@ public:
     size_t get_record_count() {
         return m_tail - m_head;
     }
+
+    size_t get_capacity() {
+        return m_cap;
+    }
     
     /*
      * NOTE: This function returns an upper bound on the number
@@ -123,7 +127,7 @@ public:
     }
 
     Wrapped<R> *get(size_t i) {
-        assert(i < get_record_count());
+        //assert(i < get_record_count());
         return m_data + to_idx(i);
     }
 
@@ -160,7 +164,7 @@ private:
     bool m_active;
 
     size_t to_idx(size_t i) {
-        size_t idx = (m_start + i >= m_cap) ? i = (m_cap - m_start) 
+        size_t idx = (m_start + i >= m_cap) ? i - (m_cap - m_start) 
                                             : m_start + i;
         assert(idx < m_cap);
         return idx;

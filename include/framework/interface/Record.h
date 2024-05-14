@@ -47,13 +47,18 @@ concept AlexInterface = KVPInterface<R> && requires(R r) {
 };
 
 template<typename R>
-concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b) {
+concept WrappedInterface = RecordInterface<R> && requires(R r, R s, bool b, int i) {
     {r.header} -> std::convertible_to<uint32_t>;
      r.rec;
     {r.set_delete()};
     {r.is_deleted()} -> std::convertible_to<bool>;
     {r.set_tombstone(b)};
     {r.is_tombstone()} -> std::convertible_to<bool>;
+    {r.set_timestamp(i)};
+    {r.get_timestamp()} -> std::convertible_to<uint32_t>;
+    {r.clear_timestamp()};
+    {r.is_visible()} -> std::convertible_to<bool>;
+    {r.set_visible()};
     {r < s} -> std::convertible_to<bool>;
     {r == s} ->std::convertible_to<bool>;
 };
@@ -71,9 +76,29 @@ struct Wrapped {
         return header & 2;
     }
 
+    inline void set_visible() {
+        header |= 4;
+    }
+
+    inline bool is_visible() const {
+        return header & 4;
+    }
+
+    inline void set_timestamp(int ts) {
+        header |= (ts << 3);
+    }
+
+    inline int get_timestamp() const {
+        return header >> 3;
+    }
+
+    inline void clear_timestamp() {
+        header &= 7;
+    }
+
     inline void set_tombstone(bool val=true) {
         if (val) {
-            header |= val;
+            header |= 1;
         } else {
             header &= 0;
         }
@@ -97,14 +122,30 @@ template <typename K, typename V>
 struct Record {
     K key;
     V value;
-    uint32_t header = 0;
 
-       inline bool operator<(const Record& other) const {
+    inline bool operator<(const Record& other) const {
         return key < other.key || (key == other.key && value < other.value);
     }
 
     inline bool operator==(const Record& other) const {
         return key == other.key && value == other.value;
+    }
+};
+
+template<typename V>
+struct Record<const char*, V> {
+    const char* key;
+    V value;
+    size_t len;
+
+    inline bool operator<(const Record& other) const {
+        size_t n = std::min(len, other.len) + 1;
+        return strncmp(key, other.key, n) < 0;
+    }
+
+    inline bool operator==(const Record& other) const {
+        size_t n = std::min(len, other.len) + 1;
+        return strncmp(key, other.key, n) == 0;
     }
 };
 

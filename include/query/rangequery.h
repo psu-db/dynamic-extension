@@ -109,7 +109,7 @@ public:
         return records;
     }
 
-    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms) {
+    static std::vector<R> merge(std::vector<std::vector<Wrapped<R>>> &results, void *parms, std::vector<R> &output) {
         std::vector<Cursor<Wrapped<R>>> cursors;
         cursors.reserve(results.size());
 
@@ -121,7 +121,7 @@ public:
         for (size_t i = 0; i < tmp_n; ++i)
 			if (results[i].size() > 0){
 	            auto base = results[i].data();
-		        cursors.emplace_back(Cursor{base, base + results[i].size(), 0, results[i].size()});
+		        cursors.emplace_back(Cursor<Wrapped<R>>{base, base + results[i].size(), 0, results[i].size()});
 				assert(i == cursors.size() - 1);
 			    total += results[i].size();
 				pq.push(cursors[i].ptr, tmp_n - i - 1);
@@ -133,7 +133,6 @@ public:
             return std::vector<R>();
         }
 
-        std::vector<R> output;
         output.reserve(total);
 
         while (pq.size()) {
@@ -168,6 +167,10 @@ public:
     static void delete_buffer_query_state(void *state) {
         auto s = (BufferState<R> *) state;
         delete s;
+    }
+
+    static bool repeat(void *parms, std::vector<R> &results, std::vector<void*> states, void* buffer_state) {
+        return false;
     }
 };
 
