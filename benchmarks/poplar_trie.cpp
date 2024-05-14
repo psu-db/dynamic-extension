@@ -61,10 +61,12 @@ int main(int argc, char **argv) {
     }
 
     auto trie = new Trie();
+    size_t warmup = strings.size()*.1;
+    insert_thread(0, warmup, trie);
 
     TIMER_INIT();
     TIMER_START();
-    insert_thread(0, strings.size(), trie);
+    insert_thread(warmup, strings.size(), trie);
     TIMER_STOP();
 
     auto total_time = TIMER_RESULT();

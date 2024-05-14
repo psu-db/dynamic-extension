@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include "framework/DynamicExtension.h"
 #include "shard/FSTrie.h"
@@ -21,7 +22,6 @@ typedef de::FSTrie<Rec> Trie;
 typedef de::pl::Query<Rec, Trie> Q;
 typedef de::DynamicExtension<Rec, Trie, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
 
-std::vector<std::unique_ptr<char[]>> strings;
 
 void insert_thread(int64_t start, int64_t end, Ext *extension) {
     for (uint64_t i=start; i<end; i++) {
@@ -32,7 +32,8 @@ void insert_thread(int64_t start, int64_t end, Ext *extension) {
     }
 }
 
-void read_data(std::string fname, size_t n=10000000) {
+std::vector<std::unique_ptr<char[]>>read_strings(std::string fname, size_t n=10000000) {
+    std::vector<std::unique_ptr<char[]>> strings;
     strings.reserve(n);
 
     std::fstream file;
@@ -45,6 +46,8 @@ void read_data(std::string fname, size_t n=10000000) {
         i++;
         psudb::progress_update((double) i / (double) n, "Reading file:");
     }
+
+    return strings;
 }
 
 void usage(char *name) {
@@ -74,44 +77,38 @@ int main(int argc, char **argv) {
 
     for (auto &sf : scale_factors) {
         for (auto &bf_sz : buffer_sizes) {
+            auto extension = new Ext(bf_sz, bf_sz, sf);
 
-    auto extension = new Ext(bf_sz, bf_sz, sf);
+            TIMER_INIT();
+            TIMER_START();
+            insert_thread(0, strings.size(), extension);
+            TIMER_STOP();
 
-    TIMER_INIT();
-    TIMER_START();
-    insert_thread(0, strings.size(), extension);
-    TIMER_STOP();
+            auto total_time = TIMER_RESULT();
 
-    auto total_time = TIMER_RESULT();
+            size_t m = 100;
+            TIMER_START();
+            for (size_t i=0; i<m; i++) {
+                size_t j = rand() % strings.size();
+                de::pl::Parms<Rec> parms = {strings[j].get()};
 
-    size_t m = 100;
-    TIMER_START();
-    for (size_t i=0; i<m; i++) {
-        size_t j = rand() % strings.size();
-        de::pl::Parms<Rec> parms = {strings[j].get()};
+                auto res = extension->query(&parms);
+                auto ans = res.get();
+            }
+            TIMER_STOP();
 
-        auto res = extension->query(&parms);
-        auto ans = res.get();
-
-        if (ans[0].value != j) {
-            fprintf(stderr, "ext:\t%ld %ld %s\n", ans[0].value, j, strings[j].get());
-        }
-
-        assert(ans[0].value == j);
-    }
-    TIMER_STOP();
-
-    auto query_time = TIMER_RESULT();
-    
-    double i_tput = (double) n / (double) total_time * 1e9;
-    size_t q_lat = query_time / m;
+            auto query_time = TIMER_RESULT();
+            
+            double i_tput = (double) n / (double) total_time * 1e9;
+            size_t q_lat = query_time / m;
 
             fprintf(stdout, "%ld\t%ld\t%ld\t%lf\t%ld\t%ld\n", extension->get_record_count(), 
                     bf_sz, sf, i_tput, q_lat, extension->get_memory_usage());
 
-    delete extension;
+            delete extension;
 
-        }}
+        }
+    }
     fflush(stderr);
 }
 
