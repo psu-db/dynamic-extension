@@ -266,6 +266,12 @@ if (vldb_bench)
     target_include_directories(mtree_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(mtree_bench PUBLIC -mcx16)
     target_compile_options(mtree_bench PUBLIC -fopenmp)
+
+    add_executable(thread_scaling_bench ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/vldb/thread_scaling_bench.cpp)
+    target_link_libraries(thread_scaling_bench PUBLIC gsl pthread atomic)
+    target_include_directories(thread_scaling_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
+    target_link_options(thread_scaling_bench PUBLIC -mcx16)
+
 endif()
 
 
@@ -294,11 +300,6 @@ if (bench)
     target_link_libraries(query_workload_bench PUBLIC gsl pthread atomic)
     target_include_directories(query_workload_bench PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
     target_link_options(query_workload_bench PUBLIC -mcx16)
-
-    add_executable(insert_query_tput ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/insert_query_tput.cpp)
-    target_link_libraries(insert_query_tput PUBLIC gsl pthread atomic)
-    target_include_directories(insert_query_tput PRIVATE include external external/m-tree/cpp external/PGM-index/include external/PLEX/include benchmarks/include external/psudb-common/cpp/include)
-    target_link_options(insert_query_tput PUBLIC -mcx16)
 
     add_executable(poplar_trie ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/poplar_trie.cpp)
     target_link_libraries(poplar_trie PUBLIC gsl pthread atomic)

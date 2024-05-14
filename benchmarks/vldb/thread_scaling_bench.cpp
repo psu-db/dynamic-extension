@@ -10,7 +10,7 @@
 #include "shard/ISAMTree.h"
 #include "query/irs.h"
 #include "framework/interface/Record.h"
-#include "include/file_util.h"
+#include "file_util.h"
 #include <ctime>
 
 #include <gsl/gsl_rng.h>
