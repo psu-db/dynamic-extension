@@ -23,8 +23,6 @@
 
 using psudb::CACHELINE_SIZE;
 using psudb::BloomFilter;
-using psudb::PriorityQueue;
-using psudb::queue_record;
 using psudb::byte;
 
 namespace de {
@@ -50,6 +48,9 @@ constexpr static size_t LEAF_FANOUT = NODE_SZ / sizeof(R);
 
 
 public:
+
+    typedef R RECORD;
+
     ISAMTree(BufferView<R> buffer)
         : m_bf(nullptr)
         , m_isam_nodes(nullptr)
