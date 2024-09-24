@@ -35,7 +35,7 @@ template <typename QUERY, typename SHARD,
           typename PARAMETERS = typename QUERY::Parameters,
           typename LOCAL = typename QUERY::LocalQuery,
           typename LOCAL_BUFFER = typename QUERY::LocalQueryBuffer>
-concept QueryInterface = LocalResultInterface<RESULT> &&
+concept QueryInterface = LocalResultInterface<LOCAL_RESULT> &&
     requires(PARAMETERS *parameters, LOCAL *local, LOCAL_BUFFER *local_buffer, SHARD *shard, std::vector<LOCAL *> &local_queries,
              std::vector<std::vector<LOCAL_RESULT>> &local_results, std::vector<RESULT> &result, BufferView<typename SHARD::RECORD> bv) {
 
