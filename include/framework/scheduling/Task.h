@@ -1,7 +1,7 @@
 /*
  * include/framework/scheduling/Task.h
  *
- * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
+ * Copyright (C) 2023-2024 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
  * Distributed under the Modified BSD License.
  *
@@ -34,8 +34,7 @@ struct ReconstructionArgs {
   void *extension;
 };
 
-template <ShardInterface S, QueryInterface<S> Q, typename DE> 
-struct QueryArgs {
+template <ShardInterface S, QueryInterface<S> Q, typename DE> struct QueryArgs {
   std::promise<std::vector<typename Q::ResultType>> result_set;
   typename Q::Parameters *query_parms;
   DE *extension;

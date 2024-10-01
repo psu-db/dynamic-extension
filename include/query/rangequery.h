@@ -1,7 +1,7 @@
 /*
  * include/query/rangequery.h
  *
- * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu>
+ * Copyright (C) 2023-2024 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
  * Distributed under the Modified BSD License.
  *
@@ -18,9 +18,9 @@
 namespace de {
 namespace rq {
 
-template <ShardInterface S> 
-class Query {
+template <ShardInterface S> class Query {
   typedef typename S::RECORD R;
+
 public:
   struct LocalQuery {
     size_t start_idx;
@@ -57,7 +57,8 @@ public:
     return query;
   }
 
-  static LocalQueryBuffer *local_preproc_buffer(BufferView<R> *buffer, Parameters *parms) {
+  static LocalQueryBuffer *local_preproc_buffer(BufferView<R> *buffer,
+                                                Parameters *parms) {
     auto query = new LocalQueryBuffer();
     query->buffer = buffer;
     query->lower_bound = parms->lower_bound;
@@ -119,8 +120,9 @@ public:
     return result;
   }
 
-  static void combine(std::vector<std::vector<LocalResultType>> const &local_results,
-                      Parameters *parms, std::vector<ResultType> &output) {
+  static void
+  combine(std::vector<std::vector<LocalResultType>> const &local_results,
+          Parameters *parms, std::vector<ResultType> &output) {
     std::vector<Cursor<LocalResultType>> cursors;
     cursors.reserve(local_results.size());
 
@@ -178,7 +180,8 @@ public:
   }
 
   static bool repeat(Parameters *parms, std::vector<ResultType> &output,
-                     std::vector<LocalQuery *> const &local_queries, LocalQueryBuffer *buffer_query) {
+                     std::vector<LocalQuery *> const &local_queries,
+                     LocalQueryBuffer *buffer_query) {
     return false;
   }
 };

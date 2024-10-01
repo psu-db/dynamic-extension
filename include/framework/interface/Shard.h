@@ -15,15 +15,18 @@ namespace de {
 template <typename SHARD>
 concept ShardInterface = RecordInterface<typename SHARD::RECORD> &&
     requires(SHARD shard, const std::vector<SHARD *> &shard_vector, bool b,
-             BufferView<typename SHARD::RECORD> bv, typename SHARD::RECORD rec) {
+             BufferView<typename SHARD::RECORD> bv,
+             typename SHARD::RECORD rec) {
   /* construct a shard from a vector of shards of the same type */
-  { SHARD(shard_vector) };
+  {SHARD(shard_vector)};
 
   /* construct a shard from a buffer view (i.e., unsorted array of records) */
-  { SHARD(std::move(bv)) };
+  {SHARD(std::move(bv))};
 
   /* perform a lookup for a record matching rec and return a pointer to it */
-  { shard.point_lookup(rec, b) } -> std::same_as<Wrapped<typename SHARD::RECORD> *>;
+  {
+    shard.point_lookup(rec, b)
+    } -> std::same_as<Wrapped<typename SHARD::RECORD> *>;
 
   /*
    * return the number of records in the shard -- used to determine when
@@ -50,11 +53,6 @@ concept ShardInterface = RecordInterface<typename SHARD::RECORD> &&
    */
   { shard.get_aux_memory_usage() } -> std::convertible_to<size_t>;
 
-  /*
-   * expose the data type of the record directly, for use in streamlining
-   * other concepts
-   */
-  // { SHARD::RECORD };
 };
 
 template <typename SHARD>
@@ -62,7 +60,9 @@ concept SortedShardInterface = ShardInterface<SHARD> &&
     requires(SHARD shard, typename SHARD::RECORD rec, size_t index) {
   { shard.lower_bound(rec) } -> std::convertible_to<size_t>;
   { shard.upper_bound(rec) } -> std::convertible_to<size_t>;
-  { shard.get_record_at(index) } -> std::same_as<Wrapped<typename SHARD::RECORD> *>;
+  {
+    shard.get_record_at(index)
+    } -> std::same_as<Wrapped<typename SHARD::RECORD> *>;
 };
 
 } // namespace de

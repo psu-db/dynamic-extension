@@ -1,7 +1,7 @@
 /*
  * include/framework/util/Configuration.h
  *
- * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
+ * Copyright (C) 2023-2024 Douglas B. Rumbaugh <drumbaugh@psu.edu>
  *
  * Distributed under the Modified BSD License.
  *
@@ -32,16 +32,8 @@ static thread_local size_t memlevel_sample_time = 0;
 static thread_local size_t disklevel_sample_time = 0;
 static thread_local size_t sampling_bailouts = 0;
 
+enum class LayoutPolicy { LEVELING, TEIRING, BSM };
 
-enum class LayoutPolicy {
-    LEVELING,
-    TEIRING,
-    BSM
-};
+enum class DeletePolicy { TOMBSTONE, TAGGING };
 
-enum class DeletePolicy {
-    TOMBSTONE,
-    TAGGING
-};
-
-}
+} // namespace de
