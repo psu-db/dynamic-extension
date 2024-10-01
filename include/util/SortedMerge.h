@@ -48,7 +48,7 @@ struct merge_info {
  * upper bounds only.
  */
 template <RecordInterface R, ShardInterface S>
-static std::vector<Cursor<Wrapped<R>>> build_cursor_vec(std::vector<S*> &shards, size_t *reccnt, size_t *tscnt) {
+static std::vector<Cursor<Wrapped<R>>> build_cursor_vec(std::vector<S*> const &shards, size_t *reccnt, size_t *tscnt) {
     std::vector<Cursor<Wrapped<R>>> cursors;
     cursors.reserve(shards.size());
 

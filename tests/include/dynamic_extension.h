@@ -22,16 +22,21 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-/*
-#include "testing.h"
-#include "framework/DynamicExtension.h"
-#include "framework/scheduling/SerialScheduler.h"
-#include "shard/ISAMTree.h"
-#include "query/rangequery.h"
-#include <check.h>
-using namespace de;
-typedef DynamicExtension<R, ISAMTree<R>, rq::Query<ISAMTree<R>, R>, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
-*/
+
+// #include "testing.h"
+// #include "framework/DynamicExtension.h"
+// #include "framework/scheduling/SerialScheduler.h"
+// #include "shard/ISAMTree.h"
+// #include "query/rangequery.h"
+// #include <check.h>
+// #include <random>
+// #include <set>
+
+// using namespace de;
+// typedef Rec R;
+// typedef ISAMTree<R> S;
+// typedef rq::Query<S> Q;
+// typedef DynamicExtension<S, Q, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
 
 
 START_TEST(t_create)
@@ -138,7 +143,8 @@ START_TEST(t_range_query)
     uint64_t lower_key = keys[idx];
     uint64_t upper_key = keys[idx + 250];
 
-    rq::Parms<R> p;
+    Q::Parameters p;
+
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
@@ -209,14 +215,14 @@ START_TEST(t_tombstone_merging_01)
 }
 END_TEST
 
-DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
+static DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
     auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     auto test_de = new DE(1000, 10000, 2);
 
-    std::set<R> records; 
-    std::set<R> to_delete;
-    std::set<R> deleted;
+    std::set<Rec> records; 
+    std::set<Rec> to_delete;
+    std::set<Rec> deleted;
 
     while (records.size() < reccnt) {
         uint64_t key = rand();
@@ -232,7 +238,7 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
         ck_assert_int_eq(test_de->insert(rec), 1);
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
-            std::vector<R> del_vec;
+            std::vector<Rec> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {
@@ -260,9 +266,9 @@ START_TEST(t_static_structure)
     size_t reccnt = 100000;
     auto test_de = new DE(100, 1000, 2);
 
-    std::set<R> records; 
-    std::set<R> to_delete;
-    std::set<R> deleted;
+    std::set<Rec> records; 
+    std::set<Rec> to_delete;
+    std::set<Rec> deleted;
 
     while (records.size() < reccnt) {
         uint64_t key = rand();
@@ -282,7 +288,7 @@ START_TEST(t_static_structure)
         t_reccnt++;
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
-            std::vector<R> del_vec;
+            std::vector<Rec> del_vec;
             std::sample(to_delete.begin(), to_delete.end(), std::back_inserter(del_vec), 3, std::mt19937{std::random_device{}()});
 
             for (size_t i=0; i<del_vec.size(); i++) {

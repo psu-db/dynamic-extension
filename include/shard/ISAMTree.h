@@ -75,7 +75,7 @@ public:
         }
     }
 
-    ISAMTree(std::vector<ISAMTree*> &shards)
+    ISAMTree(std::vector<ISAMTree*> const &shards)
         : m_bf(nullptr) 
         , m_isam_nodes(nullptr)
         , m_root(nullptr)

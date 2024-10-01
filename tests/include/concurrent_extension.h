@@ -22,17 +22,20 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-/*#include "testing.h"
-#include "framework/DynamicExtension.h"
-#include "framework/scheduling/FIFOScheduler.h"
-#include "shard/ISAMTree.h"
-#include "query/rangequery.h"
-#include <check.h>
+// #include "testing.h"
+// #include "framework/DynamicExtension.h"
+// //#include "framework/scheduling/FIFOScheduler.h"
+// #include "shard/ISAMTree.h"
+// #include "query/rangequery.h"
+// #include <check.h>
+// #include <set>
+// #include <random>
 
-//using namespace de;
-//typedef DynamicExtension<R, ISAMTree<R>, rq::Query<ISAMTree<R>, R>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
-*/
-
+// using namespace de;
+// typedef Rec R;
+// typedef ISAMTree<R> S;
+// typedef rq::Query<S> Q;
+// typedef DynamicExtension<S, Q, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE> DE; //, FIFOScheduler> DE;
 
 START_TEST(t_create)
 {
@@ -164,7 +167,7 @@ START_TEST(t_range_query)
     uint64_t lower_key = keys[idx];
     uint64_t upper_key = keys[idx + 250];
 
-    rq::Parms<R> p;
+    Q::Parameters p;
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 

@@ -10,9 +10,9 @@
 
 #include "framework/scheduling/Task.h"
 
-template <typename S>
-concept SchedulerInterface = requires(S s, size_t i, void *vp, de::Job j) {
-    {S(i, i)};
+template <typename SchedType>
+concept SchedulerInterface = requires(SchedType s, size_t i, void *vp, de::Job j) {
+    {SchedType(i, i)};
     {s.schedule_job(j, i, vp, i)} -> std::convertible_to<void>;
     {s.shutdown()};
     {s.print_statistics()};

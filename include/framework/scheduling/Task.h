@@ -23,19 +23,20 @@
 
 namespace de {
 
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
+template <ShardInterface ShardType, QueryInterface<ShardType> QueryType, LayoutPolicy L>
 struct ReconstructionArgs {
-    Epoch<R, S, Q, L> *epoch;
+    typedef typename ShardType::RECORD RecordType;
+    Epoch<ShardType, QueryType, L> *epoch;
     ReconstructionVector merges;
     std::promise<bool> result;
     bool compaction;
     void *extension;
 };
 
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
+template <ShardInterface S, QueryInterface<S> Q, LayoutPolicy L>
 struct QueryArgs {
-    std::promise<std::vector<R>> result_set;
-    void *query_parms;
+    std::promise<std::vector<typename Q::ResultType>> result_set;
+    typename Q::Parameters *query_parms;
     void *extension;
 };
 

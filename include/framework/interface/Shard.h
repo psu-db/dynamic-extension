@@ -14,7 +14,7 @@ namespace de {
 
 template <typename SHARD>
 concept ShardInterface = RecordInterface<typename SHARD::RECORD> &&
-    requires(SHARD shard, std::vector<SHARD *> shard_vector, bool b,
+    requires(SHARD shard, const std::vector<SHARD *> &shard_vector, bool b,
              BufferView<typename SHARD::RECORD> bv, typename SHARD::RECORD rec) {
   /* construct a shard from a vector of shards of the same type */
   { SHARD(shard_vector) };

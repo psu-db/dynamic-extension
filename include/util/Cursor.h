@@ -23,8 +23,8 @@
 namespace de {
 template<typename R>
 struct Cursor {
-    R *ptr;
-    R *end;
+    const R *ptr;
+    const R *end;
     size_t cur_rec_idx;
     size_t rec_cnt;
 

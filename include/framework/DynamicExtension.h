@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "framework/interface/Scheduler.h"
-#include "framework/scheduling/FIFOScheduler.h"
+//#include "framework/scheduling/FIFOScheduler.h"
 #include "framework/scheduling/SerialScheduler.h"
 
 #include "framework/structure/MutableBuffer.h"
@@ -26,14 +26,14 @@
 
 namespace de {
 
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L=LayoutPolicy::TEIRING, 
-          DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SCHED=FIFOScheduler>
+template <ShardInterface ShardType, QueryInterface<ShardType> QueryType, LayoutPolicy L=LayoutPolicy::TEIRING, 
+          DeletePolicy D=DeletePolicy::TAGGING, SchedulerInterface SchedType=SerialScheduler>
 class DynamicExtension {
-    typedef S Shard;
-    typedef MutableBuffer<R> Buffer;
-    typedef ExtensionStructure<R, S, Q, L> Structure;
-    typedef Epoch<R, S, Q, L> _Epoch;
-    typedef BufferView<R> BufView;
+    typedef typename ShardType::RECORD RecordType;
+    typedef MutableBuffer<RecordType> Buffer;
+    typedef ExtensionStructure<ShardType, QueryType, L> Structure;
+    typedef Epoch<ShardType, QueryType, L> _Epoch;
+    typedef BufferView<RecordType> BufView;
 
     static constexpr size_t QUERY = 1;
     static constexpr size_t RECONSTRUCTION = 2;
@@ -87,7 +87,7 @@ public:
      * successful, 1 will be returned. The record will be immediately
      * visible in the buffer upon the successful return of this function.
      */
-    int insert(const R &rec) {
+    int insert(const RecordType &rec) {
         return internal_append(rec, false);
     }
 
@@ -108,7 +108,7 @@ public:
      * the record is found and marked, and 0 if it was not (i.e., if it
      * isn't present in the index). 
      */
-    int erase(const R &rec) {
+    int erase(const RecordType &rec) {
         // FIXME: delete tagging will require a lot of extra work to get
         //        operating "correctly" in a concurrent environment.
  
@@ -118,7 +118,7 @@ public:
          * not *strictly* necessary.
          */
         if constexpr (D == DeletePolicy::TAGGING) {
-            static_assert(std::same_as<SCHED, SerialScheduler>, "Tagging is only supported in single-threaded operation");
+            static_assert(std::same_as<SchedType, SerialScheduler>, "Tagging is only supported in single-threaded operation");
 
             auto view = m_buffer->get_buffer_view();
 
@@ -149,11 +149,13 @@ public:
      * future can be used to access a vector containing the results of the
      * query.
      *
-     * The behavior of this function is undefined if `parms` is not a
-     * pointer to a valid query parameter object for the query type used as
-     * a template parameter to construct the framework.
+     * It is the caller's responsibility to manage the memory used for
+     * the parms object. In particular, the behavior of this function is
+     * undefined if the parms object is deleted prior to the result set
+     * being retrieved successfully from the returned future.
      */
-    std::future<std::vector<R>> query(void *parms) {
+    std::future<std::vector<typename QueryType::ResultType>> 
+    query(typename QueryType::Parameters *parms) {
         return schedule_query(parms);
     }
 
@@ -240,14 +242,14 @@ public:
      * construction should wait until any ongoing reconstructions have
      * finished and use that new version (true).
      */
-    Shard *create_static_structure(bool await_reconstruction_completion=false) {
+    ShardType *create_static_structure(bool await_reconstruction_completion=false) {
         if (await_reconstruction_completion) {
             await_next_epoch();
         }
 
         auto epoch = get_active_epoch();
         auto vers = epoch->get_structure();
-        std::vector<Shard *> shards;
+        std::vector<ShardType *> shards;
 
 
         if (vers->get_levels().size() > 0) {
@@ -267,11 +269,11 @@ public:
         {
             auto bv = epoch->get_buffer();
             if (bv.get_record_count() > 0) {
-                shards.emplace_back(new S(std::move(bv)));
+                shards.emplace_back(new ShardType(std::move(bv)));
             }
         }
 
-        Shard *flattened = new S(shards);
+        ShardType *flattened = new ShardType(shards);
 
         for (auto shard : shards) {
             delete shard;
@@ -310,13 +312,8 @@ public:
     }
 
 private:
-    SCHED m_sched;
-
+    SchedType m_sched;
     Buffer *m_buffer;
-
-    //std::mutex m_struct_lock;
-    //std::set<Structure *> m_versions;
-
     alignas(64) std::atomic<bool> m_reconstruction_scheduled;
 
     std::atomic<epoch_ptr> m_next_epoch;
@@ -341,7 +338,7 @@ private:
         while (compactions.size() > 0) {
 
             /* schedule a compaction */
-            ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
+            ReconstructionArgs<ShardType, QueryType, L> *args = new ReconstructionArgs<ShardType, QueryType, L>();
             args->epoch = epoch;
             args->merges = compactions;
             args->extension = this;
@@ -470,7 +467,7 @@ private:
              * an Epoch will result in the thread of execution blocking
              * indefinitely. 
              */
-            if constexpr (std::same_as<SCHED, SerialScheduler>) {
+            if constexpr (std::same_as<SchedType, SerialScheduler>) {
                 if (old.epoch == epoch) assert(old.refcnt == 0);
             }
 
@@ -486,7 +483,7 @@ private:
     }
 
     static void reconstruction(void *arguments) {
-        auto args = (ReconstructionArgs<R, S, Q, L> *) arguments;
+        auto args = (ReconstructionArgs<ShardType, QueryType, L> *) arguments;
 
         ((DynamicExtension *) args->extension)->SetThreadAffinity();
         Structure *vers = args->epoch->get_structure();
@@ -537,60 +534,70 @@ private:
     }
     
     static void async_query(void *arguments) {
-        QueryArgs<R, S, Q, L> *args = (QueryArgs<R, S, Q, L> *) arguments;
+        QueryArgs<ShardType, QueryType, L> *args = 
+            (QueryArgs<ShardType, QueryType, L> *) arguments;
 
         auto epoch = ((DynamicExtension *) args->extension)->get_active_epoch();
 
-        auto ptr1 = ((DynamicExtension *) args->extension)->m_previous_epoch.load().epoch;
-        auto ptr2 = ((DynamicExtension *) args->extension)->m_current_epoch.load().epoch;
-        auto ptr3 = ((DynamicExtension *) args->extension)->m_next_epoch.load().epoch;
-
-
         auto buffer = epoch->get_buffer();
         auto vers = epoch->get_structure();
-        void *parms = args->query_parms;
+        auto *parms = args->query_parms;
 
-        /* Get the buffer query states */
-        void *buffer_state = Q::get_buffer_query_state(&buffer, parms);
+        /* create initial buffer query */
+        auto buffer_query = QueryType::local_preproc_buffer(&buffer, parms);
 
-        /* Get the shard query states */
-        std::vector<std::pair<ShardID, Shard*>> shards;
-        std::vector<void *> states = vers->get_query_states(shards, parms);
+        /* create initial local queries */
+        std::vector<std::pair<ShardID, ShardType*>> shards;
+        std::vector<typename QueryType::LocalQuery*> local_queries = vers->get_local_queries(shards, parms);
 
-        std::vector<R> results;
-        Q::process_query_states(parms, states, buffer_state);
 
+        /* process local/buffer queries to create the final version */
+        QueryType::distribute_query(parms, local_queries, buffer_query);
+
+        /* execute the local/buffer queries and combine the results into output */
+        std::vector<typename QueryType::ResultType> output;
         do {
-            std::vector<std::vector<Wrapped<R>>> query_results(shards.size() + 1);
+            std::vector<std::vector<typename QueryType::LocalResultType>> query_results(shards.size() + 1);
             for (size_t i=0; i<query_results.size(); i++) {
-                std::vector<Wrapped<R>> local_results;
+                std::vector<typename QueryType::LocalResultType> local_results;
                 ShardID shid;
 
-                if (i == 0) { /* process the buffer first */
-                    local_results = Q::buffer_query(buffer_state, parms);
+                if (i == 0) { /* execute buffer query */
+                    local_results = QueryType::local_query_buffer(buffer_query);
                     shid = INVALID_SHID;
-                } else {
-                    local_results = Q::query(shards[i - 1].second, states[i - 1], parms);
+                } else { /*execute local queries */
+                    local_results = QueryType::local_query(shards[i - 1].second, local_queries[i - 1]);
                     shid = shards[i - 1].first; 
                 }
 
+                /* framework-level, automatic delete filtering */
                 query_results[i] = std::move(filter_deletes(local_results, shid, vers, &buffer)); 
 
-                if constexpr (Q::EARLY_ABORT) {
+                /* end query early if EARLY_ABORT is set and a result exists */
+                if constexpr (QueryType::EARLY_ABORT) {
                     if (query_results[i].size() > 0) break;
                 }
             }
-            Q::merge(query_results, parms, results);
 
-        } while (Q::repeat(parms, results, states, buffer_state));
+            /* 
+             * combine the results of the local queries, also translating
+             * from LocalResultType to ResultType
+             */
+            QueryType::combine(query_results, parms, output);
+                               
+          /* optionally repeat the local queries if necessary */
+        } while (QueryType::repeat(parms, output, local_queries, buffer_query));
 
-        args->result_set.set_value(std::move(results));
+        /* return the output vector to caller via the future */
+        args->result_set.set_value(std::move(output));
 
+        /* officially end the query job, releasing the pin on the epoch */
         ((DynamicExtension *) args->extension)->end_job(epoch);
 
-        Q::delete_buffer_query_state(buffer_state);
-        for (size_t i=0; i<states.size(); i++) {
-            Q::delete_query_state(states[i]);
+        /* clean up memory allocated for temporary query objects */
+        delete buffer_query;
+        for (size_t i=0; i<local_queries.size(); i++) {
+            delete local_queries[i];
         }
 
         delete args;
@@ -603,7 +610,7 @@ private:
          * so we must start one before calling it
          */
 
-        ReconstructionArgs<R, S, Q, L> *args = new ReconstructionArgs<R, S, Q, L>();
+        ReconstructionArgs<ShardType, QueryType, L> *args = new ReconstructionArgs<ShardType, QueryType, L>();
         args->epoch = epoch;
         args->merges = epoch->get_structure()->get_reconstruction_tasks(m_buffer->get_high_watermark());
         args->extension = this;
@@ -613,18 +620,19 @@ private:
         m_sched.schedule_job(reconstruction, 0, args, RECONSTRUCTION);
     }
 
-    std::future<std::vector<R>> schedule_query(void *query_parms) {
-        QueryArgs<R, S, Q, L> *args = new QueryArgs<R, S, Q, L>();
+    std::future<std::vector<typename QueryType::ResultType>> 
+    schedule_query(typename QueryType::Parameters *query_parms) {
+        QueryArgs<ShardType, QueryType, L> *args = new QueryArgs<ShardType, QueryType, L>();
         args->extension = this;
         args->query_parms = query_parms;
         auto result = args->result_set.get_future();
 
-        m_sched.schedule_job(async_query, 0, args, QUERY);
+        m_sched.schedule_job(async_query, 0, (void*) args, QUERY);
 
         return result;
     }
 
-    int internal_append(const R &rec, bool ts) {
+    int internal_append(const RecordType &rec, bool ts) {
         if (m_buffer->is_at_low_watermark()) {
             auto old = false;
 
@@ -637,12 +645,12 @@ private:
         return m_buffer->append(rec, ts);
     }
 
-    static std::vector<Wrapped<R>> filter_deletes(std::vector<Wrapped<R>> &records, ShardID shid, Structure *vers, BufView *bview) {
-        if constexpr (Q::SKIP_DELETE_FILTER) {
+    static std::vector<typename QueryType::LocalResultType> filter_deletes(std::vector<typename QueryType::LocalResultType> &records, ShardID shid, Structure *vers, BufView *bview) {
+        if constexpr (QueryType::SKIP_DELETE_FILTER) {
             return std::move(records);
         }
 
-        std::vector<Wrapped<R>> processed_records;
+        std::vector<typename QueryType::LocalResultType> processed_records;
         processed_records.reserve(records.size());
 
         /* 
@@ -702,7 +710,7 @@ private:
 
 #ifdef _GNU_SOURCE
     void SetThreadAffinity() {
-        if constexpr (std::same_as<SCHED, SerialScheduler>) {
+        if constexpr (std::same_as<SchedType, SerialScheduler>) {
             return;
         }
 

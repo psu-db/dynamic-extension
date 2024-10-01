@@ -19,8 +19,8 @@ namespace de {
  *        optimizations. However, this would require an alternative
  *        approach to doing delete checks, so we'll leave it for now.
  */
-template <typename RESULT>
-concept LocalResultInterface = requires(RESULT res) {
+template <typename R>
+concept LocalResultInterface = requires(R res) {
   { res.is_deleted() } -> std::convertible_to<bool>;
   { res.is_tombstone() } -> std::convertible_to<bool>;
 };
@@ -36,14 +36,8 @@ template <typename QUERY, typename SHARD,
           typename LOCAL = typename QUERY::LocalQuery,
           typename LOCAL_BUFFER = typename QUERY::LocalQueryBuffer>
 concept QueryInterface = LocalResultInterface<LOCAL_RESULT> &&
-    requires(PARAMETERS *parameters, LOCAL *local, LOCAL_BUFFER *local_buffer, SHARD *shard, std::vector<LOCAL *> &local_queries,
-             std::vector<std::vector<LOCAL_RESULT>> &local_results, std::vector<RESULT> &result, BufferView<typename SHARD::RECORD> bv) {
-
-  { QUERY::LocalQuery };
-  { QUERY::LocalQueryBuffer };
-  { QUERY::Parameters };
-  { QUERY::ResultType };
-  { QUERY::LocalResultType };
+    requires(PARAMETERS *parameters, LOCAL *local, LOCAL_BUFFER *buffer_query, SHARD *shard, std::vector<LOCAL *> &local_queries,
+             std::vector<std::vector<LOCAL_RESULT>> &local_results, std::vector<RESULT> &result, BufferView<typename SHARD::RECORD> *bv) {
 
   /*
    * Given a set of query parameters and a shard, return a local query 
@@ -66,7 +60,7 @@ concept QueryInterface = LocalResultInterface<LOCAL_RESULT> &&
    * global information. If no additional processing is required, this
    * function can be left empty.
    */
-  { QUERY::distribute_query(parameters, local_queries, local_buffer) };
+  { QUERY::distribute_query(parameters, local_queries, buffer_query) };
 
   /*
    * Answer the local query, defined by `local` against `shard` and return
@@ -79,7 +73,7 @@ concept QueryInterface = LocalResultInterface<LOCAL_RESULT> &&
    * should be accessed by a pointer inside of `local`) and return a vector
    * of LOCAL_RESULT objects defining the query result.
    */
-  { QUERY::local_query_buffer(local) } -> std::convertible_to<std::vector<LOCAL_RESULT>>;
+  { QUERY::local_query_buffer(buffer_query) } -> std::convertible_to<std::vector<LOCAL_RESULT>>;
 
   /*
    * Process the local results from the buffer and all of the shards,
@@ -98,7 +92,7 @@ concept QueryInterface = LocalResultInterface<LOCAL_RESULT> &&
    * If no repetition is needed for a given problem type, simply return
    * False immediately and the query will end.
    */
-  { QUERY::repeat(parameters, result, local_queries, local_buffer) } -> std::same_as<bool>;
+  { QUERY::repeat(parameters, result, local_queries, buffer_query) } -> std::same_as<bool>;
 
   /*
    * If this flag is True, then the query will immediately stop and return

@@ -22,10 +22,10 @@
 
 namespace de {
 
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L=LayoutPolicy::TEIRING>
+template <ShardInterface ShardType, QueryInterface<ShardType> QueryType, LayoutPolicy L=LayoutPolicy::TEIRING>
 class ExtensionStructure {
-    typedef S Shard;
-    typedef BufferView<R> BuffView;
+    typedef typename ShardType::RECORD RecordType;
+    typedef BufferView<RecordType> BuffView;
 
     typedef struct {
         size_t reccnt;
@@ -61,8 +61,8 @@ public:
      * problems under tagging with concurrency. Any deletes in this context will
      * need to be forwarded to the appropriate structures manually.
      */
-    ExtensionStructure<R, S, Q, L> *copy() {
-        auto new_struct = new ExtensionStructure<R, S, Q, L>(m_buffer_size, m_scale_factor, 
+    ExtensionStructure<ShardType, QueryType, L> *copy() {
+        auto new_struct = new ExtensionStructure<ShardType, QueryType, L>(m_buffer_size, m_scale_factor, 
                                                              m_max_delete_prop);
         for (size_t i=0; i<m_levels.size(); i++) {
             new_struct->m_levels.push_back(m_levels[i]->clone());
@@ -83,7 +83,7 @@ public:
      * assumed that no duplicate records exist. In the case of duplicates, this
      * function will still "work", but in the sense of "delete first match".
      */
-    int tagged_delete(const R &rec) {
+    int tagged_delete(const RecordType &rec) {
         for (auto level : m_levels) {
             if (level && level->delete_record(rec)) {
                 return 1;
@@ -212,7 +212,7 @@ public:
      * Return a reference to the underlying vector of levels within the
      * structure.
      */
-    std::vector<std::shared_ptr<InternalLevel<R, S, Q>>> &get_levels() {
+    std::vector<std::shared_ptr<InternalLevel<ShardType, QueryType>>> &get_levels() {
         return m_levels;
     }
 
@@ -410,12 +410,12 @@ public:
 
     inline void reconstruction(ReconstructionTask task) {
         static_assert(L == LayoutPolicy::BSM);
-        std::vector<InternalLevel<R, Shard, Q>*> levels(task.sources.size());
+        std::vector<InternalLevel<ShardType, QueryType>*> levels(task.sources.size());
         for (size_t i=0; i<task.sources.size(); i++) {
             levels[i] = m_levels[task.sources[i]].get();
         }
 
-        auto new_level = InternalLevel<R, Shard, Q>::reconstruction(levels, task.target);
+        auto new_level = InternalLevel<ShardType, QueryType>::reconstruction(levels, task.target);
         if (task.target >= m_levels.size()) {
             m_current_state.push_back({new_level->get_record_count(), calc_level_record_capacity(task.target),
                 1, 1});
@@ -428,7 +428,7 @@ public:
 
         /* remove all of the levels that have been flattened */
         for (size_t i=0; i<task.sources.size(); i++) {
-            m_levels[task.sources[i]] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(task.sources[i], 1));
+            m_levels[task.sources[i]] = std::shared_ptr<InternalLevel<ShardType, QueryType>>(new InternalLevel<ShardType, QueryType>(task.sources[i], 1));
             m_current_state[task.sources[i]] = {0, calc_level_record_capacity(task.target), 0, 1};
         }
 
@@ -445,7 +445,7 @@ public:
         size_t shard_capacity = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
 
         if (base_level >= m_levels.size()) {
-            m_levels.emplace_back(std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(base_level, shard_capacity)));
+            m_levels.emplace_back(std::shared_ptr<InternalLevel<ShardType, QueryType>>(new InternalLevel<ShardType, QueryType>(base_level, shard_capacity)));
             m_current_state.push_back({0, calc_level_record_capacity(base_level), 
                                        0, shard_capacity});
         }
@@ -453,7 +453,7 @@ public:
         if constexpr (L == LayoutPolicy::LEVELING) {
             /* if the base level has a shard, merge the base and incoming together to make a new one */
             if (m_levels[base_level]->get_shard_count() > 0) {
-                m_levels[base_level] = InternalLevel<R, Shard, Q>::reconstruction(m_levels[base_level].get(), m_levels[incoming_level].get());
+                m_levels[base_level] = InternalLevel<ShardType, QueryType>::reconstruction(m_levels[base_level].get(), m_levels[incoming_level].get());
             /* otherwise, we can just move the incoming to the base */
             } else {
                 m_levels[base_level] = m_levels[incoming_level];
@@ -465,7 +465,7 @@ public:
         }
 
         /* place a new, empty level where the incoming level used to be */
-        m_levels[incoming_level] = std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor));
+        m_levels[incoming_level] = std::shared_ptr<InternalLevel<ShardType, QueryType>>(new InternalLevel<ShardType, QueryType>(incoming_level, (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor));
 
         /* 
          * Update the state vector to match the *real* state following
@@ -491,14 +491,17 @@ public:
         return m_refcnt.load();
     }
 
-    std::vector<void *> get_query_states(std::vector<std::pair<ShardID, Shard*>> &shards, void *parms) {
-        std::vector<void*> states;
+    std::vector<typename QueryType::LocalQuery *> 
+    get_local_queries(std::vector<std::pair<ShardID, ShardType*>> &shards, 
+                      typename QueryType::Parameters *parms) {
+
+        std::vector<typename QueryType::LocalQuery *> queries;
 
         for (auto &level : m_levels) {
-            level->get_query_states(shards, states, parms);
+            level->get_local_queries(shards, queries, parms);
         }
 
-        return states;
+        return queries;
     }
 
 private:
@@ -508,7 +511,7 @@ private:
 
     std::atomic<size_t> m_refcnt;
 
-    std::vector<std::shared_ptr<InternalLevel<R, S, Q>>> m_levels;
+    std::vector<std::shared_ptr<InternalLevel<ShardType, QueryType>>> m_levels;
 
     /* 
      * A pair of <record_count, shard_count> for each level in the
@@ -565,7 +568,7 @@ private:
         size_t shard_capacity = (L == LayoutPolicy::LEVELING) ? 1 : m_scale_factor;
 
         if (m_levels.size() == 0) {
-            m_levels.emplace_back(std::shared_ptr<InternalLevel<R, Shard, Q>>(new InternalLevel<R, Shard, Q>(0, shard_capacity)));
+            m_levels.emplace_back(std::shared_ptr<InternalLevel<ShardType, QueryType>>(new InternalLevel<ShardType, QueryType>(0, shard_capacity)));
 
             m_current_state.push_back({0, calc_level_record_capacity(0), 
                                        0, shard_capacity});
@@ -574,14 +577,14 @@ private:
         if constexpr (L == LayoutPolicy::LEVELING) {
             // FIXME: Kludgey implementation due to interface constraints.
             auto old_level = m_levels[0].get();
-            auto temp_level = new InternalLevel<R, Shard, Q>(0, 1);
+            auto temp_level = new InternalLevel<ShardType, QueryType>(0, 1);
             temp_level->append_buffer(std::move(buffer));
 
             if (old_level->get_shard_count() > 0) {
-                m_levels[0] = InternalLevel<R, Shard, Q>::reconstruction(old_level, temp_level);
+                m_levels[0] = InternalLevel<ShardType, QueryType>::reconstruction(old_level, temp_level);
                 delete temp_level;
             } else {
-                m_levels[0] = std::shared_ptr<InternalLevel<R, Shard, Q>>(temp_level);
+                m_levels[0] = std::shared_ptr<InternalLevel<ShardType, QueryType>>(temp_level);
             }
         } else {
             m_levels[0]->append_buffer(std::move(buffer));
@@ -598,7 +601,7 @@ private:
      * level may not be able to immediately be deleted, depending upon who
      * else is using it.
      */ 
-    inline void mark_as_unused(std::shared_ptr<InternalLevel<R, Shard, Q>> level) {
+    inline void mark_as_unused(std::shared_ptr<InternalLevel<ShardType, QueryType>> level) {
         level.reset();
     }
 

@@ -67,7 +67,7 @@ public:
   }
 
   static void distribute_query(Parameters *parms,
-                               std::vector<LocalQuery *> &local_queries,
+                               std::vector<LocalQuery *> const &local_queries,
                                LocalQueryBuffer *buffer_query) {
     return;
   }
@@ -119,7 +119,7 @@ public:
     return result;
   }
 
-  static void combine(std::vector<std::vector<LocalResultType>> &local_results,
+  static void combine(std::vector<std::vector<LocalResultType>> const &local_results,
                       Parameters *parms, std::vector<ResultType> &output) {
     std::vector<Cursor<LocalResultType>> cursors;
     cursors.reserve(local_results.size());
@@ -177,8 +177,8 @@ public:
     return;
   }
 
-  static bool repeat(void *parms, std::vector<R> &results,
-                     std::vector<void *> states, void *buffer_state) {
+  static bool repeat(Parameters *parms, std::vector<ResultType> &output,
+                     std::vector<LocalQuery *> const &local_queries, LocalQueryBuffer *buffer_query) {
     return false;
   }
 };

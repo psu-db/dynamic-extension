@@ -25,15 +25,15 @@
 #include "framework/structure/BufferView.h"
 
 namespace de {
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q>
+template <ShardInterface ShardType, QueryInterface<ShardType> QueryType>
 class InternalLevel;
 
 
 
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q>
+template <ShardInterface ShardType, QueryInterface<ShardType> QueryType>
 class InternalLevel {
-    typedef S Shard;
-    typedef BufferView<R> BuffView;
+    typedef typename ShardType::RECORD RecordType;
+    typedef BufferView<RecordType> BuffView;
 public:
     InternalLevel(ssize_t level_no, size_t shard_cap)
     : m_level_no(level_no)
@@ -57,15 +57,15 @@ public:
         assert(base_level->m_level_no > new_level->m_level_no || (base_level->m_level_no == 0 && new_level->m_level_no == 0));
         auto res = new InternalLevel(base_level->m_level_no, 1);
         res->m_shard_cnt = 1;
-        std::vector<Shard *> shards = {base_level->m_shards[0].get(),
+        std::vector<ShardType *> shards = {base_level->m_shards[0].get(),
                                        new_level->m_shards[0].get()};
 
-        res->m_shards[0] = std::make_shared<S>(shards);
+        res->m_shards[0] = std::make_shared<ShardType>(shards);
         return std::shared_ptr<InternalLevel>(res);
     }
 
     static std::shared_ptr<InternalLevel> reconstruction(std::vector<InternalLevel*> levels, size_t level_idx) {
-        std::vector<Shard *> shards; 
+        std::vector<ShardType *> shards; 
         for (auto level : levels) {
             for (auto shard : level->m_shards) {
                 if (shard) shards.emplace_back(shard.get());
@@ -74,7 +74,7 @@ public:
 
         auto res = new InternalLevel(level_idx, 1);
         res->m_shard_cnt = 1;
-        res->m_shards[0] = std::make_shared<S>(shards);
+        res->m_shards[0] = std::make_shared<ShardType>(shards);
 
         return std::shared_ptr<InternalLevel>(res);
     }
@@ -95,18 +95,18 @@ public:
             return;
         }
 
-        std::vector<S*> shards;
+        std::vector<ShardType*> shards;
         for (auto shard : level->m_shards) {
             if (shard) shards.emplace_back(shard.get());
         }
 
         if (m_shard_cnt == m_shards.size()) {
-            m_pending_shard = new S(shards);
+            m_pending_shard = new ShardType(shards);
             return;
         }
 
-        auto tmp = new S(shards);
-        m_shards[m_shard_cnt] = std::shared_ptr<S>(tmp);
+        auto tmp = new ShardType(shards);
+        m_shards[m_shard_cnt] = std::shared_ptr<ShardType>(tmp);
 
         ++m_shard_cnt;
     }
@@ -120,11 +120,11 @@ public:
     void append_buffer(BuffView buffer) {
         if (m_shard_cnt == m_shards.size()) {
             assert(m_pending_shard == nullptr);
-            m_pending_shard = new S(std::move(buffer));
+            m_pending_shard = new ShardType(std::move(buffer));
             return;
         }
 
-        m_shards[m_shard_cnt] = std::make_shared<S>(std::move(buffer));
+        m_shards[m_shard_cnt] = std::make_shared<ShardType>(std::move(buffer));
         ++m_shard_cnt;
     }
 
@@ -134,7 +134,7 @@ public:
                 m_shards[i] = nullptr;
             }
 
-            m_shards[0] = std::shared_ptr<S>(m_pending_shard);
+            m_shards[0] = std::shared_ptr<ShardType>(m_pending_shard);
             m_pending_shard = nullptr;
             m_shard_cnt = 1;
         }
@@ -146,30 +146,32 @@ public:
      *
      * No changes are made to this level.
      */
-    Shard *get_combined_shard() {
+    ShardType *get_combined_shard() {
         if (m_shard_cnt == 0) {
             return nullptr;
         }
 
-        std::vector<Shard *> shards;
+        std::vector<ShardType *> shards;
         for (auto shard : m_shards) {
             if (shard) shards.emplace_back(shard.get());
         }
 
-        return new S(shards);
+        return new ShardType(shards);
     }
 
-    void get_query_states(std::vector<std::pair<ShardID, Shard *>> &shards, std::vector<void*>& shard_states, void *query_parms) {
+    void get_local_queries(std::vector<std::pair<ShardID, ShardType *>> &shards, 
+                           std::vector<typename QueryType::LocalQuery *>& local_queries, 
+                           typename QueryType::Parameters *query_parms) {
         for (size_t i=0; i<m_shard_cnt; i++) {
             if (m_shards[i]) {
-                auto shard_state = Q::get_query_state(m_shards[i].get(), query_parms);
+                auto local_query = QueryType::local_preproc(m_shards[i].get(), query_parms);
                 shards.push_back({{m_level_no, (ssize_t) i}, m_shards[i].get()});
-                shard_states.emplace_back(shard_state);
+                local_queries.emplace_back(local_query);
             }
         }
     }
 
-    bool check_tombstone(size_t shard_stop, const R& rec) {
+    bool check_tombstone(size_t shard_stop, const RecordType& rec) {
         if (m_shard_cnt == 0) return false;
 
         for (int i = m_shard_cnt - 1; i >= (ssize_t) shard_stop;  i--) {
@@ -183,7 +185,7 @@ public:
         return false;
     }
 
-    bool delete_record(const R &rec) {
+    bool delete_record(const RecordType &rec) {
         if (m_shard_cnt == 0) return false;
 
         for (size_t i = 0; i < m_shards.size();  ++i) {
@@ -199,7 +201,7 @@ public:
         return false;
     }
 
-    Shard* get_shard(size_t idx) {
+    ShardType* get_shard(size_t idx) {
         if (idx >= m_shard_cnt) {
             return nullptr;
         }
@@ -283,8 +285,8 @@ private:
     size_t m_shard_cnt;
     size_t m_shard_size_cap;
 
-    std::vector<std::shared_ptr<Shard>> m_shards;
-    Shard *m_pending_shard;
+    std::vector<std::shared_ptr<ShardType>> m_shards;
+    ShardType *m_pending_shard;
 };
 
 }

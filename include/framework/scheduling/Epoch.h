@@ -18,12 +18,13 @@
 namespace de {
 
 
-template <RecordInterface R, ShardInterface<R> S, QueryInterface<R, S> Q, LayoutPolicy L>
+template <ShardInterface ShardType, QueryInterface<ShardType> QueryType, LayoutPolicy L>
 class Epoch {
 private:
-    typedef MutableBuffer<R> Buffer;
-    typedef ExtensionStructure<R, S, Q, L> Structure;
-    typedef BufferView<R> BufView;
+    typedef typename ShardType::RECORD RecordType;
+    typedef MutableBuffer<RecordType> Buffer;
+    typedef ExtensionStructure<ShardType, QueryType, L> Structure;
+    typedef BufferView<RecordType> BufView;
 public:
     Epoch(size_t number=0)
         : m_buffer(nullptr)
