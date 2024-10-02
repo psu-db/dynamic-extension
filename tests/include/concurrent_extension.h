@@ -171,7 +171,7 @@ START_TEST(t_range_query)
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
-    auto result = test_de->query(&p);
+    auto result = test_de->query(std::move(p));
     auto r = result.get();
     std::sort(r.begin(), r.end());
 

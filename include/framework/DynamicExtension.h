@@ -205,8 +205,8 @@ public:
    *          query completion
    */
   std::future<std::vector<QueryResult>>
-  query(Parameters *parms) {
-    return schedule_query(parms);
+  query(Parameters &&parms) {
+    return schedule_query(std::move(parms));
   }
 
   /**
@@ -613,7 +613,7 @@ private:
 
     auto buffer = epoch->get_buffer();
     auto vers = epoch->get_structure();
-    auto *parms = args->query_parms;
+    auto *parms = &(args->query_parms);
 
     /* create initial buffer query */
     auto buffer_query = QueryType::local_preproc_buffer(&buffer, parms);
@@ -696,11 +696,11 @@ private:
   }
 
   std::future<std::vector<QueryResult>>
-  schedule_query(Parameters *query_parms) {
+  schedule_query(Parameters &&query_parms) {
     auto args =
         new QueryArgs<ShardType, QueryType, DynamicExtension>();
     args->extension = this;
-    args->query_parms = query_parms;
+    args->query_parms = std::move(query_parms);
     auto result = args->result_set.get_future();
 
     m_sched.schedule_job(async_query, 0, (void *)args, QUERY);

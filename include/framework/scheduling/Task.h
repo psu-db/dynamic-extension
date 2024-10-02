@@ -36,7 +36,7 @@ struct ReconstructionArgs {
 
 template <ShardInterface S, QueryInterface<S> Q, typename DE> struct QueryArgs {
   std::promise<std::vector<typename Q::ResultType>> result_set;
-  typename Q::Parameters *query_parms;
+  typename Q::Parameters query_parms;
   DE *extension;
 };
 
