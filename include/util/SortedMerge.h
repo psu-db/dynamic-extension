@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <algorithm>
+
 #include "framework/interface/Shard.h"
 #include "psu-ds/PriorityQueue.h"
 #include "util/Cursor.h"

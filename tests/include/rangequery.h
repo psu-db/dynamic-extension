@@ -18,6 +18,7 @@
 #pragma once
 
 #include "query/rangequery.h"
+#include <algorithm>
 
 /*
  * Uncomment these lines temporarily to remove errors in this file
