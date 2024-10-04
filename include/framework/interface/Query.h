@@ -127,7 +127,10 @@ concept QueryInterface = LocalResultInterface<LOCAL_RESULT> &&
    * If deletes are not a consideration for your problem, it's also best
    * to turn this off, as it'll avoid the framework making an extra pass
    * over the local results prior to combining them.
+   *
+   * TODO: Temporarily disabling this, as we've dropped framework-level
+   *       delete filtering for the time being.
    */
-  { QUERY::SKIP_DELETE_FILTER } -> std::convertible_to<bool>;
+   /* { QUERY::SKIP_DELETE_FILTER } -> std::convertible_to<bool>; */
 };
 } // namespace de

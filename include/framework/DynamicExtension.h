@@ -645,8 +645,7 @@ private:
         }
 
         /* framework-level, automatic delete filtering */
-        query_results[i] =
-            std::move(filter_deletes(local_results, shid, vers, &buffer));
+        query_results[i] = std::move(local_results);
 
         /* end query early if EARLY_ABORT is set and a result exists */
         if constexpr (QueryType::EARLY_ABORT) {
@@ -719,73 +718,6 @@ private:
 
     /* this will fail if the HWM is reached and return 0 */
     return m_buffer->append(rec, ts);
-  }
-
-  static std::vector<LocalResult>
-  filter_deletes(std::vector<LocalResult> &records,
-                 ShardID shid, Structure *vers, BufView *bview) {
-
-    if constexpr (QueryType::SKIP_DELETE_FILTER) {
-      return std::move(records);
-    }
-
-    std::vector<LocalResult> processed_records;
-    processed_records.reserve(records.size());
-
-    /*
-     * For delete tagging, we just need to check the delete bit
-     * on each record.
-     */
-    if constexpr (D == DeletePolicy::TAGGING) {
-      for (auto &rec : records) {
-        if (rec.is_deleted()) {
-          continue;
-        }
-
-        processed_records.emplace_back(rec);
-      }
-
-      return processed_records;
-    }
-
-    /*
-     * For tombstone deletes, we need to search for the corresponding
-     * tombstone for each record.
-     */
-    for (auto &rec : records) {
-      if (rec.is_tombstone()) {
-        continue;
-      }
-
-      // FIXME: need to figure out how best to re-enable the buffer tombstone
-      // check in the correct manner.
-      // if (buffview.check_tombstone(rec.rec)) {
-      // continue;
-      //}
-
-      for (size_t i = 0; i < bview->get_record_count(); i++) {
-        if (bview->get(i)->is_tombstone() && bview->get(i)->rec == rec.rec) {
-          continue;
-        }
-      }
-
-      if (shid != INVALID_SHID) {
-        for (size_t lvl = 0; lvl <= shid.level_idx; lvl++) {
-          if (vers->get_levels()[lvl]->check_tombstone(0, rec.rec)) {
-            continue;
-          }
-        }
-
-        if (vers->get_levels()[shid.level_idx]->check_tombstone(
-                shid.shard_idx + 1, rec.rec)) {
-          continue;
-        }
-      }
-
-      processed_records.emplace_back(rec);
-    }
-
-    return processed_records;
   }
 
 #ifdef _GNU_SOURCE
