@@ -182,8 +182,6 @@ START_TEST(t_tombstone_merging_01)
         records.insert({key, val});
     }
 
-    size_t deletes = 0;
-    size_t cnt=0;
     for (auto rec : records) {
         R r = {rec.first, rec.second};
         ck_assert_int_eq(test_de->insert(r), 1);
@@ -195,7 +193,6 @@ START_TEST(t_tombstone_merging_01)
             for (size_t i=0; i<del_vec.size(); i++) {
                 R dr = {del_vec[i].first, del_vec[i].second};
                 test_de->erase(dr);
-                deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
@@ -215,7 +212,7 @@ START_TEST(t_tombstone_merging_01)
 }
 END_TEST
 
-static DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
+[[maybe_unused]] static DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
     auto rng = gsl_rng_alloc(gsl_rng_mt19937);
 
     auto test_de = new DE(1000, 10000, 2);
@@ -233,7 +230,6 @@ static DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
         records.insert({key, val});
     }
 
-    size_t deletes = 0;
     for (auto rec : records) {
         ck_assert_int_eq(test_de->insert(rec), 1);
 
@@ -243,7 +239,6 @@ static DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 test_de->erase(del_vec[i]);
-                deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
@@ -280,12 +275,8 @@ START_TEST(t_static_structure)
     }
 
     size_t deletes = 0;
-    size_t t_reccnt = 0;
-    size_t k=0;
     for (auto rec : records) {
-        k++;
         ck_assert_int_eq(test_de->insert(rec), 1);
-        t_reccnt++;
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
             std::vector<Rec> del_vec;

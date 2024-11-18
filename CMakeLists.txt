@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-#set(CMAKE_C_COMPILER clang)
-#set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
 
 set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -28,7 +28,7 @@ if (BSD)
 endif()
 
 if (debug) 
-    add_compile_options(-g -O0)
+    add_compile_options(-g -O0 -Wall)
     if (!BSD)
         add_compile_options(-fsanitize=address)
         add_link_options(-fsanitize=address)
@@ -36,7 +36,7 @@ if (debug)
         add_link_options(-fsanitize=undefined)
     endif()
 else()
-    add_compile_options(-O3 -g)
+    add_compile_options(-O3 -g -Wall)
 endif()
 
 # Test build instructions

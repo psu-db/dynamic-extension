@@ -380,8 +380,16 @@ public:
   void print_scheduler_statistics() const { m_sched.print_statistics(); }
 
 private:
+  size_t m_scale_factor;
+  double m_max_delete_prop;
+
   SchedType m_sched;
   Buffer *m_buffer;
+
+  size_t m_core_cnt;
+  std::atomic<int> m_next_core;
+  std::atomic<size_t> m_epoch_cnt;
+  
   alignas(64) std::atomic<bool> m_reconstruction_scheduled;
 
   std::atomic<epoch_ptr> m_next_epoch;
@@ -391,13 +399,8 @@ private:
   std::condition_variable m_epoch_cv;
   std::mutex m_epoch_cv_lk;
 
-  std::atomic<size_t> m_epoch_cnt;
 
-  size_t m_scale_factor;
-  double m_max_delete_prop;
 
-  std::atomic<int> m_next_core;
-  size_t m_core_cnt;
 
   void enforce_delete_invariant(_Epoch *epoch) {
     auto structure = epoch->get_structure();
@@ -735,7 +738,7 @@ private:
       // 0 |-> 0
       // 2 |-> 2
       // 4 |-> 4
-      core = core;
+      core = core + 0;
       break;
     case 1:
       // 1 |-> 28

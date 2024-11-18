@@ -112,8 +112,8 @@ public:
   }
 
 private:
-  Structure *m_structure;
   Buffer *m_buffer;
+  Structure *m_structure;
 
   std::mutex m_buffer_lock;
   std::atomic<bool> m_active_merge;

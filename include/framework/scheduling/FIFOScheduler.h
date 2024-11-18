@@ -75,10 +75,9 @@ public:
 private:
   psudb::LockedPriorityQueue<Task> m_task_queue;
 
-  size_t m_memory_budget;
+  [[maybe_unused]] size_t m_memory_budget;
   size_t m_thrd_cnt;
 
-  std::atomic<bool> m_shutdown;
 
   std::atomic<size_t> m_counter;
   std::mutex m_cv_lock;
@@ -88,8 +87,10 @@ private:
   std::thread m_sched_wakeup_thrd;
   ctpl::thread_pool m_thrd_pool;
 
-  std::atomic<size_t> m_used_thrds;
   std::atomic<size_t> m_used_memory;
+  std::atomic<size_t> m_used_thrds;
+
+  std::atomic<bool> m_shutdown;
 
   SchedulerStatistics m_stats;
 

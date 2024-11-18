@@ -330,7 +330,7 @@ public:
       }
     }
 
-    return std::move(reconstructions);
+    return reconstructions;
   }
 
   /*
@@ -354,7 +354,7 @@ public:
 
     if constexpr (L == LayoutPolicy::BSM) {
       if (base_level == 0) {
-        return std::move(reconstructions);
+        return reconstructions;
       }
 
       ReconstructionTask task;
@@ -373,7 +373,7 @@ public:
       scratch_state[base_level].reccnt = base_reccnt;
       scratch_state[base_level].shardcnt = 1;
 
-      return std::move(reconstructions);
+      return reconstructions;
     }
 
     /*
@@ -414,7 +414,7 @@ public:
       }
     }
 
-    return std::move(reconstructions);
+    return reconstructions;
   }
 
   inline void reconstruction(ReconstructionTask task) {

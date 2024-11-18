@@ -42,11 +42,11 @@ public:
   void print_statistics() { m_stats.print_statistics(); }
 
 private:
-  size_t m_memory_budget;
-  size_t m_thrd_cnt;
+  [[maybe_unused]] size_t m_memory_budget;
+  [[maybe_unused]] size_t m_thrd_cnt;
 
-  size_t m_used_thrds;
-  size_t m_used_memory;
+  [[maybe_unused]] size_t m_used_memory;
+  [[maybe_unused]] size_t m_used_thrds;
 
   size_t m_counter;
 

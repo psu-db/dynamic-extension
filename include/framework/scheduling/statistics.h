@@ -42,9 +42,7 @@ public:
   SchedulerStatistics() = default;
   ~SchedulerStatistics() = default;
 
-  void job_queued(size_t id, size_t type, size_t size) {
-    auto time = std::chrono::high_resolution_clock::now();
-  }
+  void job_queued(size_t id, size_t type, size_t size) { }
 
   void job_scheduled(size_t id) { std::unique_lock<std::mutex> lk(m_mutex); }
 

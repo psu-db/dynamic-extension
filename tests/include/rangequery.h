@@ -148,8 +148,6 @@ START_TEST(t_lower_bound)
     auto merged = Shard(shards);
 
     for (uint32_t i=100; i<1000; i++) {
-        R r = R{i, i};
-
         auto idx = merged.get_lower_bound(i);
 
         assert(idx < merged.get_record_count());
