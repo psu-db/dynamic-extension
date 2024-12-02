@@ -22,26 +22,24 @@ template <ShardInterface S> class Query {
   typedef typename S::RECORD R;
 
 public:
-  struct LocalQuery {
-    size_t start_idx;
-    size_t stop_idx;
-    decltype(R::key) lower_bound;
-    decltype(R::key) upper_bound;
-  };
-
-  struct LocalQueryBuffer {
-    BufferView<R> *buffer;
-    decltype(R::key) lower_bound;
-    decltype(R::key) upper_bound;
-  };
-
-  typedef Wrapped<R> LocalResultType;
-  typedef R ResultType;
-
   struct Parameters {
     decltype(R::key) lower_bound;
     decltype(R::key) upper_bound;
   };
+
+  struct LocalQuery {
+    size_t start_idx;
+    size_t stop_idx;
+    Parameters global_parms;
+  };
+
+  struct LocalQueryBuffer {
+    BufferView<R> *buffer;
+    Parameters global_parms;
+  };
+
+  typedef Wrapped<R> LocalResultType;
+  typedef R ResultType;
 
   constexpr static bool EARLY_ABORT = false;
   constexpr static bool SKIP_DELETE_FILTER = true;
@@ -51,8 +49,7 @@ public:
 
     query->start_idx = shard->get_lower_bound(parms->lower_bound);
     query->stop_idx = shard->get_record_count();
-    query->lower_bound = parms->lower_bound;
-    query->upper_bound = parms->upper_bound;
+    query->global_parms = *parms;
 
     return query;
   }
@@ -61,8 +58,7 @@ public:
                                                 Parameters *parms) {
     auto query = new LocalQueryBuffer();
     query->buffer = buffer;
-    query->lower_bound = parms->lower_bound;
-    query->upper_bound = parms->upper_bound;
+    query->global_parms = *parms;
 
     return query;
   }
@@ -92,12 +88,12 @@ public:
      * greater than or equal to the lower bound.
      */
     while (ptr < shard->get_data() + query->stop_idx &&
-           ptr->rec.key < query->lower_bound) {
+           ptr->rec.key < query->global_parms.lower_bound) {
       ptr++;
     }
 
     while (ptr < shard->get_data() + query->stop_idx &&
-           ptr->rec.key <= query->upper_bound) {
+           ptr->rec.key <= query->global_parms.upper_bound) {
       result.emplace_back(*ptr);
       ptr++;
     }
@@ -111,8 +107,8 @@ public:
     std::vector<LocalResultType> result;
     for (size_t i = 0; i < query->buffer->get_record_count(); i++) {
       auto rec = query->buffer->get(i);
-      if (rec->rec.key >= query->lower_bound &&
-          rec->rec.key <= query->upper_bound) {
+      if (rec->rec.key >= query->global_parms.lower_bound &&
+          rec->rec.key <= query->global_parms.upper_bound) {
         result.emplace_back(*rec);
       }
     }

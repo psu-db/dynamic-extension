@@ -35,10 +35,13 @@ static thread_local size_t wss_cancelations = 0;
 
 template <WeightedRecordInterface R>
 class Alias {
+public:
+    typedef R RECORD;
 private:
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
     typedef decltype(R::weight) W;
+
 
 public:
     Alias(BufferView<R> buffer)

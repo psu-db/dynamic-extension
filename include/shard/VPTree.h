@@ -21,13 +21,15 @@
 
 using psudb::CACHELINE_SIZE;
 using psudb::PriorityQueue;
-using psudb::queue_record;
 using psudb::byte;
 
 namespace de {
 
 template <NDRecordInterface R, size_t LEAFSZ=100, bool HMAP=false>
 class VPTree {
+public:
+    typedef R RECORD;
+
 private:
     struct vpnode {
         size_t start;
@@ -50,7 +52,7 @@ private:
 
 public:
     VPTree(BufferView<R> buffer)
-    : m_reccnt(0), m_tombstone_cnt(0), m_root(nullptr), m_node_cnt(0) {
+    : m_reccnt(0), m_tombstone_cnt(0), m_node_cnt(0), m_root(nullptr) {
 
 
         m_alloc_size = psudb::sf_aligned_alloc(CACHELINE_SIZE, 
@@ -59,8 +61,6 @@ public:
                                                (byte**) &m_data);
 
         m_ptrs = new vp_ptr[buffer.get_record_count()];
-
-        size_t offset = 0;
         m_reccnt = 0;
 
         // FIXME: will eventually need to figure out tombstones
@@ -87,7 +87,7 @@ public:
     }
 
     VPTree(std::vector<VPTree*> shards) 
-    : m_reccnt(0), m_tombstone_cnt(0), m_root(nullptr), m_node_cnt(0) {
+    : m_reccnt(0), m_tombstone_cnt(0), m_node_cnt(0), m_root(nullptr) {
 
         size_t attemp_reccnt = 0;
         for (size_t i=0; i<shards.size(); i++) {
@@ -363,7 +363,6 @@ private:
 
         if (d < *farthest) {
             if (pq.size() == k) {
-                auto t = pq.peek().data->rec;
                 pq.pop();
             }
             pq.push(m_ptrs[node->start].ptr);

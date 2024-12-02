@@ -50,14 +50,14 @@ static std::vector<std::unique_ptr<char[]>> string_data;
         std::string field;
 
         std::getline(ls, field, '\t');
-        auto val = atol(field.c_str());
+        uint64_t val = atol(field.c_str());
         std::getline(ls, field, '\n');
 
         char *c = strdup(field.c_str());
 
         string_data.push_back(std::unique_ptr<char[]>(c));
 
-        StringRec r(string_data[string_data.size() -1].get(), val, field.size());
+        StringRec r{string_data[string_data.size() -1].get(), val, field.size()};
         
         vec.push_back(r);
     }
