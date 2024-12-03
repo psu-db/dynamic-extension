@@ -197,14 +197,7 @@ public:
    *  Schedule the execution of a query with specified parameters and
    *  returns a future that can be used to access the results. The query
    *  is executed asynchronously.
-
-   *  It is the caller's responsibility to manage the memory used for
-   *  the parms object. In particular, the behavior of this function is
-   *  undefined if the parms object is deleted prior to the result set
-   *  being retrieved successfully from the returned future.
-   *
-   *  @param parms A pointer to the query parameters. This object should
-   *         be maintained until after the query results have been obtained
+   *  @param parms An rvalue reference to the query parameters.
    *
    *  @return A future, from which the query results can be retrieved upon
    *          query completion

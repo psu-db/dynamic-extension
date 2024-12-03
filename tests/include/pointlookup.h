@@ -17,6 +17,8 @@
  */
 #pragma once
 
+#include "query/pointlookup.h"
+
 /*
  * Uncomment these lines temporarily to remove errors in this file
  * temporarily for development purposes. They should be removed prior
@@ -25,15 +27,12 @@
  * include statement.
  */
 
-//#include "shard/FSTrie.h"
-#include "query/pointlookup.h"
+#include "shard/FSTrie.h"
 #include "testing.h"
-
 #include <check.h>
-
 using namespace de;
-//typedef StringRec R;
-//typedef FSTrie<R> Shard;
+typedef StringRec R;
+typedef FSTrie<R> Shard;
 
 START_TEST(t_point_lookup_query)
 {
@@ -45,23 +44,21 @@ START_TEST(t_point_lookup_query)
         for (size_t i=0; i<bv.get_record_count(); i++) {
             auto key = bv.get(i)->rec.key;
 
-            pl::Parms<R> parms = {key};
-            auto state = pl::Query<R, Shard>::get_query_state(&shard, &parms);
-            auto result = pl::Query<R, Shard>::query(&shard, state, &parms);
-            pl::Query<R, Shard>::delete_query_state(state);
-
+            pl::Query<Shard>::Parameters parms = {key};
+            auto local_query = pl::Query<Shard>::local_preproc(&shard, &parms);
+            auto result = pl::Query<Shard>::local_query(&shard,local_query);
+            delete local_query;
             ck_assert_int_eq(result.size(), 1);
-            //ck_assert_str_eq(result[0].rec.key, key);
-            //ck_assert_int_eq(result[0].rec.value, bv.get(i)->rec.value);
+            ck_assert_str_eq(result[0].rec.key, key);
+            ck_assert_int_eq(result[0].rec.value, bv.get(i)->rec.value);
         }
 
         /* point lookup miss; result size should be 0 */
         const char *c = "computer";
-        pl::Parms<R> parms = {c};
-
-        auto state = pl::Query<R, Shard>::get_query_state(&shard, &parms);
-        auto result = pl::Query<R, Shard>::query(&shard, state, &parms);
-        pl::Query<R, Shard>::delete_query_state(state);
+        pl::Query<Shard>::Parameters parms = {c};
+        auto local_query = pl::Query<Shard>::local_preproc(&shard, &parms);
+        auto result = pl::Query<Shard>::local_query(&shard,local_query);
+        delete local_query;
 
         ck_assert_int_eq(result.size(), 0);
     }
@@ -78,24 +75,21 @@ START_TEST(t_buffer_point_lookup)
     {
         auto view = buffer->get_buffer_view();
         for (int i=view.get_record_count()-1; i>=0; i--) {
-            pl::Parms<R> parms = {view.get(i)->rec.key};
-
-            auto state = pl::Query<R, Shard>::get_buffer_query_state(&view, &parms);
-            auto result = pl::Query<R, Shard>::buffer_query(state, &parms);
-            pl::Query<R, Shard>::delete_buffer_query_state(state);
+            pl::Query<Shard>::Parameters parms = {view.get(i)->rec.key};
+            auto local_query = pl::Query<Shard>::local_preproc_buffer(&view, &parms);
+            auto result = pl::Query<Shard>::local_query_buffer(local_query);
+            delete local_query;
 
             ck_assert_int_eq(result.size(), 1);
-            //ck_assert_str_eq(result[0].rec.key, view.get(i)->rec.key);
-            //ck_assert_int_eq(result[0].rec.value, view.get(i)->rec.value);
+            ck_assert_str_eq(result[0].rec.key, view.get(i)->rec.key);
+            ck_assert_int_eq(result[0].rec.value, view.get(i)->rec.value);
         }
 
         /* point lookup miss; result size should be 0 */
         const char *c = "computer";
-        pl::Parms<R> parms = {c};
-
-        auto state = pl::Query<R, Shard>::get_buffer_query_state(&view, &parms);
-        auto result = pl::Query<R, Shard>::buffer_query(state, &parms);
-        pl::Query<R, Shard>::delete_buffer_query_state(state);
+        pl::Query<Shard>::Parameters parms = {c};
+        auto local_query = pl::Query<Shard>::local_preproc_buffer(&view, &parms);
+        auto result = pl::Query<Shard>::local_query_buffer(local_query);
 
         ck_assert_int_eq(result.size(), 0);
     }

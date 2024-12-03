@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "query/irs.h"
+#include "shard/ISAMTree.h"
 #include "benchmark_types.h"
 #include "file_util.h"
 #include <mutex>
@@ -17,7 +18,10 @@
 
 
 typedef btree_record<int64_t, int64_t> Rec;
-typedef de::irs::Parms<Rec> QP;
+
+typedef de::ISAMTree<Rec> Shard;
+typedef de::irs::Query<Shard> Q;
+typedef Q::Parameters QP;
 
 std::atomic<bool> inserts_done = false;
 
@@ -47,7 +51,6 @@ void query_thread(BenchBTree *tree, std::vector<QP> *queries) {
 }
 
 void insert_thread(BenchBTree *tree, size_t start, std::vector<Rec> *records) {
-    size_t reccnt = 0;
     for (size_t i=start; i<records->size(); i++) {
         btree_record<int64_t, int64_t> r;
         r.key = (*records)[i].key;

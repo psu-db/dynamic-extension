@@ -39,6 +39,9 @@ public:
   struct LocalResultType {
     size_t record_count;
     size_t tombstone_count;
+
+    bool is_deleted() {return false;}
+    bool is_tombstone() {return false;}
   };
 
   typedef size_t ResultType;

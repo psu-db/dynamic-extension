@@ -21,9 +21,9 @@
 
 typedef de::Record<const char *, uint64_t> Rec;
 typedef de::FSTrie<Rec> Shard;
-typedef de::pl::Query<Rec, Shard> Q;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::BSM, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
-typedef de::pl::Parms<Rec> QP;
+typedef de::pl::Query<Shard> Q;
+typedef de::DynamicExtension<Shard, Q, de::LayoutPolicy::BSM, de::DeletePolicy::TOMBSTONE, de::SerialScheduler> Ext;
+typedef Q::Parameters QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile\n", progname);
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
     TIMER_START();
-    run_queries<Ext, QP>(extension, queries);
+    run_queries<Ext, Q>(extension, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
     auto shard = extension->create_static_structure();
 
     TIMER_START();
-    run_static_queries<Shard, QP, Q>(shard, queries);
+    run_static_queries<Shard, Q>(shard, queries);
     TIMER_STOP();
 
     auto static_latency = TIMER_RESULT() / queries.size();

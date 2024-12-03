@@ -33,6 +33,8 @@ namespace de {
 
 template <RecordInterface R, size_t epsilon=128>
 class PGM {
+public:
+    typedef R RECORD;
 private:
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
@@ -109,7 +111,7 @@ public:
         }
     }
 
-    PGM(std::vector<PGM*> shards)
+    PGM(std::vector<PGM*> const &shards)
         : m_data(nullptr)
         , m_bf(nullptr)
         , m_reccnt(0)

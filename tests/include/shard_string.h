@@ -73,7 +73,6 @@ START_TEST(t_shard_init)
     ck_assert_int_eq(shard4->get_record_count(), n * 3);
     ck_assert_int_eq(shard4->get_tombstone_count(), 0);
 
-    size_t total_cnt = 0;
     size_t shard1_idx = 0;
     size_t shard2_idx = 0;
     size_t shard3_idx = 0;

@@ -18,10 +18,11 @@
 
 typedef Word2VecRec Rec;
 
+
 typedef de::VPTree<Rec, 100, true> Shard;
-typedef de::knn::Query<Rec, Shard> Q;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::BSM, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
-typedef de::knn::Parms<Rec> QP;
+typedef de::knn::Query<Shard> Q;
+typedef de::DynamicExtension<Shard, Q, de::LayoutPolicy::BSM, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
+typedef Q::Parameters QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
@@ -75,7 +76,7 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "[I] Running Query Benchmark\n");
     TIMER_START();
-    run_queries<Ext, QP>(extension, queries);
+    run_queries<Ext, Q>(extension, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();
@@ -84,7 +85,7 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Running Static query tests\n\n");
     TIMER_START();
-    run_static_queries<Shard, QP, Q>(shard, queries);
+    run_static_queries<Shard,Q>(shard, queries);
     TIMER_STOP();
 
     auto static_latency = TIMER_RESULT() / queries.size();

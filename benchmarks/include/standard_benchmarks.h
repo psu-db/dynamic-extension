@@ -18,25 +18,15 @@
 #include "psu-util/progress.h"
 #include "benchmark_types.h"
 #include "psu-util/bentley-saxe.h"
+#include "shard/ISAMTree.h"
 
 static size_t g_deleted_records = 0;
-static double delete_proportion = 0.05;
+static double delete_proportion = 0.5;
 
 static volatile size_t total = 0;
 
-template<typename DE, typename QP, typename R>
-static void run_queries(DE *extension, DE *ghost, std::vector<QP> &queries) {
-    for (size_t i=0; i<queries.size(); i++) {
-        std::vector<R> res = extension->query(&queries[i]);
-        std::vector<R> negres = ghost->query(&queries[i]);
-        auto result = res[0].first - negres[0].first;
-        total = result;
-    }
-}
-
-
-template<typename DE, typename QP, bool BSM=false>
-static void run_queries(DE *extension, std::vector<QP> &queries) {
+template<typename DE, typename Q, bool BSM=false>
+static void run_queries(DE *extension, std::vector<typename Q::Parameters> &queries) {
     for (size_t i=0; i<queries.size(); i++) {
         if constexpr (std::is_same_v<MTree, DE>) {
             std::vector<Word2VecRec> result;
@@ -72,7 +62,8 @@ static void run_queries(DE *extension, std::vector<QP> &queries) {
                 ++ptr;
             }
         } else {
-            auto res = extension->query(&queries[i]);
+            auto q = queries[i];
+            auto res = extension->query(std::move(q));
             if constexpr (!BSM) {
                 auto result = res.get();
                 #ifdef BENCH_PRINT_RESULTS
@@ -100,8 +91,8 @@ static void run_queries(DE *extension, std::vector<QP> &queries) {
     }
 }
 
-template <typename R>
-static void run_btree_queries(BenchBTree *btree, std::vector<de::irs::Parms<R>> &queries) {
+template <typename R, typename Q>
+static void run_btree_queries(BenchBTree *btree, std::vector<typename Q::Parameters> &queries) {
     std::vector<int64_t> sample_set;
     sample_set.reserve(queries[0].sample_size);
 
@@ -111,18 +102,16 @@ static void run_btree_queries(BenchBTree *btree, std::vector<de::irs::Parms<R>> 
 }
 
 
-template<typename S, typename QP, typename Q>
-static void run_static_queries(S *shard, std::vector<QP> &queries) {
+template<typename S, typename Q>
+static void run_static_queries(S *shard, std::vector<typename Q::Parameters> &queries) {
     for (size_t i=0; i<queries.size(); i++) {
         auto q = &queries[i];
 
-        auto state = Q::get_query_state(shard, q);
+        std::vector<S *> shards = {shard};
+        std::vector<typename Q::LocalQuery*> local_queries = {Q::local_preproc(shard, q)};
 
-        std::vector<void*> shards = {shard};
-        std::vector<void*> states = {state};
-
-        Q::process_query_states(q, states, nullptr);
-        auto res = Q::query(shard, state, q);
+        Q::distribute_query(q, local_queries, nullptr);
+        auto res = Q::local_query(shard, local_queries[0]); 
 
         #ifdef BENCH_PRINT_RESULTS
             fprintf(stdout, "\n\n");
@@ -136,55 +125,12 @@ static void run_static_queries(S *shard, std::vector<QP> &queries) {
     }
 }
 
-
-/*
- * Insert records into a standard Bentley-Saxe extension. Deletes are not
- * supported.
- */
-template<typename DS, typename R, bool MDSP=false>
-static void insert_records(psudb::bsm::BentleySaxe<R, DS, MDSP> *extension, 
-                           size_t start, size_t stop, std::vector<R> &records) {
-
-    psudb::progress_update(0, "Insert Progress");
-    for (size_t i=start; i<stop; i++) {
-        extension->insert(records[i]);
-    }
-
-    psudb::progress_update(1, "Insert Progress");
-}
-
-
-template<typename DS, typename R, bool MDSP=false>
-static void insert_records(psudb::bsm::BentleySaxe<R, DS, MDSP> *extension, 
-                           psudb::bsm::BentleySaxe<R, DS, MDSP> *ghost, 
-                           size_t start, size_t stop, std::vector<R> &records,
-                           std::vector<size_t> &to_delete, size_t &delete_idx, 
-                           gsl_rng *rng) {
-
-    psudb::progress_update(0, "Insert Progress");
-    size_t reccnt = 0;
-    for (size_t i=start; i<stop; i++) {
-
-        extension->insert(records[i]);
-
-        if (gsl_rng_uniform(rng) <= delete_proportion && to_delete[delete_idx] <= i) {
-            ghost->insert(records[to_delete[delete_idx]]);
-            delete_idx++;
-            g_deleted_records++;
-        }
-
-    }
-
-}
-
-
 template<typename DE, typename R>
 static void insert_records(DE *structure, size_t start, size_t stop, 
                            std::vector<R> &records, std::vector<size_t> &to_delete, 
                            size_t &delete_idx, bool delete_records, gsl_rng *rng) {
 
     psudb::progress_update(0, "Insert Progress");
-    size_t reccnt = 0;
     for (size_t i=start; i<stop; i++) {
 
         if constexpr (std::is_same_v<BenchBTree, DE>) {
@@ -302,8 +248,8 @@ static bool insert_tput_bench(DE &de_index, std::fstream &file, size_t insert_cn
     return continue_benchmark;
 }
 
-template <typename DE, de::RecordInterface R, typename QP, bool PROGRESS=true>
-static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t trial_cnt=1) {
+template <typename DE, typename Q, bool PROGRESS=true>
+static bool query_latency_bench(DE &de_index, std::vector<typename Q::Parameters> queries, size_t trial_cnt=1) {
     char progbuf[25];
     if constexpr (PROGRESS) {
         sprintf(progbuf, "querying:");
@@ -339,8 +285,8 @@ static bool query_latency_bench(DE &de_index, std::vector<QP> queries, size_t tr
 }
 
 
-template <typename Shard, de::RecordInterface R, typename QP, de::QueryInterface<R, Shard> Q, bool PROGRESS=true>
-static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t trial_cnt=100) {
+template <typename Shard, typename Q, bool PROGRESS=true>
+static bool static_latency_bench(Shard *shard, std::vector<typename Q::Parameters> queries, size_t trial_cnt=100) {
     char progbuf[25];
     if constexpr (PROGRESS) {
         sprintf(progbuf, "querying:");
@@ -354,15 +300,15 @@ static bool static_latency_bench(Shard *shard, std::vector<QP> queries, size_t t
             psudb::progress_update((double) (i) / (double) trial_cnt, progbuf);
         }
 
-        std::vector<void *> states(1);
+        std::vector<typename Q::LocalQuery*> local_queries(1);
 
         auto start = std::chrono::high_resolution_clock::now();
         for (size_t j=0; j<queries.size(); j++) {
-            states[0] = Q::get_query_state(shard, &queries[j]);
-            Q::process_query_states(&queries[j], states, nullptr);
-            auto res = Q::query(shard, states[0], &queries[j]);
+            local_queries[0] = Q::local_preproc(shard, &queries[j]);
+            Q::distribute_query(&queries[j], local_queries, nullptr);
+            auto res = Q::local_query(shard, local_queries[0]); 
             total_results += res.size();
-            Q::delete_query_state(states[0]);
+            delete local_queries[0];
         }
         auto stop = std::chrono::high_resolution_clock::now();
 
