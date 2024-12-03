@@ -29,6 +29,11 @@ template <ShardInterface ShardType, QueryInterface<ShardType> QueryType,
           DeletePolicy D = DeletePolicy::TAGGING,
           SchedulerInterface SchedType = SerialScheduler>
 class DynamicExtension {
+  /* for unit testing purposes */
+public:
+    LayoutPolicy Layout = L;
+
+private:
   /* convenience typedefs for commonly used types within the class */
   typedef typename ShardType::RECORD RecordType;
   typedef MutableBuffer<RecordType> Buffer;
@@ -52,7 +57,6 @@ class DynamicExtension {
   };
 
 public:
-  typedef decltype(L) Layout;
   /**
    * Create a new Dynamized version of a data structure, supporting
    * inserts and, possibly, deletes. The following parameters are used

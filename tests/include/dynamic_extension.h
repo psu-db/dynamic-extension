@@ -114,7 +114,7 @@ START_TEST(t_insert_with_mem_merges)
      * BSM grows on every flush, so the height will be different than
      * normal layout policies 
      */
-    if constexpr (std::is_same_v<DE::Layout, decltype(de::LayoutPolicy::BSM)>) {
+    if (test_de->Layout == de::LayoutPolicy::BSM) {
         ck_assert_int_eq(test_de->get_height(), 2);
     } else {
         ck_assert_int_eq(test_de->get_height(), 1);
