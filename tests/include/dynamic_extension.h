@@ -39,6 +39,7 @@
 // typedef DynamicExtension<S, Q, LayoutPolicy::TEIRING, DeletePolicy::TAGGING, SerialScheduler> DE;
 
 
+#include "framework/util/Configuration.h"
 START_TEST(t_create)
 {
     auto test_de = new DE(100, 1000, 2);
@@ -108,7 +109,16 @@ START_TEST(t_insert_with_mem_merges)
     test_de->await_next_epoch();
 
     ck_assert_int_eq(test_de->get_record_count(), 300);
-    ck_assert_int_eq(test_de->get_height(), 1);
+
+    /* 
+     * BSM grows on every flush, so the height will be different than
+     * normal layout policies 
+     */
+    if constexpr (std::is_same_v<DE::Layout, decltype(de::LayoutPolicy::BSM)>) {
+        ck_assert_int_eq(test_de->get_height(), 2);
+    } else {
+        ck_assert_int_eq(test_de->get_height(), 1);
+    }
 
     delete test_de;
 }

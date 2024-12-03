@@ -52,6 +52,7 @@ class DynamicExtension {
   };
 
 public:
+  typedef decltype(L) Layout;
   /**
    * Create a new Dynamized version of a data structure, supporting
    * inserts and, possibly, deletes. The following parameters are used
