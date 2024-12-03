@@ -121,6 +121,11 @@ if (tests)
     target_link_options(memisam_tests PUBLIC -mcx16)
     target_include_directories(memisam_tests PRIVATE include external/psudb-common/cpp/include)
 
+    add_executable(alias_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/alias_tests.cpp)
+    target_link_libraries(alias_tests PUBLIC gsl check subunit  pthread atomic)
+    target_link_options(alias_tests PUBLIC -mcx16)
+    target_include_directories(alias_tests PRIVATE include external/psudb-common/cpp/include)
+
     # add_executable(triespline_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/triespline_tests.cpp)
     # target_link_libraries(triespline_tests PUBLIC gsl check subunit  pthread atomic)
     # target_link_options(triespline_tests PUBLIC -mcx16)

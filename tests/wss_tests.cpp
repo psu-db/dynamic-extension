@@ -1,7 +1,8 @@
 /*
- * tests/isam_tests.cpp
+ * tests/rangequery_tests.cpp
  *
- * Unit tests for ISAM Tree shard
+ * Unit tests for Range Queries across several different
+ * shards
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -10,24 +11,24 @@
  *
  */
 
-#include "shard/Alias.h"
+#include "shard/ISAMTree.h"
+#include "query/rangecount.h"
 #include "include/testing.h"
+
 #include <check.h>
 
 using namespace de;
 
-typedef WeightedRecord<uint64_t, uint32_t, uint32_t> R;
-typedef Alias<R> Shard;
+typedef Rec R;
+typedef ISAMTree<Rec> Shard;
 
-#include "include/shard_standard.h"
 #include "include/wss.h"
+
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("Walker's Alias Shard Unit Testing");
-
-    inject_wss_tests(unit);
-    inject_shard_tests(unit);
+    Suite *unit = suite_create("Range Count Query Testing");
+    inject_rangecount_tests(unit);
 
     return unit;
 }

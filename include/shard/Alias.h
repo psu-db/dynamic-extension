@@ -25,13 +25,9 @@
 
 using psudb::CACHELINE_SIZE;
 using psudb::BloomFilter;
-using psudb::PriorityQueue;
-using psudb::queue_record;
 using psudb::byte;
 
 namespace de {
-
-static thread_local size_t wss_cancelations = 0;
 
 template <WeightedRecordInterface R>
 class Alias {
@@ -74,7 +70,7 @@ public:
         }
     }
 
-    Alias(std::vector<Alias*> &shards)
+    Alias(std::vector<Alias*> const &shards)
         : m_data(nullptr)
         , m_alias(nullptr)
         , m_total_weight(0)
@@ -170,7 +166,6 @@ public:
         size_t min = 0;
         size_t max = m_reccnt - 1;
 
-        const char * record_key;
         while (min < max) {
             size_t mid = (min + max) / 2;
 
