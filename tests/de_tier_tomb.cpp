@@ -23,7 +23,9 @@
 using namespace de;
 
 typedef Rec R;
-typedef DynamicExtension<Rec, ISAMTree<R>, rq::Query<R, ISAMTree<R>>, LayoutPolicy::TEIRING, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
+typedef ISAMTree<R> S;
+typedef rq::Query<S> Q;
+typedef DynamicExtension<S, Q, LayoutPolicy::TEIRING, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
 
 #include "include/dynamic_extension.h"
 

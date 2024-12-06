@@ -22,17 +22,20 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-/*#include "testing.h"
-#include "framework/DynamicExtension.h"
-#include "framework/scheduling/FIFOScheduler.h"
-#include "shard/ISAMTree.h"
-#include "query/rangequery.h"
-#include <check.h>
+// #include "testing.h"
+// #include "framework/DynamicExtension.h"
+// //#include "framework/scheduling/FIFOScheduler.h"
+// #include "shard/ISAMTree.h"
+// #include "query/rangequery.h"
+// #include <check.h>
+// #include <set>
+// #include <random>
 
-//using namespace de;
-//typedef DynamicExtension<R, ISAMTree<R>, rq::Query<ISAMTree<R>, R>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
-*/
-
+// using namespace de;
+// typedef Rec R;
+// typedef ISAMTree<R> S;
+// typedef rq::Query<S> Q;
+// typedef DynamicExtension<S, Q, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE> DE; //, FIFOScheduler> DE;
 
 START_TEST(t_create)
 {
@@ -164,11 +167,11 @@ START_TEST(t_range_query)
     uint64_t lower_key = keys[idx];
     uint64_t upper_key = keys[idx + 250];
 
-    rq::Parms<R> p;
+    Q::Parameters p;
     p.lower_bound = lower_key;
     p.upper_bound = upper_key;
 
-    auto result = test_de->query(&p);
+    auto result = test_de->query(std::move(p));
     auto r = result.get();
     std::sort(r.begin(), r.end());
 
@@ -203,8 +206,6 @@ START_TEST(t_tombstone_merging_01)
         records.insert({key, val});
     }
 
-    size_t deletes = 0;
-    size_t cnt=0;
     for (auto rec : records) {
         R r = {rec.first, rec.second};
         while (!test_de->insert(r)) {
@@ -220,7 +221,6 @@ START_TEST(t_tombstone_merging_01)
                 while (!test_de->erase(dr)) {
                     _mm_pause();
                 }
-                deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
@@ -258,7 +258,6 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
         records.insert({key, val});
     }
 
-    size_t deletes = 0;
     for (auto rec : records) {
         ck_assert_int_eq(test_de->insert(rec), 1);
 
@@ -268,7 +267,6 @@ DE *create_test_tree(size_t reccnt, size_t memlevel_cnt) {
 
             for (size_t i=0; i<del_vec.size(); i++) {
                 test_de->erase(del_vec[i]);
-                deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }
@@ -304,15 +302,10 @@ START_TEST(t_static_structure)
         records.insert({key, val});
     }
 
-    size_t deletes = 0;
-    size_t t_reccnt = 0;
-    size_t k=0;
     for (auto rec : records) {
-        k++;
         while (!test_de->insert(rec)) {
             _mm_pause();
         }
-        t_reccnt++;
 
          if (gsl_rng_uniform(rng) < 0.05 && !to_delete.empty()) {
             std::vector<R> del_vec;
@@ -323,7 +316,6 @@ START_TEST(t_static_structure)
                     _mm_pause();
                 }
 
-                deletes++;
                 to_delete.erase(del_vec[i]);
                 deleted.insert(del_vec[i]);
             }

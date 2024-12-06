@@ -323,13 +323,11 @@ START_TEST(t_bview_delete)
     /* insert 75 records and get tail when LWM is exceeded */
     size_t new_head = 0;
     Rec rec = {1, 1};
-    size_t cnt = 0;
     for (size_t i=0; i<75; i++) {
         ck_assert_int_eq(buffer->append(rec), 1);
 
         rec.key++;
         rec.value++;
-        cnt++;
 
         if (buffer->is_at_low_watermark() && new_head == 0) {
             new_head = buffer->get_tail();
@@ -343,7 +341,6 @@ START_TEST(t_bview_delete)
 
         rec.key++;
         rec.value++;
-        cnt++;
     }
 
     Rec dr1 = {67, 67};

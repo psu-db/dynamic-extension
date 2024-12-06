@@ -20,6 +20,8 @@ using namespace de;
 
 typedef PRec R;
 typedef VPTree<R> Shard;
+typedef knn::Query<Shard> Q;
+
 
 START_TEST(t_mbuffer_init)
 {
@@ -123,15 +125,15 @@ START_TEST(t_buffer_query)
     target.data[0] = 120;
     target.data[1] = 120;
 
-    knn::Parms<PRec> p;
+    Q::Parameters p;
     p.k = 10;
     p.point = target;
 
     {
         auto bv = buffer->get_buffer_view();
-        auto state = knn::Query<PRec, Shard>::get_buffer_query_state(&bv, &p);
-        auto result = knn::Query<PRec, Shard>::buffer_query(state, &p);
-        knn::Query<PRec, Shard>::delete_buffer_query_state(state);
+        auto query = Q::local_preproc_buffer(&bv, &p);
+        auto result = Q::local_query_buffer(query);
+        delete query;
 
         std::sort(result.begin(), result.end());
         size_t start = 120 - 5;
@@ -150,15 +152,16 @@ START_TEST(t_knn_query)
 
     auto vptree = VPTree<PRec>(buffer->get_buffer_view());
 
-    knn::Parms<PRec> p;
+    Q::Parameters p;
+
     for (size_t i=0; i<100; i++) {
         p.k = rand() % 150;
         p.point.data[0] = rand() % (n-p.k);
         p.point.data[1] = p.point.data[0];
 
-        auto state = knn::Query<PRec, Shard>::get_query_state(&vptree, &p);
-        auto results = knn::Query<PRec, Shard>::query(&vptree, state, &p);
-        knn::Query<PRec, Shard>::delete_query_state(state);
+        auto query = Q::local_preproc(&vptree, &p); 
+        auto results = Q::local_query(&vptree, query);
+        delete query;
 
         ck_assert_int_eq(results.size(), p.k);
 

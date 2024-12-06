@@ -1,7 +1,7 @@
 /*
- * tests/alias_tests.cpp
+ * tests/isam_tests.cpp
  *
- * Unit tests for Alias shard
+ * Unit tests for ISAM Tree shard
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -11,27 +11,22 @@
  */
 
 #include "shard/Alias.h"
-#include "query/wss.h"
-#include "framework/structure/MutableBuffer.h"
 #include "include/testing.h"
-
-
 #include <check.h>
 
 using namespace de;
 
-typedef WRec R;
+typedef WeightedRecord<uint64_t, uint32_t, uint32_t> R;
 typedef Alias<R> Shard;
 
-
 #include "include/shard_standard.h"
-#include "include/rangequery.h"
+#include "include/wss.h"
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("ISAMTree Shard Unit Testing");
+    Suite *unit = suite_create("Walker's Alias Shard Unit Testing");
 
-    inject_rangequery_tests(unit);
+    inject_wss_tests(unit);
     inject_shard_tests(unit);
 
     return unit;
@@ -58,4 +53,3 @@ int main()
 
     return (unit_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-

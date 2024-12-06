@@ -5,6 +5,7 @@
 #define ENABLE_TIMER
 
 #include "query/knn.h"
+#include "shard/VPTree.h"
 #include "file_util.h"
 #include "standard_benchmarks.h"
 
@@ -14,7 +15,9 @@
 
 
 typedef Word2VecRec Rec;
-typedef de::knn::Parms<Rec> QP;
+typedef de::VPTree<Rec, 100, true> Shard;
+typedef de::knn::Query<Shard> Q;
+typedef Q::Parameters QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
@@ -66,7 +69,7 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "[I] Running Query Benchmark\n");
     TIMER_START();
-    run_queries<MTree, QP>(mtree, queries);
+    run_queries<MTree, Q>(mtree, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();

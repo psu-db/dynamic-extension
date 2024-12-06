@@ -34,7 +34,7 @@ static std::string summa_wordlist = "tests/data/summa-wordlist.txt";
 
 static std::vector<std::unique_ptr<char[]>> string_data;
 
-static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
+[[maybe_unused]] static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
     std::vector<StringRec> vec;
     vec.reserve(n);
     string_data.reserve(n);
@@ -50,14 +50,14 @@ static std::vector<StringRec> read_string_data(std::string fname, size_t n) {
         std::string field;
 
         std::getline(ls, field, '\t');
-        auto val = atol(field.c_str());
+        uint64_t val = atol(field.c_str());
         std::getline(ls, field, '\n');
 
         char *c = strdup(field.c_str());
 
         string_data.push_back(std::unique_ptr<char[]>(c));
 
-        StringRec r(string_data[string_data.size() -1].get(), val, field.size());
+        StringRec r{string_data[string_data.size() -1].get(), val, field.size()};
         
         vec.push_back(r);
     }
@@ -76,7 +76,7 @@ std::vector<R> strip_wrapping(std::vector<de::Wrapped<R>> vec) {
     return out;
 }
 
-static bool initialize_test_file(std::string fname, size_t page_cnt)
+[[maybe_unused]] static bool initialize_test_file(std::string fname, size_t page_cnt)
 {
     auto flags = O_RDWR | O_CREAT | O_TRUNC;
     mode_t mode = 0640;
@@ -113,7 +113,7 @@ error:
     return 0;
 }
 
-static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
+[[maybe_unused]] static bool roughly_equal(int n1, int n2, size_t mag, double epsilon) {
     return ((double) std::abs(n1 - n2) / (double) mag) < epsilon;
 }
 

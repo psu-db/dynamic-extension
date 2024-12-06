@@ -26,6 +26,8 @@ namespace de {
 
 template <KVPInterface R>
 class FSTrie {
+public:
+    typedef R RECORD;
 private:
 
     typedef decltype(R::key) K;
@@ -80,7 +82,7 @@ public:
         delete[] temp_buffer;
     }
 
-    FSTrie(std::vector<FSTrie*> &shards) 
+    FSTrie(std::vector<FSTrie*> const &shards) 
         : m_data(nullptr)
         , m_reccnt(0)
         , m_alloc_size(0)

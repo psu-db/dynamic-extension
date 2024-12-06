@@ -19,8 +19,8 @@
 typedef btree_record<int64_t, int64_t> Rec;
 
 typedef de::ISAMTree<Rec> Shard;
-typedef de::irs::Query<Rec, Shard> Q;
-typedef de::irs::Parms<Rec> QP;
+typedef de::irs::Query<Shard> Q;
+typedef Q::Parameters QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
     TIMER_START();
-    run_btree_queries<Rec>(&btree, queries);
+    run_btree_queries<Rec, Q>(&btree, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();

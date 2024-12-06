@@ -269,7 +269,7 @@ static std::vector<R> read_binary_vector_file(std::string &fname, size_t n) {
     return records;
 }
 
-static std::vector<std::unique_ptr<char[]>>read_string_file(std::string fname, size_t n=10000000) {
+[[maybe_unused]] static std::vector<std::unique_ptr<char[]>>read_string_file(std::string fname, size_t n=10000000) {
 
     std::fstream file;
     file.open(fname, std::ios::in);

@@ -17,6 +17,9 @@
  */
 #pragma once
 
+#include "query/rangequery.h"
+#include <algorithm>
+
 /*
  * Uncomment these lines temporarily to remove errors in this file
  * temporarily for development purposes. They should be removed prior
@@ -24,26 +27,27 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-//#include "shard/ISAMTree.h"
-//#include "query/rangequery.h"
-//#include "testing.h"
-//#include <check.h>
-//using namespace de;
-//typedef ISAMTree<R> Shard;
+// #include "shard/ISAMTree.h"
+// #include "query/rangequery.h"
+// #include "testing.h"
+// #include <check.h>
+// using namespace de;
 
-#include "query/rangequery.h"
-
+// typedef Rec R;
+// typedef ISAMTree<R> Shard;
+// typedef rq::Query<ISAMTree<R>> Query;
 
 START_TEST(t_range_query)
 {
     auto buffer = create_sequential_mbuffer<R>(100, 1000);
     auto shard = Shard(buffer->get_buffer_view());
 
-    rq::Parms<R> parms = {300, 500};
+    rq::Query<Shard>::Parameters parms = {300, 500};
 
-    auto state = rq::Query<R, Shard>::get_query_state(&shard, &parms);
-    auto result = rq::Query<R, Shard>::query(&shard, state, &parms);
-    rq::Query<R, Shard>::delete_query_state(state);
+    auto local_query = rq::Query<Shard>::local_preproc(&shard, &parms);
+        
+    auto result = rq::Query<Shard>::local_query(&shard, local_query);
+    delete local_query;
 
     ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
     for (size_t i=0; i<result.size(); i++) {
@@ -60,13 +64,13 @@ START_TEST(t_buffer_range_query)
 {
     auto buffer = create_sequential_mbuffer<R>(100, 1000);
 
-    rq::Parms<R> parms = {300, 500};
+    rq::Query<Shard>::Parameters parms = {300, 500};
 
     {
         auto view = buffer->get_buffer_view();
-        auto state = rq::Query<R, Shard>::get_buffer_query_state(&view, &parms);
-        auto result = rq::Query<R, Shard>::buffer_query(state, &parms);
-        rq::Query<R, Shard>::delete_buffer_query_state(state);
+        auto query = rq::Query<Shard>::local_preproc_buffer(&view, &parms);
+        auto result = rq::Query<Shard>::local_query_buffer(query); 
+        delete query;
 
         ck_assert_int_eq(result.size(), parms.upper_bound - parms.lower_bound + 1);
         for (size_t i=0; i<result.size(); i++) {
@@ -88,19 +92,18 @@ START_TEST(t_range_query_merge)
     auto shard1 = Shard(buffer1->get_buffer_view());
     auto shard2 = Shard(buffer2->get_buffer_view());
 
-    rq::Parms<R> parms = {150, 500};
+    rq::Query<Shard>::Parameters parms = {150, 500};
 
     size_t result_size = parms.upper_bound - parms.lower_bound + 1 - 200;
 
-    auto state1 = rq::Query<R, Shard>::get_query_state(&shard1, &parms);
-    auto state2 = rq::Query<R, Shard>::get_query_state(&shard2, &parms);
+    auto query1 = rq::Query<Shard>::local_preproc(&shard1, &parms);
+    auto query2 = rq::Query<Shard>::local_preproc(&shard2, &parms);
 
-    std::vector<std::vector<de::Wrapped<R>>> results(2);
-    results[0] = rq::Query<R, Shard>::query(&shard1, state1, &parms);
-    results[1] = rq::Query<R, Shard>::query(&shard2, state2, &parms);
-
-    rq::Query<R, Shard>::delete_query_state(state1);
-    rq::Query<R, Shard>::delete_query_state(state2);
+    std::vector<std::vector<rq::Query<Shard>::LocalResultType>> results(2);
+    results[0] = rq::Query<Shard>::local_query(&shard1, query1);     
+    results[1] = rq::Query<Shard>::local_query(&shard2, query2); 
+    delete query1;
+    delete query2;
 
     ck_assert_int_eq(results[0].size() + results[1].size(), result_size);
 
@@ -113,8 +116,8 @@ START_TEST(t_range_query_merge)
         }
     }
 
-    std::vector<R> result;
-    rq::Query<R, Shard>::merge(proc_results, nullptr, result);
+    std::vector<rq::Query<Shard>::ResultType> result;
+    rq::Query<Shard>::combine(proc_results, nullptr, result);
     std::sort(result.begin(), result.end());
 
     ck_assert_int_eq(result.size(), result_size);
@@ -145,8 +148,6 @@ START_TEST(t_lower_bound)
     auto merged = Shard(shards);
 
     for (uint32_t i=100; i<1000; i++) {
-        R r = R{i, i};
-
         auto idx = merged.get_lower_bound(i);
 
         assert(idx < merged.get_record_count());

@@ -1,8 +1,8 @@
 /*
  * include/util/bf_config.h
  *
- * Copyright (C) 2023 Douglas B. Rumbaugh <drumbaugh@psu.edu> 
- *                    Dong Xie <dongx@psu.edu>
+ * Copyright (C) 2023-2024 Douglas B. Rumbaugh <drumbaugh@psu.edu>
+ *                         Dong Xie <dongx@psu.edu>
  *
  * Distributed under the Modified BSD License.
  *
@@ -26,19 +26,15 @@ static double BF_FPR = .01;
 static size_t BF_HASH_FUNCS = 7;
 
 /*
- * Adjust the value of BF_FPR. The argument must be on the interval 
+ * Adjust the value of BF_FPR. The argument must be on the interval
  * (0, 1), or the behavior of bloom filters is undefined.
  */
-static void BF_SET_FPR(double fpr) {
-    BF_FPR = fpr;
-}
+[[maybe_unused]] static void BF_SET_FPR(double fpr) { BF_FPR = fpr; }
 
 /*
  * Adjust the value of BF_HASH_FUNCS. The argument must be on the interval
  * (0, INT64_MAX], or the behavior of bloom filters is undefined.
  */
-static void BF_SET_HASHFUNC(size_t func_cnt) {
-    BF_HASH_FUNCS = func_cnt;
-}
+[[maybe_unused]] static void BF_SET_HASHFUNC(size_t func_cnt) { BF_HASH_FUNCS = func_cnt; }
 
-}
+} // namespace de

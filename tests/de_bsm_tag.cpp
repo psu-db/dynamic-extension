@@ -25,14 +25,14 @@ typedef Rec R;
 typedef ISAMTree<R> S;
 typedef rq::Query<S> Q;
 
-typedef DynamicExtension<S, Q, LayoutPolicy::BSM, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
+typedef DynamicExtension<S, Q, LayoutPolicy::BSM, DeletePolicy::TAGGING, SerialScheduler> DE;
 
 #include "include/dynamic_extension.h"
 
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("DynamicExtension: Tombstone BSM Testing");
+    Suite *unit = suite_create("DynamicExtension: Tagging BSM Testing");
     inject_dynamic_extension_tests(unit);
 
     return unit;

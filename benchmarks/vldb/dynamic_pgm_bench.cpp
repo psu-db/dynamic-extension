@@ -14,9 +14,11 @@
 
 #include "psu-util/timer.h"
 
-
 typedef de::Record<uint64_t, uint64_t> Rec;
-typedef de::rc::Parms<Rec> QP;
+
+typedef de::ISAMTree<Rec> Shard;
+typedef de::rc::Query<Shard> Q;
+typedef Q::Parameters QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
@@ -62,7 +64,7 @@ int main(int argc, char **argv) {
     size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
     TIMER_START();
-    run_queries<PGM, QP>(&pgm, queries);
+    run_queries<PGM, Q>(&pgm, queries);
     TIMER_STOP();
 
     auto query_latency = TIMER_RESULT() / queries.size();

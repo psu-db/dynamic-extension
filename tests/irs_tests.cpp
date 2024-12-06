@@ -1,7 +1,8 @@
 /*
- * tests/de_level_tomb.cpp
+ * tests/rangequery_tests.cpp
  *
- * Unit tests for Dynamic Extension Framework
+ * Unit tests for Range Queries across several different
+ * shards
  *
  * Copyright (C) 2023 Douglas Rumbaugh <drumbaugh@psu.edu> 
  *                    Dong Xie <dongx@psu.edu>
@@ -9,35 +10,27 @@
  * Distributed under the Modified BSD License.
  *
  */
-#include <set>
-#include <random>
-#include <algorithm>
 
-#include "include/testing.h"
-#include "framework/DynamicExtension.h"
 #include "shard/ISAMTree.h"
 #include "query/rangequery.h"
+#include "include/testing.h"
 
 #include <check.h>
+
 using namespace de;
 
 typedef Rec R;
-typedef ISAMTree<R> S;
-typedef rq::Query<S> Q;
+typedef ISAMTree<R> Shard;
 
-typedef DynamicExtension<S, Q, LayoutPolicy::BSM, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
-
-#include "include/dynamic_extension.h"
-
+#include "include/irs.h"
 
 Suite *unit_testing()
 {
-    Suite *unit = suite_create("DynamicExtension: Tombstone BSM Testing");
-    inject_dynamic_extension_tests(unit);
+    Suite *unit = suite_create("Independent Range Sampling Query Testing");
+    inject_irs_tests(unit);
 
     return unit;
 }
-
 
 int shard_unit_tests()
 {
@@ -56,6 +49,7 @@ int shard_unit_tests()
 int main() 
 {
     int unit_failed = shard_unit_tests();
+    gsl_rng_free(g_rng);
 
     return (unit_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

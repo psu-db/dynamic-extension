@@ -30,6 +30,8 @@ namespace de {
 
 template <KVPInterface R, size_t E=1024>
 class TrieSpline {
+public:
+    typedef R RECORD;
 private:
     typedef decltype(R::key) K;
     typedef decltype(R::value) V;
@@ -122,7 +124,7 @@ public:
         }
     }
 
-    TrieSpline(std::vector<TrieSpline*> &shards) 
+    TrieSpline(std::vector<TrieSpline*> const &shards) 
         : m_reccnt(0)
         , m_tombstone_cnt(0)
         , m_alloc_size(0)

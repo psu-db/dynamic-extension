@@ -17,12 +17,16 @@
 #include "framework/DynamicExtension.h"
 #include "shard/ISAMTree.h"
 #include "query/rangequery.h"
+#include "framework/scheduling//FIFOScheduler.h"
 
 #include <check.h>
 using namespace de;
 
 typedef Rec R;
-typedef DynamicExtension<R, ISAMTree<R>, rq::Query<R, ISAMTree<R>>, LayoutPolicy::TEIRING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
+typedef ISAMTree<R> S;
+typedef rq::Query<S> Q;
+
+typedef DynamicExtension<S, Q, LayoutPolicy::TEIRING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
 
 #include "include/concurrent_extension.h"
 

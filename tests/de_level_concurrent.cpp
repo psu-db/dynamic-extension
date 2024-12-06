@@ -22,7 +22,10 @@
 using namespace de;
 
 typedef Rec R;
-typedef DynamicExtension<R, ISAMTree<R>, rq::Query<R, ISAMTree<R>>, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, FIFOScheduler> DE;
+typedef ISAMTree<R> S;
+typedef rq::Query<S> Q;
+
+typedef DynamicExtension<S, Q, LayoutPolicy::LEVELING, DeletePolicy::TOMBSTONE, SerialScheduler> DE;
 
 #include "include/concurrent_extension.h"
 

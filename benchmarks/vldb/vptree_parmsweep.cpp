@@ -19,10 +19,10 @@
 typedef Word2VecRec Rec;
 
 typedef de::VPTree<Rec, 100, true> Shard;
-typedef de::knn::Query<Rec, Shard> Q;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
-typedef de::DynamicExtension<Rec, Shard, Q, de::LayoutPolicy::LEVELING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext2;
-typedef de::knn::Parms<Rec> QP;
+typedef de::knn::Query<Shard> Q;
+typedef de::DynamicExtension<Shard, Q, de::LayoutPolicy::TEIRING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext;
+typedef de::DynamicExtension<Shard, Q, de::LayoutPolicy::LEVELING, de::DeletePolicy::TAGGING, de::SerialScheduler> Ext2;
+typedef Q::Parameters QP;
 
 void usage(char *progname) {
     fprintf(stderr, "%s reccnt datafile queryfile\n", progname);
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
             size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
             TIMER_START();
-            run_queries<Ext, QP>(extension, queries);
+            run_queries<Ext, Q>(extension, queries);
             TIMER_STOP();
 
             auto query_latency = TIMER_RESULT() / queries.size();
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
             size_t insert_throughput = (size_t) ((double) (n - warmup) / (double) insert_latency * 1e9);
 
             TIMER_START();
-            run_queries<Ext2, QP>(extension, queries);
+            run_queries<Ext2, Q>(extension, queries);
             TIMER_STOP();
 
             auto query_latency = TIMER_RESULT() / queries.size();

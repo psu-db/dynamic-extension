@@ -1,5 +1,5 @@
 /*
- * tests/include/rangecount.h
+ * tests/include/rangequery.h
  *
  * Standardized unit tests for range queries against supporting
  * shard types
@@ -17,6 +17,9 @@
  */
 #pragma once
 
+#include "query/rangecount.h"
+#include <algorithm>
+
 /*
  * Uncomment these lines temporarily to remove errors in this file
  * temporarily for development purposes. They should be removed prior
@@ -24,30 +27,29 @@
  * should be included in the source file that includes this one, above the
  * include statement.
  */
-//#include "shard/ISAMTree.h"
-//#include "query/rangecount.h"
-//#include "testing.h"
-//#include <check.h>
-//using namespace de;
-//typedef ISAMTree<R> Shard;
+// #include "shard/ISAMTree.h"
+// #include "query/rangequery.h"
+// #include "testing.h"
+// #include <check.h>
+// using namespace de;
 
-
-#include "query/rangecount.h"
+// typedef Rec R;
+// typedef ISAMTree<R> Shard;
+// typedef rc::Query<ISAMTree<R>> Query;
 
 START_TEST(t_range_count)
 {
-    
     auto buffer = create_sequential_mbuffer<R>(100, 1000);
     auto shard = Shard(buffer->get_buffer_view());
 
-    rc::Parms<R> parms = {300, 500};
+    rc::Query<Shard>::Parameters parms = {300, 500};
 
-    auto state = rc::Query<R, Shard>::get_query_state(&shard, &parms);
-    auto result = rc::Query<R, Shard>::query(&shard, state, &parms);
-    rc::Query<R, Shard>::delete_query_state(state);
+    auto local_query = rc::Query<Shard>::local_preproc(&shard, &parms);
+        
+    auto result = rc::Query<Shard>::local_query(&shard, local_query);
+    delete local_query;
 
-    ck_assert_int_eq(result.size(), 1);
-    ck_assert_int_eq(result[0].rec.key, parms.upper_bound - parms.lower_bound + 1);
+    ck_assert_int_eq(result[0].record_count - result[0].tombstone_count, parms.upper_bound - parms.lower_bound + 1);
 
     delete buffer;
 }
@@ -58,16 +60,15 @@ START_TEST(t_buffer_range_count)
 {
     auto buffer = create_sequential_mbuffer<R>(100, 1000);
 
-    rc::Parms<R> parms = {300, 500};
+    rc::Query<Shard>::Parameters parms = {300, 500};
 
     {
         auto view = buffer->get_buffer_view();
-        auto state = rc::Query<R, Shard>::get_buffer_query_state(&view, &parms);
-        auto result = rc::Query<R, Shard>::buffer_query(state, &parms);
-        rc::Query<R, Shard>::delete_buffer_query_state(state);
+        auto query = rc::Query<Shard>::local_preproc_buffer(&view, &parms);
+        auto result = rc::Query<Shard>::local_query_buffer(query); 
+        delete query;
 
-        ck_assert_int_eq(result.size(), 1);
-        ck_assert_int_eq(result[0].rec.key, parms.upper_bound - parms.lower_bound + 1);
+        ck_assert_int_eq(result[0].record_count - result[0].tombstone_count, parms.upper_bound - parms.lower_bound + 1);
     }
 
     delete buffer;
@@ -83,66 +84,31 @@ START_TEST(t_range_count_merge)
     auto shard1 = Shard(buffer1->get_buffer_view());
     auto shard2 = Shard(buffer2->get_buffer_view());
 
-    rc::Parms<R> parms = {150, 500};
+    rc::Query<Shard>::Parameters parms = {150, 500};
 
     size_t result_size = parms.upper_bound - parms.lower_bound + 1 - 200;
 
-    auto state1 = rc::Query<R, Shard>::get_query_state(&shard1, &parms);
-    auto state2 = rc::Query<R, Shard>::get_query_state(&shard2, &parms);
+    auto query1 = rc::Query<Shard>::local_preproc(&shard1, &parms);
+    auto query2 = rc::Query<Shard>::local_preproc(&shard2, &parms);
 
-    std::vector<std::vector<de::Wrapped<R>>> results(2);
-    results[0] = rc::Query<R, Shard>::query(&shard1, state1, &parms);
-    results[1] = rc::Query<R, Shard>::query(&shard2, state2, &parms);
+    std::vector<std::vector<rc::Query<Shard>::LocalResultType>> results(2);
+    results[0] = rc::Query<Shard>::local_query(&shard1, query1);     
+    results[1] = rc::Query<Shard>::local_query(&shard2, query2); 
+    delete query1;
+    delete query2;
 
-    rc::Query<R, Shard>::delete_query_state(state1);
-    rc::Query<R, Shard>::delete_query_state(state2);
+    size_t reccnt = results[0][0].record_count + results[1][0].record_count;
+    size_t tscnt = results[0][0].tombstone_count + results[1][0].tombstone_count;
 
-    ck_assert_int_eq(results[0].size(), 1);
-    ck_assert_int_eq(results[1].size(), 1);
+    ck_assert_int_eq(reccnt - tscnt, result_size);
 
-    std::vector<R> result;
-    rc::Query<R, Shard>::merge(results, nullptr, result);
+    std::vector<rc::Query<Shard>::ResultType> result;
+    rc::Query<Shard>::combine(results, nullptr, result);
 
-    ck_assert_int_eq(result[0].key, result_size);
-
-    delete buffer1;
-    delete buffer2;
-}
-END_TEST
-
-
-START_TEST(t_lower_bound)
-{
-    auto buffer1 = create_sequential_mbuffer<R>(100, 200);
-    auto buffer2 = create_sequential_mbuffer<R>(400, 1000);
-
-    auto shard1 = new Shard(buffer1->get_buffer_view());
-    auto shard2 = new Shard(buffer2->get_buffer_view());
-
-    std::vector<Shard*> shards = {shard1, shard2};
-
-    auto merged = Shard(shards);
-
-    for (uint32_t i=100; i<1000; i++) {
-        R r = R{i, i};
-
-        auto idx = merged.get_lower_bound(i);
-
-        assert(idx < merged.get_record_count());
-
-        auto res = merged.get_record_at(idx);
-
-        if (i >=200 && i <400) {
-            ck_assert_int_lt(res->rec.key, i);
-        } else {
-            ck_assert_int_eq(res->rec.key, i);
-        }
-    }
+    ck_assert_int_eq(result[0], result_size);
 
     delete buffer1;
     delete buffer2;
-    delete shard1;
-    delete shard2;
 }
 END_TEST
 

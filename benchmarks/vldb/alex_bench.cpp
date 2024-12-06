@@ -33,7 +33,6 @@ static void insert_records(Alex *structure, size_t start, size_t stop,
                            size_t &delete_idx, bool delete_records, gsl_rng *rng) {
 
     psudb::progress_update(0, "Insert Progress");
-    size_t reccnt = 0;
     for (size_t i=start; i<stop; i++) {
         structure->insert(records[i].key, records[i].value);
 
